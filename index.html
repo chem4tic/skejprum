@@ -48,7 +48,7 @@
     const raw = await res.text();
  
     const { code } = Babel.transform(raw, {
-      presets: ["react"],
+      presets: [["react", { runtime: "classic" }]],
       sourceType: "module",
       filename: "escape-room-tracker.jsx",
     });
