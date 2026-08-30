@@ -15,14 +15,13 @@
 </style>
  
 <!-- Gives us Babel.transform() to strip JSX from escape-room-tracker.jsx at
-     runtime. We call it ourselves below rather than relying on Babel's
-     automatic "external src + module" scanning, which turned out to be
-     unreliable across browsers. -->
+     runtime. -->
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
  
 <!-- Maps the bare import specifiers used inside escape-room-tracker.jsx
-     (react, react-dom/client, lucide-react) to real CDN modules. Applies to
-     every module in this page, including the one we build below. -->
+     (react, lucide-react) and below (react, react-dom/client) to real CDN
+     modules. Applies to every module in this page, including ones we
+     construct dynamically below. -->
 <script type="importmap">
 {
   "imports": {
@@ -36,33 +35,53 @@
 <body>
 <div id="escape-log-root"><div class="boot-loader">opening the door…</div></div>
  
-<!-- The app itself lives entirely in escape-room-tracker.jsx — edit that
-     file, nothing here should need to change. This script fetches it,
-     transforms the JSX with Babel, then runs the result as a genuine ES
-     module (so its import statements resolve via the import map above). -->
+<!-- The app's component code lives entirely in escape-room-tracker.jsx —
+     edit that file, nothing here should need to change. This script fetches
+     it, transforms the JSX with Babel, imports the result as a real ES
+     module, and mounts the component it exports. Every step logs to the
+     console so a failure anywhere is visible instead of silent. -->
 <script type="module">
+  import React from "react";
+  import { createRoot } from "react-dom/client";
+ 
   const mount = document.getElementById("escape-log-root");
+ 
+  function showError(label, err) {
+    console.error(label, err);
+    mount.innerHTML =
+      '<div class="boot-loader">' + label + ' — check the browser console for details.</div>';
+  }
+ 
   try {
+    console.log("[EscapeLog] fetching escape-room-tracker.jsx…");
     const res = await fetch("./escape-room-tracker.jsx");
-    if (!res.ok) throw new Error(`Fetching escape-room-tracker.jsx failed: HTTP ${res.status}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status} fetching escape-room-tracker.jsx`);
     const raw = await res.text();
+    console.log("[EscapeLog] fetched, length:", raw.length);
  
     const { code } = Babel.transform(raw, {
       presets: [["react", { runtime: "classic" }]],
       sourceType: "module",
       filename: "escape-room-tracker.jsx",
     });
+    console.log("[EscapeLog] Babel transform complete, length:", code.length);
  
     const blob = new Blob([code], { type: "text/javascript" });
     const url = URL.createObjectURL(blob);
-    await import(url);
+ 
+    const mod = await import(/* @vite-ignore */ url);
     URL.revokeObjectURL(url);
-    // escape-room-tracker.jsx self-mounts into #escape-log-root once its
-    // module body finishes running — nothing further needed here.
+    console.log("[EscapeLog] module imported:", mod);
+ 
+    const App = mod.default;
+    if (typeof App !== "function") {
+      throw new Error("escape-room-tracker.jsx has no default export component");
+    }
+ 
+    createRoot(mount).render(React.createElement(App));
+    console.log("[EscapeLog] mounted successfully");
   } catch (err) {
-    console.error("Failed to load The Escape Log:", err);
-    mount.innerHTML =
-      '<div class="boot-loader">Something went wrong loading the app — check the browser console for details.</div>';
+    showError("Failed to load The Escape Log", err);
   }
 </script>
 </body>
