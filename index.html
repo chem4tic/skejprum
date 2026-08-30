@@ -10,16 +10,19 @@
   #escape-log-root { min-height: 100vh; }
   .boot-loader {
     min-height: 100vh; display: flex; align-items: center; justify-content: center;
-    color: #8d92a3; font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+    color: #8d92a3; font-family: 'IBM Plex Mono', monospace; font-size: 13px; text-align: center; padding: 0 20px;
   }
 </style>
  
-<!-- In-browser JSX transform. This lets index.html load escape-room-tracker.jsx
-     directly, with no separate build step (npm/Vite/etc). -->
+<!-- Gives us Babel.transform() to strip JSX from escape-room-tracker.jsx at
+     runtime. We call it ourselves below rather than relying on Babel's
+     automatic "external src + module" scanning, which turned out to be
+     unreliable across browsers. -->
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
  
 <!-- Maps the bare import specifiers used inside escape-room-tracker.jsx
-     (react, react-dom/client, lucide-react) to real CDN modules. -->
+     (react, react-dom/client, lucide-react) to real CDN modules. Applies to
+     every module in this page, including the one we build below. -->
 <script type="importmap">
 {
   "imports": {
@@ -33,12 +36,34 @@
 <body>
 <div id="escape-log-root"><div class="boot-loader">opening the door…</div></div>
  
-<!-- The app itself lives entirely in escape-room-tracker.jsx — edit that file,
-     nothing here needs to change. Babel fetches it, strips the JSX, and runs
-     it as an ES module (data-type="module" keeps the import/export statements
-     working via the import map above). Requires being served over http(s)
-     (e.g. GitHub Pages) — opening this file directly as file:// won't work
-     because the browser blocks the fetch of the .jsx file. -->
-<script type="text/babel" data-type="module" data-presets="react" src="./escape-room-tracker.jsx"></script>
+<!-- The app itself lives entirely in escape-room-tracker.jsx — edit that
+     file, nothing here should need to change. This script fetches it,
+     transforms the JSX with Babel, then runs the result as a genuine ES
+     module (so its import statements resolve via the import map above). -->
+<script type="module">
+  const mount = document.getElementById("escape-log-root");
+  try {
+    const res = await fetch("./escape-room-tracker.jsx");
+    if (!res.ok) throw new Error(`Fetching escape-room-tracker.jsx failed: HTTP ${res.status}`);
+    const raw = await res.text();
+ 
+    const { code } = Babel.transform(raw, {
+      presets: ["react"],
+      sourceType: "module",
+      filename: "escape-room-tracker.jsx",
+    });
+ 
+    const blob = new Blob([code], { type: "text/javascript" });
+    const url = URL.createObjectURL(blob);
+    await import(url);
+    URL.revokeObjectURL(url);
+    // escape-room-tracker.jsx self-mounts into #escape-log-root once its
+    // module body finishes running — nothing further needed here.
+  } catch (err) {
+    console.error("Failed to load The Escape Log:", err);
+    mount.innerHTML =
+      '<div class="boot-loader">Something went wrong loading the app — check the browser console for details.</div>';
+  }
+</script>
 </body>
 </html>
