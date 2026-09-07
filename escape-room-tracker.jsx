@@ -38,8 +38,16 @@ function getFirebaseHandle() {
       const { getFirestore, doc, setDoc, onSnapshot } = await import(
         "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js"
       );
+      const { getAuth, signInAnonymously } = await import(
+        "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js"
+      );
       const app = initializeApp(FIREBASE_CONFIG);
       const db = getFirestore(app);
+      // The Firestore rules require a signed-in request (see firestore.rules).
+      // Anonymous auth gives every visitor an invisible sign-in with no
+      // login screen — it scopes access to just this app, not to any
+      // particular person.
+      await signInAnonymously(getAuth(app));
       const ref = doc(db, ...FIREBASE_DOC_PATH);
       return { setDoc, onSnapshot, ref };
     })();
@@ -58,6 +66,25 @@ async function storageSet(key, value, shared) {
   if (hasClaudeStorage) return window.storage.set(key, value, shared);
   window.localStorage.setItem(key, value);
   return { key, value, shared };
+}
+ 
+/* ---------------------------------------------------------------
+   PASSWORDS
+   Each crew member's password is hashed (SHA-256, salted) with the
+   Web Crypto API before it's ever written anywhere — only the salt
+   and resulting hash are stored, in the same shared data doc as the
+   rooms. The plaintext password never leaves the browser it was
+   typed in, and never appears in the app's code.
+--------------------------------------------------------------- */
+function randomSalt() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+async function hashPassword(password, salt) {
+  const bytes = new TextEncoder().encode(`${salt}:${password}`);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
  
 /* ---------------------------------------------------------------
@@ -198,7 +225,7 @@ const LOCKME_TOP_ROOMS = [
   ["Rycerski", "Warszawa"], ["Piracka Skrzynia Umarlaka", "Gdynia"],
 ];
  
-function emptyRoom() {
+function emptyRoom(addedBy) {
   return {
     id: uid(),
     name: "",
@@ -210,12 +237,13 @@ function emptyRoom() {
     lockmeUrl: "",
     status: "wishlist", // 'wishlist' | 'played'
     datePlayed: "",
-    result: "unknown", // 'escaped' | 'not-escaped' | 'unknown'
+    result: "escaped", // 'escaped' | 'not-escaped'
     timeNote: "",
     photos: [],
     ratings: {},
     notes: {},
     walkthrough: "",
+    addedBy: addedBy || null,
     createdAt: Date.now(),
   };
 }
@@ -236,7 +264,7 @@ function fmtRating(n) {
 export default function EscapeRoomTracker() {
   const [loading, setLoading] = useState(true);
   const [saveError, setSaveError] = useState(null);
-  const [data, setData] = useState({ rooms: [] });
+  const [data, setData] = useState({ rooms: [], auth: {} });
   const [currentMember, setCurrentMember] = useState(null);
   const [view, setView] = useState("dashboard");
   const [selectedRoomId, setSelectedRoomId] = useState(null);
@@ -252,7 +280,7 @@ export default function EscapeRoomTracker() {
     if (hasClaudeStorage) {
       (async () => {
         try {
-          let loaded = { rooms: [] };
+          let loaded = { rooms: [], auth: {} };
           try {
             const res = await storageGet(STORAGE_KEY, true);
             if (res && res.value) loaded = JSON.parse(res.value);
@@ -273,7 +301,7 @@ export default function EscapeRoomTracker() {
           unsubscribeFirestore = onSnapshot(
             ref,
             (snap) => {
-              setData(snap.exists() ? snap.data() : { rooms: [] });
+              setData(snap.exists() ? snap.data() : { rooms: [], auth: {} });
               setLoading(false);
               setSaveError(null);
             },
@@ -330,6 +358,30 @@ export default function EscapeRoomTracker() {
     }
   };
  
+  const createPassword = async (name, password) => {
+    const salt = randomSalt();
+    const hash = await hashPassword(password, salt);
+    await persist({ ...data, auth: { ...(data.auth || {}), [name]: { salt, hash } } });
+  };
+ 
+  const verifyPassword = async (name, password) => {
+    const record = data.auth && data.auth[name];
+    if (!record) return false;
+    const hash = await hashPassword(password, record.salt);
+    return hash === record.hash;
+  };
+ 
+  const changePassword = async (name, currentPassword, newPassword) => {
+    const record = data.auth && data.auth[name];
+    if (!record) return false;
+    const currentHash = await hashPassword(currentPassword, record.salt);
+    if (currentHash !== record.hash) return false;
+    const salt = randomSalt();
+    const hash = await hashPassword(newPassword, salt);
+    await persist({ ...data, auth: { ...(data.auth || {}), [name]: { salt, hash } } });
+    return true;
+  };
+ 
   const saveRoom = (room) => {
     const exists = data.rooms.some((r) => r.id === room.id);
     const rooms = exists ? data.rooms.map((r) => (r.id === room.id ? room : r)) : [room, ...data.rooms];
@@ -381,7 +433,15 @@ export default function EscapeRoomTracker() {
  
   // ---- device hasn't picked "who am I" ----
   if (!currentMember || !MEMBERS.includes(currentMember)) {
-    return <WhoAmI members={MEMBERS} onChoose={chooseMember} />;
+    return (
+      <WhoAmI
+        members={MEMBERS}
+        authRecords={data.auth}
+        onChoose={chooseMember}
+        onCreatePassword={createPassword}
+        onVerifyPassword={verifyPassword}
+      />
+    );
   }
  
   return (
@@ -391,7 +451,7 @@ export default function EscapeRoomTracker() {
       <Header
         currentMember={currentMember}
         onSwitchMember={() => chooseMember(null)}
-        onAdd={() => { setEditingRoom(emptyRoom()); setView("edit-room"); }}
+        onAdd={() => { setEditingRoom(emptyRoom(currentMember)); setView("edit-room"); }}
       />
  
       {saveError && (
@@ -426,7 +486,7 @@ export default function EscapeRoomTracker() {
         {view === "ranking" && <RankingView rooms={playedRooms} members={MEMBERS} onOpen={(id) => { setSelectedRoomId(id); setReturnView("ranking"); setView("room-detail"); }} />}
  
         {view === "settings" && (
-          <SettingsView members={MEMBERS} currentMember={currentMember} />
+          <SettingsView members={MEMBERS} currentMember={currentMember} onChangePassword={changePassword} rooms={data.rooms} />
         )}
  
         {view === "edit-room" && editingRoom && (
@@ -456,7 +516,112 @@ export default function EscapeRoomTracker() {
 /* ---------------------------------------------------------------
    WHO AM I
 --------------------------------------------------------------- */
-function WhoAmI({ members, onChoose }) {
+function WhoAmI({ members, authRecords, onChoose, onCreatePassword, onVerifyPassword }) {
+  const [selected, setSelected] = useState(null);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+ 
+  const hasPassword = (name) => !!(authRecords && authRecords[name]);
+ 
+  const selectMember = (name) => {
+    setSelected(name);
+    setPassword("");
+    setConfirmPassword("");
+    setError("");
+  };
+  const cancel = () => {
+    setSelected(null);
+    setPassword("");
+    setConfirmPassword("");
+    setError("");
+  };
+ 
+  const submitCreate = async () => {
+    if (password.length < 4) { setError("Use at least 4 characters."); return; }
+    if (password !== confirmPassword) { setError("Passwords don't match."); return; }
+    setBusy(true);
+    setError("");
+    try {
+      await onCreatePassword(selected, password);
+      onChoose(selected);
+    } catch (e) {
+      setError("Couldn't set the password — try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+ 
+  const submitVerify = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const ok = await onVerifyPassword(selected, password);
+      if (ok) onChoose(selected);
+      else setError("Wrong password.");
+    } catch (e) {
+      setError("Couldn't check the password — try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+ 
+  if (selected) {
+    const isNew = !hasPassword(selected);
+    return (
+      <div className="ert-root" style={{ minHeight: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <style>{TOKENS}</style>
+        <div className="ert-card" style={{ padding: 28, maxWidth: 380, width: "100%" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <Lock size={20} color="var(--brass)" />
+            <div className="ert-display" style={{ fontSize: 20, fontWeight: 700 }}>
+              {isNew ? `Set a password, ${selected}` : `Welcome back, ${selected}`}
+            </div>
+          </div>
+          <p style={{ fontSize: 13.5, color: "var(--text-dim)", marginTop: 4, marginBottom: 18 }}>
+            {isNew
+              ? "First time logging in as you — pick a password you'll use each time."
+              : "Enter your password to continue."}
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+            <input
+              type="password"
+              className="ert-input"
+              placeholder="Password"
+              value={password}
+              autoFocus
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !isNew) submitVerify(); }}
+            />
+            {isNew && (
+              <input
+                type="password"
+                className="ert-input"
+                placeholder="Repeat password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") submitCreate(); }}
+              />
+            )}
+          </div>
+          {error && <div style={{ color: "var(--danger)", fontSize: 12.5, marginTop: 8 }}>{error}</div>}
+          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+            <button
+              className="ert-btn ert-btn-brass"
+              disabled={busy}
+              style={{ flex: 1, justifyContent: "center", opacity: busy ? 0.6 : 1 }}
+              onClick={isNew ? submitCreate : submitVerify}
+            >
+              <Check size={15} /> {isNew ? "Set password" : "Unlock"}
+            </button>
+            <button className="ert-btn ert-btn-ghost" onClick={cancel}>Back</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+ 
   return (
     <div className="ert-root" style={{ minHeight: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <style>{TOKENS}</style>
@@ -466,7 +631,7 @@ function WhoAmI({ members, onChoose }) {
           <div className="ert-display" style={{ fontSize: 20, fontWeight: 700 }}>Who's playing?</div>
         </div>
         <p style={{ fontSize: 13.5, color: "var(--text-dim)", marginTop: 4, marginBottom: 18 }}>
-          Pick your name so your ratings and notes are logged under you on this device.
+          Pick your name — first time, you'll set a password; after that, you'll enter it each time.
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {members.map((m) => (
@@ -474,7 +639,7 @@ function WhoAmI({ members, onChoose }) {
               key={m}
               className="ert-btn ert-btn-ghost"
               style={{ justifyContent: "flex-start" }}
-              onClick={() => onChoose(m)}
+              onClick={() => selectMember(m)}
             >
               {m}
             </button>
@@ -873,24 +1038,38 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [myRating, setMyRating] = useState(room.ratings[currentMember] || 0);
   const [myNote, setMyNote] = useState(room.notes[currentMember] || "");
+  const [noteSaved, setNoteSaved] = useState(false);
+  const [editingNote, setEditingNote] = useState(false);
   const [newPhotoUrl, setNewPhotoUrl] = useState("");
   const [walkthrough, setWalkthrough] = useState(room.walkthrough || "");
+  const [walkthroughSaved, setWalkthroughSaved] = useState(false);
+  const [editingWalkthrough, setEditingWalkthrough] = useState(false);
  
   useEffect(() => {
     setMyRating(room.ratings[currentMember] || 0);
     setMyNote(room.notes[currentMember] || "");
     setWalkthrough(room.walkthrough || "");
+    setNoteSaved(false);
+    setWalkthroughSaved(false);
+    setEditingNote(false);
+    setEditingWalkthrough(false);
   }, [room.id, currentMember]);
  
   const saveMyRating = (val) => {
     setMyRating(val);
     onUpdate({ ratings: { ...room.ratings, [currentMember]: val } });
   };
+  const noteDirty = myNote !== (room.notes[currentMember] || "");
   const saveMyNote = () => {
     onUpdate({ notes: { ...room.notes, [currentMember]: myNote } });
+    setNoteSaved(true);
+    setTimeout(() => setNoteSaved(false), 1500);
   };
+  const walkthroughDirty = walkthrough !== (room.walkthrough || "");
   const saveWalkthrough = () => {
     onUpdate({ walkthrough });
+    setWalkthroughSaved(true);
+    setTimeout(() => setWalkthroughSaved(false), 1500);
   };
   const addPhoto = () => {
     if (!newPhotoUrl.trim()) return;
@@ -901,7 +1080,11 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
     onUpdate({ photos: room.photos.filter((_, i) => i !== idx) });
   };
   const markPlayed = () => {
-    onUpdate({ status: "played", datePlayed: room.datePlayed || new Date().toISOString().slice(0, 10) });
+    onUpdate({
+      status: "played",
+      datePlayed: room.datePlayed || new Date().toISOString().slice(0, 10),
+      result: room.result === "not-escaped" ? "not-escaped" : "escaped",
+    });
   };
  
   const avg = avgRating(room);
@@ -967,46 +1150,89 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
  
       {room.status === "played" && (
         <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
-          <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Your rating &amp; notes</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+          <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Rating &amp; notes</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+            <span style={{ fontSize: 12, color: "var(--text-dim)", width: 72 }}>Your rating</span>
             {Array.from({ length: 10 }).map((_, i) => (
               <Star
                 key={i}
-                size={19}
+                size={17}
                 className="ert-star-btn"
                 onClick={() => saveMyRating(i + 1)}
                 fill={i < myRating ? "var(--brass)" : "none"}
                 color={i < myRating ? "var(--brass)" : "var(--border)"}
               />
             ))}
-            <span className="ert-mono" style={{ fontSize: 13, color: "var(--text-dim)", marginLeft: 4 }}>{myRating || "—"}/10</span>
+            <span className="ert-mono" style={{ fontSize: 12.5, color: "var(--text-dim)", marginLeft: 4 }}>{myRating || "—"}/10</span>
           </div>
-          <textarea
-            className="ert-textarea"
-            rows={4}
-            placeholder="Your impressions — puzzle quality, story, scares, whether it's worth recommending…"
-            value={myNote}
-            onChange={(e) => setMyNote(e.target.value)}
-            onBlur={saveMyNote}
-          />
  
-          <div style={{ marginTop: 18 }}>
-            <div className="ert-display" style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 10 }}>Everyone's notes</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {members.map((m) => (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {members.map((m) => {
+              const isMe = m === currentMember;
+              const isEditingThis = isMe && editingNote;
+              return (
                 <div key={m} style={{ background: "var(--surface-raised)", borderRadius: 8, padding: "10px 12px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span style={{ fontSize: 12.5, fontWeight: 600 }}>{m}</span>
-                    {typeof room.ratings[m] === "number" && (
-                      <span className="ert-mono" style={{ fontSize: 12, color: "var(--brass)" }}>{room.ratings[m]}/10</span>
-                    )}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isEditingThis ? 8 : 4 }}>
+                    <span
+                      className={isMe ? "ert-star-btn" : undefined}
+                      onClick={isMe ? () => setEditingNote((v) => !v) : undefined}
+                      title={isMe ? "Click to edit your note" : undefined}
+                      style={{ fontSize: 12.5, fontWeight: 600, cursor: isMe ? "pointer" : "default", color: isMe ? "var(--brass-bright)" : "var(--text)" }}
+                    >
+                      {m}{isMe ? "  (you)" : ""}
+                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {typeof room.ratings[m] === "number" && (
+                        <span className="ert-mono" style={{ fontSize: 12, color: "var(--brass)" }}>{room.ratings[m]}/10</span>
+                      )}
+                      {isMe && !isEditingThis && (
+                        <button
+                          className="ert-btn ert-btn-ghost"
+                          style={{ padding: "2px 8px", fontSize: 11.5 }}
+                          onClick={() => setEditingNote(true)}
+                        >
+                          <Edit2 size={11} /> Edit
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12.5, color: room.notes[m] ? "var(--text)" : "var(--text-dim)", fontStyle: room.notes[m] ? "normal" : "italic" }}>
-                    {room.notes[m] || "No notes yet."}
-                  </div>
+ 
+                  {isEditingThis ? (
+                    <>
+                      <textarea
+                        className="ert-textarea"
+                        rows={4}
+                        placeholder="Your impressions — puzzle quality, story, scares, whether it's worth recommending…"
+                        value={myNote}
+                        autoFocus
+                        onChange={(e) => setMyNote(e.target.value)}
+                      />
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+                        <button
+                          className="ert-btn ert-btn-brass"
+                          disabled={!noteDirty}
+                          style={{ opacity: noteDirty ? 1 : 0.5 }}
+                          onClick={() => { saveMyNote(); setEditingNote(false); }}
+                        >
+                          <Check size={14} /> Save note
+                        </button>
+                        <button
+                          className="ert-btn ert-btn-ghost"
+                          onClick={() => { setMyNote(room.notes[currentMember] || ""); setEditingNote(false); }}
+                        >
+                          Cancel
+                        </button>
+                        {noteSaved && <span style={{ fontSize: 12, color: "var(--success)" }}>Saved.</span>}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ fontSize: 12.5, color: room.notes[m] ? "var(--text)" : "var(--text-dim)", fontStyle: room.notes[m] ? "normal" : "italic", whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
+                      {room.notes[m] || (isMe ? "No notes yet — click your name above to add some." : "No notes yet.")}
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -1015,16 +1241,51 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
         <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
           <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Walkthrough</div>
           <p style={{ fontSize: 11.5, color: "var(--text-dim)", marginBottom: 10 }}>
-            Shared by the whole crew — jot down the solve path, hints used, or tips for a replay. Anyone can add to or edit this.
+            Shared by the whole crew — click to add or edit the solve path, hints used, or tips for a replay.
           </p>
-          <textarea
-            className="ert-textarea"
-            rows={6}
-            placeholder="Step through how you solved it — puzzle order, hint usage, anything worth remembering next time…"
-            value={walkthrough}
-            onChange={(e) => setWalkthrough(e.target.value)}
-            onBlur={saveWalkthrough}
-          />
+ 
+          {editingWalkthrough ? (
+            <>
+              <textarea
+                className="ert-textarea"
+                rows={6}
+                placeholder="Step through how you solved it — puzzle order, hint usage, anything worth remembering next time…"
+                value={walkthrough}
+                autoFocus
+                onChange={(e) => setWalkthrough(e.target.value)}
+              />
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+                <button
+                  className="ert-btn ert-btn-brass"
+                  disabled={!walkthroughDirty}
+                  style={{ opacity: walkthroughDirty ? 1 : 0.5 }}
+                  onClick={() => { saveWalkthrough(); setEditingWalkthrough(false); }}
+                >
+                  <Check size={14} /> Save walkthrough
+                </button>
+                <button
+                  className="ert-btn ert-btn-ghost"
+                  onClick={() => { setWalkthrough(room.walkthrough || ""); setEditingWalkthrough(false); }}
+                >
+                  Cancel
+                </button>
+                {walkthroughSaved && <span style={{ fontSize: 12, color: "var(--success)" }}>Saved.</span>}
+              </div>
+            </>
+          ) : (
+            <div
+              onClick={() => setEditingWalkthrough(true)}
+              title="Click to edit"
+              style={{
+                fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", cursor: "pointer",
+                background: "var(--surface-raised)", borderRadius: 8, padding: "12px 14px", minHeight: 60,
+                color: room.walkthrough ? "var(--text)" : "var(--text-dim)",
+                fontStyle: room.walkthrough ? "normal" : "italic",
+              }}
+            >
+              {room.walkthrough || "No walkthrough yet — click here to add one."}
+            </div>
+          )}
         </div>
       )}
  
@@ -1103,8 +1364,7 @@ function RoomForm({ room, onCancel, onSave }) {
           <>
             <Field label="Date played"><input type="date" className="ert-input" value={form.datePlayed} onChange={(e) => set({ datePlayed: e.target.value })} /></Field>
             <Field label="Result">
-              <select className="ert-select" value={form.result} onChange={(e) => set({ result: e.target.value })}>
-                <option value="unknown">Not recorded</option>
+              <select className="ert-select" value={form.result === "unknown" ? "escaped" : form.result} onChange={(e) => set({ result: e.target.value })}>
                 <option value="escaped">Escaped</option>
                 <option value="not-escaped">Not escaped</option>
               </select>
@@ -1138,7 +1398,58 @@ function Field({ label, children }) {
 /* ---------------------------------------------------------------
    SETTINGS
 --------------------------------------------------------------- */
-function SettingsView({ members, currentMember }) {
+function SettingsView({ members, currentMember, onChangePassword, rooms }) {
+  const [changing, setChanging] = useState(false);
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [busy, setBusy] = useState(false);
+ 
+  const openChange = () => {
+    setChanging(true);
+    setCurrent(""); setNext(""); setConfirm(""); setError(""); setSuccess(false);
+  };
+  const closeChange = () => {
+    setChanging(false);
+    setCurrent(""); setNext(""); setConfirm(""); setError(""); setSuccess(false);
+  };
+ 
+  const stats = useMemo(() => {
+    const byMember = {};
+    members.forEach((m) => { byMember[m] = { added: 0, rated: 0, noted: 0 }; });
+    (rooms || []).forEach((r) => {
+      if (r.addedBy && byMember[r.addedBy]) byMember[r.addedBy].added += 1;
+      members.forEach((m) => {
+        if (typeof r.ratings?.[m] === "number") byMember[m].rated += 1;
+        if (r.notes?.[m] && r.notes[m].trim().length > 0) byMember[m].noted += 1;
+      });
+    });
+    return byMember;
+  }, [members, rooms]);
+ 
+  const submit = async () => {
+    setError("");
+    setSuccess(false);
+    if (next.length < 4) { setError("New password must be at least 4 characters."); return; }
+    if (next !== confirm) { setError("New passwords don't match."); return; }
+    setBusy(true);
+    try {
+      const ok = await onChangePassword(currentMember, current, next);
+      if (ok) {
+        setSuccess(true);
+        setCurrent(""); setNext(""); setConfirm("");
+      } else {
+        setError("Current password is incorrect.");
+      }
+    } catch (e) {
+      setError("Couldn't update the password — try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+ 
   return (
     <div className="ert-card" style={{ padding: 22, maxWidth: 420 }}>
       <div className="ert-display" style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Crew</div>
@@ -1147,9 +1458,51 @@ function SettingsView({ members, currentMember }) {
         {members.map((m) => (
           <div key={m} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-raised)", padding: "9px 12px", borderRadius: 7 }}>
             <span style={{ fontSize: 13.5 }}>{m}{m === currentMember ? "  (you)" : ""}</span>
+            {m === currentMember && !changing && (
+              <button className="ert-btn ert-btn-ghost" style={{ padding: "4px 8px", fontSize: 12 }} onClick={openChange}>
+                Change password
+              </button>
+            )}
           </div>
         ))}
       </div>
+ 
+      <div style={{ marginTop: 18 }}>
+        <div className="ert-display" style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 10 }}>Crew stats</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr repeat(3, 56px)", gap: "6px 4px", alignItems: "center" }}>
+          <span></span>
+          <span className="ert-mono" style={{ fontSize: 10, color: "var(--text-dim)", textAlign: "center" }}>ADDED</span>
+          <span className="ert-mono" style={{ fontSize: 10, color: "var(--text-dim)", textAlign: "center" }}>RATED</span>
+          <span className="ert-mono" style={{ fontSize: 10, color: "var(--text-dim)", textAlign: "center" }}>NOTED</span>
+          {members.map((m) => (
+            <React.Fragment key={m}>
+              <span style={{ fontSize: 13 }}>{m}</span>
+              <span className="ert-mono" style={{ fontSize: 13, textAlign: "center", color: "var(--brass)" }}>{stats[m].added}</span>
+              <span className="ert-mono" style={{ fontSize: 13, textAlign: "center", color: "var(--brass)" }}>{stats[m].rated}</span>
+              <span className="ert-mono" style={{ fontSize: 13, textAlign: "center", color: "var(--brass)" }}>{stats[m].noted}</span>
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+ 
+      {changing && (
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border-soft)" }}>
+          <div className="ert-display" style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 10 }}>Change your password</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <input type="password" className="ert-input" placeholder="Current password" value={current} onChange={(e) => setCurrent(e.target.value)} />
+            <input type="password" className="ert-input" placeholder="New password" value={next} onChange={(e) => setNext(e.target.value)} />
+            <input type="password" className="ert-input" placeholder="Repeat new password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+          </div>
+          {error && <div style={{ color: "var(--danger)", fontSize: 12.5, marginTop: 8 }}>{error}</div>}
+          {success && <div style={{ color: "var(--success)", fontSize: 12.5, marginTop: 8 }}>Password updated.</div>}
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button className="ert-btn ert-btn-brass" disabled={busy} style={{ opacity: busy ? 0.6 : 1 }} onClick={submit}>
+              <Check size={14} /> Save
+            </button>
+            <button className="ert-btn ert-btn-ghost" onClick={closeChange}>Cancel</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
