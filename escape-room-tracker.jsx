@@ -1129,7 +1129,7 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
           <span style={{ padding: "2px 8px", borderRadius: 10, background: "var(--surface-raised)" }}>{room.category}</span>
           {room.lockmeUrl && (
             <a href={room.lockmeUrl} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--brass)" }}>
-              lock.me<ExternalLink size={12} />
+              lock.me <ExternalLink size={12} />
             </a>
           )}
         </div>
@@ -1350,8 +1350,8 @@ function RoomForm({ room, onCancel, onSave }) {
             {DIFFICULTY_LEVELS.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
         </Field>
-        <Field label="lock.me link (or other listing)">
-          <input className="ert-input" placeholder="https://www.lock.me/…" value={form.lockmeUrl} onChange={(e) => set({ lockmeUrl: e.target.value })} />
+        <Field label="LockMe link (or other listing)">
+          <input className="ert-input" placeholder="https://lock.me/pl/..." value={form.lockmeUrl} onChange={(e) => set({ lockmeUrl: e.target.value })} />
         </Field>
         <Field label="Status">
           <select className="ert-select" value={form.status} onChange={(e) => set({ status: e.target.value })}>
