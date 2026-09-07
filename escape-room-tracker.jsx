@@ -4,17 +4,50 @@ import {
   ExternalLink, Users, Trophy, ListChecks, LayoutDashboard,
   Camera, ChevronLeft, Settings, Check, Clock, Skull, Sparkles, Filter,
 } from "lucide-react";
-
+ 
 /* ---------------------------------------------------------------
    STORAGE
    Uses Claude's built-in window.storage when running as an artifact.
-   Outside Claude (e.g. hosted on GitHub Pages) it falls back to the
-   browser's own localStorage, so the app works standalone — data
-   just stays on that one device/browser until a real shared backend
-   (Firebase, Supabase, etc.) is wired in.
+   Outside Claude (e.g. hosted on GitHub Pages) it syncs shared room
+   data through Firebase Firestore instead, so the whole crew sees
+   the same live data. Your own "who am I" selection always stays in
+   this browser's localStorage — that's meant to be per-device.
+ 
+   To enable the shared backend: create a Firebase project, create a
+   Firestore database in it, register a web app, and paste the config
+   object it gives you below. See the setup steps you were given
+   alongside this file.
 --------------------------------------------------------------- */
 const hasClaudeStorage = typeof window !== "undefined" && window.storage && typeof window.storage.get === "function";
-
+ 
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDd0Z3d95XxKHOo6rGeGpMmgtkpvoxscOA",
+  authDomain: "escape-log-90c4c.firebaseapp.com",
+  projectId: "escape-log-90c4c",
+  storageBucket: "escape-log-90c4c.firebasestorage.app",
+  messagingSenderId: "250414337783",
+  appId: "1:250414337783:web:b0a65bd54af38702528df2",
+};
+const FIREBASE_DOC_PATH = ["escapeLog", "shared"]; // collection, document id
+ 
+let firebaseHandlePromise = null;
+function getFirebaseHandle() {
+  if (!firebaseHandlePromise) {
+    firebaseHandlePromise = (async () => {
+      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js");
+      const { getFirestore, doc, setDoc, onSnapshot } = await import(
+        "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js"
+      );
+      const app = initializeApp(FIREBASE_CONFIG);
+      const db = getFirestore(app);
+      const ref = doc(db, ...FIREBASE_DOC_PATH);
+      return { setDoc, onSnapshot, ref };
+    })();
+  }
+  return firebaseHandlePromise;
+}
+ 
+// Personal, per-device value (e.g. "who am I") — never goes through Firebase.
 async function storageGet(key, shared) {
   if (hasClaudeStorage) return window.storage.get(key, shared);
   const raw = window.localStorage.getItem(key);
@@ -26,7 +59,7 @@ async function storageSet(key, value, shared) {
   window.localStorage.setItem(key, value);
   return { key, value, shared };
 }
-
+ 
 /* ---------------------------------------------------------------
    TOKENS
    Palette: a dim, brass-lit "room" rather than a generic dark UI —
@@ -35,7 +68,7 @@ async function storageSet(key, value, shared) {
 --------------------------------------------------------------- */
 const TOKENS = `
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
-
+ 
   .ert-root {
     --bg: #14161c;
     --surface: #1c1f28;
@@ -57,7 +90,7 @@ const TOKENS = `
   .ert-display { font-family: 'Space Grotesk', sans-serif; }
   .ert-mono { font-family: 'IBM Plex Mono', monospace; }
   .ert-root ::selection { background: var(--brass); color: #14161c; }
-
+ 
   .ert-card {
     background: var(--surface);
     border: 1px solid var(--border-soft);
@@ -83,7 +116,7 @@ const TOKENS = `
     border-color: var(--brass);
   }
   .ert-input::placeholder, .ert-textarea::placeholder { color: var(--text-dim); }
-
+ 
   .ert-btn {
     display: inline-flex; align-items: center; gap: 6px;
     border-radius: 7px; padding: 8px 14px; font-size: 13.5px;
@@ -97,7 +130,7 @@ const TOKENS = `
   .ert-btn-ghost:hover { border-color: var(--brass); color: var(--brass-bright); }
   .ert-btn-danger { background: transparent; color: var(--danger); border-color: var(--danger); }
   .ert-btn-danger:hover { background: var(--danger); color: #fff; }
-
+ 
   .ert-tab {
     display: flex; align-items: center; gap: 7px;
     padding: 9px 13px; border-radius: 7px; font-size: 13.5px; font-weight: 600;
@@ -106,22 +139,22 @@ const TOKENS = `
   .ert-tab:hover { color: var(--text); }
   .ert-tab-active { color: #17140c; background: var(--brass); }
   .ert-tab-active:hover { color: #17140c; }
-
+ 
   .ert-plaque-num {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 11px; letter-spacing: 0.08em; color: var(--brass);
   }
-
+ 
   .ert-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
   .ert-scrollbar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-
+ 
   .ert-star-btn { cursor: pointer; transition: transform 0.1s; }
   .ert-star-btn:hover { transform: scale(1.15); }
-
+ 
   @keyframes ert-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
   .ert-fade-in { animation: ert-fade-in 0.2s ease-out; }
 `;
-
+ 
 /* ---------------------------------------------------------------
    HELPERS
 --------------------------------------------------------------- */
@@ -129,10 +162,10 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 const STORAGE_KEY = "escape-room-club-data-v1";
 const MEMBER_KEY = "escape-room-club-current-member";
 const MEMBERS = ["Karol", "Asia", "Jano", "Jaćka"];
-
+ 
 const CATEGORIES = ["Horror", "Adventure", "Mystery/Detective", "Sci-Fi", "Historical", "Fantasy", "Comedy", "Other"];
 const DIFFICULTY_LEVELS = ["Beginner-friendly", "Easy", "Medium", "Hard", "Very hard", "Extreme"];
-
+ 
 // Top-ranked rooms from lock.me's Polish-language Poland ranking (name + city only).
 // This is a partial list (top 80) — ask to preload more to extend it.
 const LOCKME_TOP_ROOMS = [
@@ -164,7 +197,7 @@ const LOCKME_TOP_ROOMS = [
   ["Przyjaciel Cieni", "Wrocław"], ["Kryjówka wiedźmy", "Gdańsk"], ["Wednesday - Miłość aż po grób", "Toruń"],
   ["Rycerski", "Warszawa"], ["Piracka Skrzynia Umarlaka", "Gdynia"],
 ];
-
+ 
 function emptyRoom() {
   return {
     id: uid(),
@@ -186,17 +219,17 @@ function emptyRoom() {
     createdAt: Date.now(),
   };
 }
-
+ 
 function avgRating(room) {
   const vals = Object.values(room.ratings || {}).filter((v) => typeof v === "number");
   if (!vals.length) return null;
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
-
+ 
 function fmtRating(n) {
   return n === null || n === undefined ? "—" : n.toFixed(1);
 }
-
+ 
 /* ---------------------------------------------------------------
    MAIN APP
 --------------------------------------------------------------- */
@@ -209,44 +242,85 @@ export default function EscapeRoomTracker() {
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [returnView, setReturnView] = useState("rooms");
   const [editingRoom, setEditingRoom] = useState(null); // room object being added/edited, or null
-
+ 
   // ---- load ----
   useEffect(() => {
+    let unsubscribeFirestore = null;
+ 
+    // Shared room/rating data: Claude storage inside Claude, live
+    // Firestore sync everywhere else.
+    if (hasClaudeStorage) {
+      (async () => {
+        try {
+          let loaded = { rooms: [] };
+          try {
+            const res = await storageGet(STORAGE_KEY, true);
+            if (res && res.value) loaded = JSON.parse(res.value);
+          } catch (e) {
+            // key doesn't exist yet — fine, use default
+          }
+          setData(loaded);
+        } catch (e) {
+          setSaveError("Couldn't load your group's data. Try reloading.");
+        } finally {
+          setLoading(false);
+        }
+      })();
+    } else {
+      (async () => {
+        try {
+          const { onSnapshot, ref } = await getFirebaseHandle();
+          unsubscribeFirestore = onSnapshot(
+            ref,
+            (snap) => {
+              setData(snap.exists() ? snap.data() : { rooms: [] });
+              setLoading(false);
+              setSaveError(null);
+            },
+            () => {
+              setSaveError("Couldn't reach the shared backend. Check the Firebase setup in the code and your Firestore rules.");
+              setLoading(false);
+            }
+          );
+        } catch (e) {
+          setSaveError("Couldn't connect to the shared backend. Check the Firebase setup in the code.");
+          setLoading(false);
+        }
+      })();
+    }
+ 
+    // Personal, per-device value — always local, regardless of backend.
     (async () => {
       try {
-        let loaded = { rooms: [] };
-        try {
-          const res = await storageGet(STORAGE_KEY, true);
-          if (res && res.value) loaded = JSON.parse(res.value);
-        } catch (e) {
-          // key doesn't exist yet — fine, use default
-        }
-        setData(loaded);
-        try {
-          const memberRes = await storageGet(MEMBER_KEY, false);
-          if (memberRes && memberRes.value) setCurrentMember(memberRes.value);
-        } catch (e) {
-          // no member selected yet on this device
-        }
+        const memberRes = await storageGet(MEMBER_KEY, false);
+        if (memberRes && memberRes.value) setCurrentMember(memberRes.value);
       } catch (e) {
-        setSaveError("Couldn't load your group's data. Try reloading.");
-      } finally {
-        setLoading(false);
+        // no member selected yet on this device
       }
     })();
+ 
+    return () => {
+      if (unsubscribeFirestore) unsubscribeFirestore();
+    };
   }, []);
-
+ 
   const persist = useCallback(async (next) => {
     setData(next);
     try {
-      const res = await storageSet(STORAGE_KEY, JSON.stringify(next), true);
-      if (!res) setSaveError("Save failed — your last change may not be stored.");
-      else setSaveError(null);
+      if (hasClaudeStorage) {
+        const res = await storageSet(STORAGE_KEY, JSON.stringify(next), true);
+        if (!res) setSaveError("Save failed — your last change may not be stored.");
+        else setSaveError(null);
+      } else {
+        const { setDoc, ref } = await getFirebaseHandle();
+        await setDoc(ref, next);
+        setSaveError(null);
+      }
     } catch (e) {
       setSaveError("Save failed — your last change may not be stored.");
     }
   }, []);
-
+ 
   const chooseMember = async (name) => {
     setCurrentMember(name);
     try {
@@ -255,7 +329,7 @@ export default function EscapeRoomTracker() {
       /* non-fatal */
     }
   };
-
+ 
   const saveRoom = (room) => {
     const exists = data.rooms.some((r) => r.id === room.id);
     const rooms = exists ? data.rooms.map((r) => (r.id === room.id ? room : r)) : [room, ...data.rooms];
@@ -273,7 +347,7 @@ export default function EscapeRoomTracker() {
     const rooms = data.rooms.map((r) => (r.id === id ? { ...r, ...patch } : r));
     persist({ ...data, rooms });
   };
-
+ 
   const preloadLockmeRooms = () => {
     const existingNames = new Set(data.rooms.map((r) => r.name.trim().toLowerCase()));
     const toAdd = LOCKME_TOP_ROOMS
@@ -287,15 +361,15 @@ export default function EscapeRoomTracker() {
       }));
     if (toAdd.length) persist({ ...data, rooms: [...data.rooms, ...toAdd] });
   };
-
+ 
   const selectedRoom = useMemo(
     () => data.rooms.find((r) => r.id === selectedRoomId) || null,
     [data.rooms, selectedRoomId]
   );
-
+ 
   const playedRooms = useMemo(() => data.rooms.filter((r) => r.status === "played"), [data.rooms]);
   const wishlistRooms = useMemo(() => data.rooms.filter((r) => r.status === "wishlist"), [data.rooms]);
-
+ 
   if (loading) {
     return (
       <div className="ert-root" style={{ minHeight: 480, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -304,42 +378,42 @@ export default function EscapeRoomTracker() {
       </div>
     );
   }
-
+ 
   // ---- device hasn't picked "who am I" ----
   if (!currentMember || !MEMBERS.includes(currentMember)) {
     return <WhoAmI members={MEMBERS} onChoose={chooseMember} />;
   }
-
+ 
   return (
     <div className="ert-root" style={{ minHeight: 600, borderRadius: 14, overflow: "hidden" }}>
       <style>{TOKENS}</style>
-
+ 
       <Header
         currentMember={currentMember}
         onSwitchMember={() => chooseMember(null)}
         onAdd={() => { setEditingRoom(emptyRoom()); setView("edit-room"); }}
       />
-
+ 
       {saveError && (
         <div style={{ background: "var(--danger)", color: "#fff", fontSize: 12.5, padding: "6px 20px" }}>
           {saveError}
         </div>
       )}
-
+ 
       <Nav view={view} setView={(v) => { setView(v); setSelectedRoomId(null); setEditingRoom(null); }} />
-
+ 
       <div style={{ padding: "20px 24px 32px" }} className="ert-fade-in">
         {view === "dashboard" && (
           <Dashboard rooms={data.rooms} members={MEMBERS} onOpenRoom={(id) => { setSelectedRoomId(id); setReturnView("dashboard"); setView("room-detail"); }} />
         )}
-
+ 
         {view === "rooms" && (
           <RoomsView
             rooms={playedRooms}
             onOpen={(id) => { setSelectedRoomId(id); setReturnView("rooms"); setView("room-detail"); }}
           />
         )}
-
+ 
         {view === "wishlist" && (
           <RoomsView
             rooms={wishlistRooms}
@@ -348,13 +422,13 @@ export default function EscapeRoomTracker() {
             onPreload={preloadLockmeRooms}
           />
         )}
-
+ 
         {view === "ranking" && <RankingView rooms={playedRooms} members={MEMBERS} onOpen={(id) => { setSelectedRoomId(id); setReturnView("ranking"); setView("room-detail"); }} />}
-
+ 
         {view === "settings" && (
           <SettingsView members={MEMBERS} currentMember={currentMember} />
         )}
-
+ 
         {view === "edit-room" && editingRoom && (
           <RoomForm
             room={editingRoom}
@@ -362,7 +436,7 @@ export default function EscapeRoomTracker() {
             onSave={saveRoom}
           />
         )}
-
+ 
         {view === "room-detail" && selectedRoom && (
           <RoomDetail
             room={selectedRoom}
@@ -378,7 +452,7 @@ export default function EscapeRoomTracker() {
     </div>
   );
 }
-
+ 
 /* ---------------------------------------------------------------
    WHO AM I
 --------------------------------------------------------------- */
@@ -410,7 +484,7 @@ function WhoAmI({ members, onChoose }) {
     </div>
   );
 }
-
+ 
 /* ---------------------------------------------------------------
    HEADER / NAV
 --------------------------------------------------------------- */
@@ -437,7 +511,7 @@ function Header({ currentMember, onSwitchMember, onAdd }) {
     </div>
   );
 }
-
+ 
 function Nav({ view, setView }) {
   const tabs = [
     { id: "dashboard", label: "Overview", icon: LayoutDashboard },
@@ -456,7 +530,7 @@ function Nav({ view, setView }) {
     </div>
   );
 }
-
+ 
 /* ---------------------------------------------------------------
    DASHBOARD
 --------------------------------------------------------------- */
@@ -469,7 +543,7 @@ function StatBlock({ label, value, sub }) {
     </div>
   );
 }
-
+ 
 function Dashboard({ rooms, members, onOpenRoom }) {
   const played = rooms.filter((r) => r.status === "played");
   const wishlist = rooms.filter((r) => r.status === "wishlist");
@@ -480,21 +554,21 @@ function Dashboard({ rooms, members, onOpenRoom }) {
     if (!vals.length) return null;
     return vals.reduce((a, b) => a + b, 0) / vals.length;
   }, [played]);
-
+ 
   const byCity = useMemo(() => {
     const map = {};
     played.forEach((r) => { if (r.city) map[r.city] = (map[r.city] || 0) + 1; });
     return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5);
   }, [played]);
-
+ 
   const byCategory = useMemo(() => {
     const map = {};
     played.forEach((r) => { map[r.category] = (map[r.category] || 0) + 1; });
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
   }, [played]);
-
+ 
   const recent = [...played].sort((a, b) => (b.datePlayed || "").localeCompare(a.datePlayed || "")).slice(0, 5);
-
+ 
   return (
     <div>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 22 }}>
@@ -504,7 +578,7 @@ function Dashboard({ rooms, members, onOpenRoom }) {
         <StatBlock label="Wishlist" value={wishlist.length} />
         <StatBlock label="Crew" value={members.length} />
       </div>
-
+ 
       <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16 }}>
         <div className="ert-card" style={{ padding: 18 }}>
           <div className="ert-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Recently played</div>
@@ -521,7 +595,7 @@ function Dashboard({ rooms, members, onOpenRoom }) {
             ))}
           </div>
         </div>
-
+ 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div className="ert-card" style={{ padding: 18 }}>
             <div className="ert-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Top cities</div>
@@ -546,7 +620,7 @@ function Dashboard({ rooms, members, onOpenRoom }) {
     </div>
   );
 }
-
+ 
 function BarRow({ label, count, max }) {
   const pct = Math.max(8, Math.round((count / max) * 100));
   return (
@@ -561,18 +635,18 @@ function BarRow({ label, count, max }) {
     </div>
   );
 }
-
+ 
 function EmptyNote({ text }) {
   return <div style={{ fontSize: 12.5, color: "var(--text-dim)", fontStyle: "italic" }}>{text}</div>;
 }
-
+ 
 /* ---------------------------------------------------------------
    ROOMS LIST (played or wishlist)
 --------------------------------------------------------------- */
 function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres, selectedCountries, onToggleCity, onToggleGenre, onToggleCountry, onClear }) {
   const [open, setOpen] = useState(false);
   const ref = React.useRef(null);
-
+ 
   useEffect(() => {
     if (!open) return;
     const handleClick = (e) => {
@@ -581,9 +655,9 @@ function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
-
+ 
   const activeCount = selectedCities.length + selectedGenres.length + selectedCountries.length;
-
+ 
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <button
@@ -600,7 +674,7 @@ function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres
           </span>
         )}
       </button>
-
+ 
       {open && (
         <div
           className="ert-card-raised ert-scrollbar"
@@ -612,7 +686,7 @@ function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres
               <span onClick={onClear} style={{ fontSize: 11.5, color: "var(--brass)", cursor: "pointer" }}>Clear all</span>
             )}
           </div>
-
+ 
           {countries.length > 0 && (
             <div style={{ marginBottom: 10 }}>
               <div className="ert-mono" style={{ fontSize: 10, color: "var(--text-dim)", marginBottom: 5 }}>COUNTRY</div>
@@ -624,7 +698,7 @@ function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres
               ))}
             </div>
           )}
-
+ 
           {cities.length > 0 && (
             <div style={{ marginBottom: 10 }}>
               <div className="ert-mono" style={{ fontSize: 10, color: "var(--text-dim)", marginBottom: 5 }}>CITY</div>
@@ -636,7 +710,7 @@ function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres
               ))}
             </div>
           )}
-
+ 
           {cats.length > 0 && (
             <div>
               <div className="ert-mono" style={{ fontSize: 10, color: "var(--text-dim)", marginBottom: 5 }}>GENRE</div>
@@ -648,29 +722,29 @@ function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres
               ))}
             </div>
           )}
-
+ 
           {cities.length === 0 && cats.length === 0 && countries.length === 0 && <EmptyNote text="Nothing to filter yet." />}
         </div>
       )}
     </div>
   );
 }
-
+ 
 function RoomsView({ rooms, onOpen, emptyLabel, onPreload }) {
   const [search, setSearch] = useState("");
   const [selectedCities, setSelectedCities] = useState([]);
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [selectedCountries, setSelectedCountries] = useState([]);
-
+ 
   const cities = useMemo(() => Array.from(new Set(rooms.map((r) => r.city).filter(Boolean))).sort(), [rooms]);
   const cats = useMemo(() => Array.from(new Set(rooms.map((r) => r.category).filter(Boolean))).sort(), [rooms]);
   const countries = useMemo(() => Array.from(new Set(rooms.map((r) => r.country).filter(Boolean))).sort(), [rooms]);
-
+ 
   const toggleCity = (c) => setSelectedCities((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   const toggleGenre = (c) => setSelectedGenres((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   const toggleCountry = (c) => setSelectedCountries((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   const clearFilters = () => { setSelectedCities([]); setSelectedGenres([]); setSelectedCountries([]); };
-
+ 
   const filtered = rooms.filter((r) => {
     if (search && !`${r.name} ${r.venue}`.toLowerCase().includes(search.toLowerCase())) return false;
     if (selectedCountries.length && !selectedCountries.includes(r.country)) return false;
@@ -678,7 +752,7 @@ function RoomsView({ rooms, onOpen, emptyLabel, onPreload }) {
     if (selectedGenres.length && !selectedGenres.includes(r.category)) return false;
     return true;
   });
-
+ 
   return (
     <div>
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
@@ -704,7 +778,7 @@ function RoomsView({ rooms, onOpen, emptyLabel, onPreload }) {
           </button>
         )}
       </div>
-
+ 
       {filtered.length === 0 ? (
         <EmptyNote text={emptyLabel || "No rooms match those filters."} />
       ) : (
@@ -715,7 +789,7 @@ function RoomsView({ rooms, onOpen, emptyLabel, onPreload }) {
     </div>
   );
 }
-
+ 
 function RoomCard({ room, index, onOpen }) {
   const avg = avgRating(room);
   return (
@@ -740,7 +814,7 @@ function RoomCard({ room, index, onOpen }) {
     </div>
   );
 }
-
+ 
 /* ---------------------------------------------------------------
    RANKING
 --------------------------------------------------------------- */
@@ -750,7 +824,7 @@ function RankingView({ rooms, members, onOpen }) {
     [rooms]
   );
   if (!ranked.length) return <EmptyNote text="No completed rooms yet — the ranking fills in once you log one." />;
-
+ 
   return (
     <div className="ert-card" style={{ overflow: "hidden" }}>
       <div style={{ display: "grid", gridTemplateColumns: "42px 1.6fr 1fr repeat(auto-fit, minmax(0,0))", padding: "10px 16px", borderBottom: "1px solid var(--border-soft)" }}>
@@ -791,7 +865,7 @@ function RankingView({ rooms, members, onOpen }) {
     </div>
   );
 }
-
+ 
 /* ---------------------------------------------------------------
    ROOM DETAIL
 --------------------------------------------------------------- */
@@ -801,13 +875,13 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
   const [myNote, setMyNote] = useState(room.notes[currentMember] || "");
   const [newPhotoUrl, setNewPhotoUrl] = useState("");
   const [walkthrough, setWalkthrough] = useState(room.walkthrough || "");
-
+ 
   useEffect(() => {
     setMyRating(room.ratings[currentMember] || 0);
     setMyNote(room.notes[currentMember] || "");
     setWalkthrough(room.walkthrough || "");
   }, [room.id, currentMember]);
-
+ 
   const saveMyRating = (val) => {
     setMyRating(val);
     onUpdate({ ratings: { ...room.ratings, [currentMember]: val } });
@@ -829,15 +903,15 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
   const markPlayed = () => {
     onUpdate({ status: "played", datePlayed: room.datePlayed || new Date().toISOString().slice(0, 10) });
   };
-
+ 
   const avg = avgRating(room);
-
+ 
   return (
     <div>
       <button className="ert-btn ert-btn-ghost" onClick={onBack} style={{ marginBottom: 14 }}>
         <ChevronLeft size={14} /> Back
       </button>
-
+ 
       <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
           <div>
@@ -857,7 +931,7 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
             )}
           </div>
         </div>
-
+ 
         <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 16, fontSize: 12.5, color: "var(--text-dim)" }}>
           <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={13} /> {room.city}{room.country ? `, ${room.country}` : ""}</span>
           <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Skull size={13} /> {room.difficulty}</span>
@@ -876,13 +950,13 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
             </a>
           )}
         </div>
-
+ 
         {room.status === "wishlist" && (
           <button className="ert-btn ert-btn-brass" style={{ marginTop: 16 }} onClick={markPlayed}>
             <Unlock size={14} /> Mark as played
           </button>
         )}
-
+ 
         {room.status === "played" && (
           <div style={{ marginTop: 16, display: "flex", alignItems: "baseline", gap: 8 }}>
             <span className="ert-mono" style={{ fontSize: 26, fontWeight: 600, color: "var(--brass)" }}>{fmtRating(avg)}</span>
@@ -890,7 +964,7 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
           </div>
         )}
       </div>
-
+ 
       {room.status === "played" && (
         <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
           <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Your rating &amp; notes</div>
@@ -915,7 +989,7 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
             onChange={(e) => setMyNote(e.target.value)}
             onBlur={saveMyNote}
           />
-
+ 
           <div style={{ marginTop: 18 }}>
             <div className="ert-display" style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 10 }}>Everyone's notes</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -936,7 +1010,7 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
           </div>
         </div>
       )}
-
+ 
       {room.status === "played" && (
         <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
           <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Walkthrough</div>
@@ -953,7 +1027,7 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
           />
         </div>
       )}
-
+ 
       <div className="ert-card" style={{ padding: 22 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
           <Camera size={15} color="var(--brass)" />
@@ -984,22 +1058,22 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
     </div>
   );
 }
-
+ 
 /* ---------------------------------------------------------------
    ADD / EDIT ROOM FORM
 --------------------------------------------------------------- */
 function RoomForm({ room, onCancel, onSave }) {
   const [form, setForm] = useState(room);
   const set = (patch) => setForm({ ...form, ...patch });
-
+ 
   const canSave = form.name.trim().length > 0;
-
+ 
   return (
     <div className="ert-card" style={{ padding: 22, maxWidth: 640 }}>
       <div className="ert-display" style={{ fontSize: 17, fontWeight: 700, marginBottom: 16 }}>
         {room.name ? "Edit room" : "Add a room"}
       </div>
-
+ 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Field label="Room name *"><input className="ert-input" value={form.name} onChange={(e) => set({ name: e.target.value })} /></Field>
         <Field label="Venue / company"><input className="ert-input" value={form.venue} onChange={(e) => set({ venue: e.target.value })} /></Field>
@@ -1024,7 +1098,7 @@ function RoomForm({ room, onCancel, onSave }) {
             <option value="played">Played</option>
           </select>
         </Field>
-
+ 
         {form.status === "played" && (
           <>
             <Field label="Date played"><input type="date" className="ert-input" value={form.datePlayed} onChange={(e) => set({ datePlayed: e.target.value })} /></Field>
@@ -1041,7 +1115,7 @@ function RoomForm({ room, onCancel, onSave }) {
           </>
         )}
       </div>
-
+ 
       <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
         <button className="ert-btn ert-btn-brass" disabled={!canSave} style={{ opacity: canSave ? 1 : 0.5 }} onClick={() => canSave && onSave(form)}>
           <Check size={14} /> Save room
@@ -1051,7 +1125,7 @@ function RoomForm({ room, onCancel, onSave }) {
     </div>
   );
 }
-
+ 
 function Field({ label, children }) {
   return (
     <div>
@@ -1060,7 +1134,7 @@ function Field({ label, children }) {
     </div>
   );
 }
-
+ 
 /* ---------------------------------------------------------------
    SETTINGS
 --------------------------------------------------------------- */
@@ -1079,3 +1153,4 @@ function SettingsView({ members, currentMember }) {
     </div>
   );
 }
+ 
