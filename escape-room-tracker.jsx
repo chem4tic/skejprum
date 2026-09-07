@@ -21,12 +21,12 @@ import {
 const hasClaudeStorage = typeof window !== "undefined" && window.storage && typeof window.storage.get === "function";
  
 const FIREBASE_CONFIG = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID",
+  apiKey: "AIzaSyDd0Z3d95XxKHOo6rGeGpMmgtkpvoxscOA",
+  authDomain: "escape-log-90c4c.firebaseapp.com",
+  projectId: "escape-log-90c4c",
+  storageBucket: "escape-log-90c4c.firebasestorage.app",
+  messagingSenderId: "250414337783",
+  appId: "1:250414337783:web:b0a65bd54af38702528df2",
 };
 const FIREBASE_DOC_PATH = ["escapeLog", "shared"]; // collection, document id
  
@@ -34,12 +34,12 @@ let firebaseHandlePromise = null;
 function getFirebaseHandle() {
   if (!firebaseHandlePromise) {
     firebaseHandlePromise = (async () => {
-      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js");
       const { getFirestore, doc, setDoc, onSnapshot } = await import(
-        "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"
+        "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js"
       );
       const { getAuth, signInAnonymously } = await import(
-        "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"
+        "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js"
       );
       const app = initializeApp(FIREBASE_CONFIG);
       const db = getFirestore(app);
