@@ -1129,7 +1129,7 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
           <span style={{ padding: "2px 8px", borderRadius: 10, background: "var(--surface-raised)" }}>{room.category}</span>
           {room.lockmeUrl && (
             <a href={room.lockmeUrl} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--brass)" }}>
-              lock.me listing <ExternalLink size={12} />
+              lock.me<ExternalLink size={12} />
             </a>
           )}
         </div>
