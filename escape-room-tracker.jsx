@@ -216,7 +216,7 @@ function emptyRoom(addedBy) {
     createdAt: Date.now(),
   };
 }
- 
+
 /* ---------------------------------------------------------------
    CSV IMPORT
    Batch-add rooms from a CSV file -- the same column layout this app
@@ -261,7 +261,7 @@ function parseCSV(text) {
   }
   return rows;
 }
- 
+
 function roomsFromCSV(text, addedBy) {
   const rows = parseCSV(text).filter((r) => r.some((c) => c.trim() !== ""));
   if (!rows.length) return [];
@@ -271,7 +271,7 @@ function roomsFromCSV(text, addedBy) {
     const i = idx(name);
     return i === -1 ? "" : (row[i] || "").trim();
   };
- 
+
   return rows
     .slice(1)
     .map((row) => {
@@ -296,7 +296,7 @@ function roomsFromCSV(text, addedBy) {
     })
     .filter(Boolean);
 }
- 
+
 function avgRating(room) {
   const vals = Object.values(room.ratings || {}).filter((v) => typeof v === "number");
   if (!vals.length) return null;
@@ -520,7 +520,7 @@ export default function EscapeRoomTracker() {
           {saveError}
         </div>
       )}
- 
+
       {importMessage && (
         <div style={{ background: importMessage.type === "error" ? "var(--danger)" : "var(--success)", color: "#fff", fontSize: 12.5, padding: "6px 20px" }}>
           {importMessage.text}
@@ -723,7 +723,7 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = React.useRef(null);
   const fileInputRef = React.useRef(null);
- 
+
   useEffect(() => {
     if (!menuOpen) return;
     const handleClick = (e) => {
@@ -732,7 +732,7 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile }) {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [menuOpen]);
- 
+
   const triggerFilePicker = () => {
     setMenuOpen(false);
     fileInputRef.current?.click();
@@ -742,7 +742,7 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile }) {
     if (file) onImportFile(file);
     e.target.value = "";
   };
- 
+
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 24px 10px", borderBottom: "1px solid var(--border-soft)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -758,7 +758,7 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile }) {
         <button className="ert-btn ert-btn-ghost" onClick={onSwitchMember} style={{ padding: "8px 10px" }}>
           <Users size={14} />
         </button>
- 
+
         <div style={{ display: "flex", position: "relative" }} ref={menuRef}>
           <button
             className="ert-btn ert-btn-brass"
@@ -775,7 +775,7 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile }) {
           >
             <ChevronDown size={14} />
           </button>
- 
+
           {menuOpen && (
             <div
               className="ert-card-raised"
@@ -791,7 +791,7 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile }) {
             </div>
           )}
         </div>
- 
+
         <input ref={fileInputRef} type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={handleFileChange} />
       </div>
     </div>
@@ -859,7 +859,7 @@ function Dashboard({ rooms, members, onOpenRoom }) {
     .filter((r) => r._avg !== null)
     .sort((a, b) => b._avg - a._avg)
     .slice(0, 5);
- 
+
   return (
     <div>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 22 }}>
@@ -869,7 +869,7 @@ function Dashboard({ rooms, members, onOpenRoom }) {
         <StatBlock label="Wishlist" value={wishlist.length} />
         <StatBlock label="Crew" value={members.length} />
       </div>
- 
+
       <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div className="ert-card" style={{ padding: 18 }}>
@@ -890,7 +890,7 @@ function Dashboard({ rooms, members, onOpenRoom }) {
               ))}
             </div>
           </div>
- 
+
           <div className="ert-card" style={{ padding: 18 }}>
             <div className="ert-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Recently played</div>
             {recent.length === 0 && <EmptyNote text="Nothing logged yet — add your first room." />}
@@ -907,7 +907,7 @@ function Dashboard({ rooms, members, onOpenRoom }) {
             </div>
           </div>
         </div>
- 
+
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div className="ert-card" style={{ padding: 18 }}>
             <div className="ert-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Top cities</div>
@@ -951,6 +951,44 @@ function BarRow({ label, count, max }) {
 function EmptyNote({ text }) {
   return <div style={{ fontSize: 12.5, color: "var(--text-dim)", fontStyle: "italic" }}>{text}</div>;
 }
+
+/* ---------------------------------------------------------------
+   STAR ROW
+   A 1-10 rating control that supports half-point precision -- click
+   the left half of a star for a .5, the right half for a whole
+   number. Read-only (no onChange) when used just for display.
+--------------------------------------------------------------- */
+function StarRow({ value, onChange, size }) {
+  const starSize = size || 17;
+  const handleClick = (e, starIndex) => {
+    if (!onChange) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const isHalf = clickX < rect.width / 2;
+    onChange(starIndex + (isHalf ? 0.5 : 1));
+  };
+
+  return (
+    <>
+      {Array.from({ length: 10 }).map((_, idx) => {
+        const full = value >= idx + 1;
+        const half = !full && value >= idx + 0.5;
+        const Icon = half ? StarHalf : Star;
+        const lit = full || half;
+        return (
+          <span
+            key={idx}
+            className={onChange ? "ert-star-btn" : undefined}
+            onClick={onChange ? (e) => handleClick(e, idx) : undefined}
+            style={{ display: "inline-flex", lineHeight: 0, cursor: onChange ? "pointer" : "default" }}
+          >
+            <Icon size={starSize} fill={lit ? "var(--brass)" : "none"} color={lit ? "var(--brass)" : "var(--border)"} />
+          </span>
+        );
+      })}
+    </>
+  );
+}
  
 /* ---------------------------------------------------------------
    ROOMS LIST (played or wishlist)
@@ -971,7 +1009,7 @@ function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres
   const activeCount = selectedCities.length + selectedGenres.length + selectedCountries.length;
  
   return (
-    <div ref={ref} style={{ position: "relative" }}>
+    <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
       <button
         type="button"
         className="ert-btn ert-btn-ghost"
@@ -990,7 +1028,7 @@ function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres
       {open && (
         <div
           className="ert-card-raised ert-scrollbar"
-          style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, width: 240, maxHeight: 360, overflowY: "auto", zIndex: 20, padding: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
+          style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 240, maxWidth: "calc(100vw - 48px)", maxHeight: 360, overflowY: "auto", zIndex: 20, padding: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)", textTransform: "uppercase" }}>Filters</span>
@@ -1068,7 +1106,7 @@ function RoomsView({ rooms, onOpen, emptyLabel }) {
   return (
     <div>
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-        <div style={{ position: "relative", flex: "1 1 200px" }}>
+        <div style={{ position: "relative", flex: "1 1 220px", minWidth: 160, maxWidth: 600 }}>
           <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
           <input className="ert-input" style={{ paddingLeft: 30 }} placeholder="Search rooms or venues…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
@@ -1295,16 +1333,7 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
           <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Rating &amp; notes</div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
             <span style={{ fontSize: 12, color: "var(--text-dim)", width: 72 }}>Your rating</span>
-            {Array.from({ length: 10 }).map((_, i) => (
-              <Star
-                key={i}
-                size={17}
-                className="ert-star-btn"
-                onClick={() => saveMyRating(i + 1)}
-                fill={i < myRating ? "var(--brass)" : "none"}
-                color={i < myRating ? "var(--brass)" : "var(--border)"}
-              />
-            ))}
+            <StarRow value={myRating} onChange={saveMyRating} size={17} />
             <span className="ert-mono" style={{ fontSize: 12.5, color: "var(--text-dim)", marginLeft: 4 }}>{myRating || "—"}/10</span>
           </div>
  
