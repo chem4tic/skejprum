@@ -193,38 +193,6 @@ const MEMBERS = ["Karol", "Asia", "Jano", "Jaćka"];
 const CATEGORIES = ["Horror", "Adventure", "Mystery/Detective", "Sci-Fi", "Historical", "Fantasy", "Comedy", "Other"];
 const DIFFICULTY_LEVELS = ["Beginner-friendly", "Easy", "Medium", "Hard", "Very hard", "Extreme"];
  
-// Top-ranked rooms from lock.me's Polish-language Poland ranking (name + city only).
-// This is a partial list (top 80) — ask to preload more to extend it.
-const LOCKME_TOP_ROOMS = [
-  ["Boczna Aleja 6", "Gdańsk"], ["Nocne Łowy", "Sopot"], ["Księga Zła", "Warszawa"],
-  ["Księżycowa Noc", "Warszawa"], ["Cień Nietoperza", "Poznań"], ["Zielona Mila", "Poznań"],
-  ["Tron Wśród Kłamstw", "Gdańsk"], ["Opuszczony Hotel", "Wrocław"], ["Zemsta Umarlaka", "Poznań"],
-  ["Ostatni Pasażer", "Warszawa"], ["Magiczna Księga", "Rybnik"], ["Leśna Chatka Wiedźmy", "Olsztyn"],
-  ["Frank & Stein", "Sopot"], ["Serce Atlantydy", "Poznań"], ["Tajemnice Szkoły Magii", "Olsztyn"],
-  ["Chatka Gajowego", "Gdynia"], ["Wyspa Smoka - Świątynia Żywiołów", "Wrocław"], ["Alien Kormeda", "Poznań"],
-  ["Powstanie Warszawskie", "Warszawa"], ["Piętno", "Rybnik"], ["W Cieniu Piramid", "Warszawa"],
-  ["Cicha Noc", "Gliwice"], ["Grobowiec Faraona", "Olsztyn"], ["Osobowość", "Poznań"],
-  ["Szkoła Magii i Czarodziejstwa", "Chorzów"], ["Twoja Bajka: Upadek Fantazji", "Warszawa"], ["Osadzeni w Bunkrze", "Warszawa"],
-  ["Przeklęte Lustro", "Kraków"], ["Zaginiona", "Warszawa"], ["Grota Czarnoksiężnika", "Rzeszów"],
-  ["Seria Niefortunnych Zagadek", "Pszczyna"], ["Stary sklep z zabawkami", "Kraków"], ["Szkoła Magii - pierwszy rok", "Bydgoszcz"],
-  ["KARMA", "Toruń"], ["Transmigracja", "Bytom"], ["Lochy Króla Artura", "Wrocław"],
-  ["Napad na bank - Dziki Zachód", "Olsztyn"], ["Upiorny Dwór - spadkobiercy", "Gdańsk"], ["Wyznania Egzorcysty", "Katowice"],
-  ["Lokalizacja", "Gliwice"], ["Moriarty sp. z o.o.", "Katowice"], ["Panorama", "Rybnik"],
-  ["Tajemnice Watykanu", "Bydgoszcz"], ["Wikingowie · Amulety Mocy", "Poznań"], ["Bestie Peruna", "Wrocław"],
-  ["Super Zioło", "Rzeszów"], ["Rastamobil", "Wrocław"], ["Przystanek Księżycowa", "Warszawa"],
-  ["Nieznajomi", "Poznań"], ["Świątynia Złotego Słońca", "Gdańsk"], ["Tajemnicze Domostwo", "Poznań"],
-  ["Szlak Nieumarłych", "Rzeszów"], ["Szkoła Magii - Turniej", "Bydgoszcz"], ["Krasnoludy", "Poznań"],
-  ["Motel California", "Warszawa"], ["Piła: Początek", "Toruń"], ["Ekstremus: Ostatni Spacer", "Warszawa"],
-  ["Sierociniec św Klary", "Bydgoszcz"], ["Wonderland", "Wrocław"], ["Turniej Trójmagiczny", "Poznań"],
-  ["Opuszczony Szpital", "Olsztyn"], ["Wyrok Arktyki", "Gdańsk"], ["American School Story", "Wrocław"],
-  ["Wyścig szczurów", "Poznań"], ["Superheroom", "Bydgoszcz"], ["Muzeum okultyzmu Państwa Warren", "Warszawa"],
-  ["Porwany Samolot", "Wrocław"], ["Katakumby", "Warszawa"], ["Gabinet Kopernika", "Toruń"],
-  ["Żelazny Tron Westeros", "Andrychów"], ["Obłęd", "Wrocław"], ["Kuźnia Krasnoluda", "Gdynia"],
-  ["Licho", "Gdańsk"], ["Diabelski Cyrk", "Lublin"], ["Sectum Sempra", "Gdańsk"],
-  ["Przyjaciel Cieni", "Wrocław"], ["Kryjówka wiedźmy", "Gdańsk"], ["Wednesday - Miłość aż po grób", "Toruń"],
-  ["Rycerski", "Warszawa"], ["Piracka Skrzynia Umarlaka", "Gdynia"],
-];
- 
 function emptyRoom(addedBy) {
   return {
     id: uid(),
@@ -248,6 +216,86 @@ function emptyRoom(addedBy) {
   };
 }
  
+/* ---------------------------------------------------------------
+   CSV IMPORT
+   Batch-add rooms from a CSV file -- the same column layout this app
+   exports (see "lockme-top-80-poland.csv"): name, venue, city,
+   country, category, difficulty, lockmeUrl, status, datePlayed,
+   result, timeNote. Only "name" is required; everything else falls
+   back to sensible defaults. Ratings, notes, photos and walkthrough
+   aren't part of the format -- those are added per-room afterward.
+--------------------------------------------------------------- */
+function parseCSV(text) {
+  const rows = [];
+  let row = [];
+  let field = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else {
+        field += c;
+      }
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ",") {
+      row.push(field);
+      field = "";
+    } else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(field);
+      field = "";
+      if (row.length > 1 || row[0] !== "") rows.push(row);
+      row = [];
+    } else {
+      field += c;
+    }
+  }
+  if (field.length || row.length) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows;
+}
+ 
+function roomsFromCSV(text, addedBy) {
+  const rows = parseCSV(text).filter((r) => r.some((c) => c.trim() !== ""));
+  if (!rows.length) return [];
+  const header = rows[0].map((h) => h.trim().toLowerCase());
+  const idx = (name) => header.indexOf(name);
+  const get = (row, name) => {
+    const i = idx(name);
+    return i === -1 ? "" : (row[i] || "").trim();
+  };
+ 
+  return rows
+    .slice(1)
+    .map((row) => {
+      const name = get(row, "name");
+      if (!name) return null;
+      const room = emptyRoom(addedBy);
+      room.name = name;
+      room.venue = get(row, "venue");
+      room.city = get(row, "city");
+      room.country = get(row, "country") || "Poland";
+      const category = get(row, "category");
+      room.category = CATEGORIES.includes(category) ? category : "Other";
+      const difficulty = get(row, "difficulty");
+      room.difficulty = DIFFICULTY_LEVELS.includes(difficulty) ? difficulty : "Medium";
+      room.lockmeUrl = get(row, "lockmeurl") || get(row, "lockme link") || get(row, "lock.me link");
+      room.status = get(row, "status").toLowerCase() === "played" ? "played" : "wishlist";
+      room.datePlayed = get(row, "dateplayed") || get(row, "date played");
+      const result = get(row, "result").toLowerCase();
+      room.result = result === "not-escaped" || result === "not escaped" ? "not-escaped" : "escaped";
+      room.timeNote = get(row, "timenote") || get(row, "time note");
+      return room;
+    })
+    .filter(Boolean);
+}
+ 
 function avgRating(room) {
   const vals = Object.values(room.ratings || {}).filter((v) => typeof v === "number");
   if (!vals.length) return null;
@@ -264,6 +312,7 @@ function fmtRating(n) {
 export default function EscapeRoomTracker() {
   const [loading, setLoading] = useState(true);
   const [saveError, setSaveError] = useState(null);
+  const [importMessage, setImportMessage] = useState(null);
   const [data, setData] = useState({ rooms: [], auth: {} });
   const [currentMember, setCurrentMember] = useState(null);
   const [view, setView] = useState("dashboard");
@@ -400,18 +449,28 @@ export default function EscapeRoomTracker() {
     persist({ ...data, rooms });
   };
  
-  const preloadLockmeRooms = () => {
-    const existingNames = new Set(data.rooms.map((r) => r.name.trim().toLowerCase()));
-    const toAdd = LOCKME_TOP_ROOMS
-      .filter(([name]) => !existingNames.has(name.trim().toLowerCase()))
-      .map(([name, city]) => ({
-        ...emptyRoom(),
-        name,
-        city,
-        country: "Poland",
-        category: "Other",
-      }));
-    if (toAdd.length) persist({ ...data, rooms: [...data.rooms, ...toAdd] });
+  const importRoomsFromFile = async (file) => {
+    try {
+      const text = await file.text();
+      const parsed = roomsFromCSV(text, currentMember);
+      if (!parsed.length) {
+        setImportMessage({ type: "error", text: "No rooms found in that file — make sure it has a 'name' column." });
+        setTimeout(() => setImportMessage(null), 6000);
+        return;
+      }
+      const key = (r) => `${r.name.trim().toLowerCase()}|${(r.city || "").trim().toLowerCase()}`;
+      const existingKeys = new Set(data.rooms.map(key));
+      const toAdd = parsed.filter((r) => !existingKeys.has(key(r)));
+      if (toAdd.length) await persist({ ...data, rooms: [...data.rooms, ...toAdd] });
+      const skipped = parsed.length - toAdd.length;
+      setImportMessage({
+        type: "success",
+        text: `Imported ${toAdd.length} room${toAdd.length === 1 ? "" : "s"}${skipped ? `, skipped ${skipped} already on the list` : ""}.`,
+      });
+    } catch (e) {
+      setImportMessage({ type: "error", text: "Couldn't read that file — make sure it's a CSV in the format this app exports." });
+    }
+    setTimeout(() => setImportMessage(null), 6000);
   };
  
   const selectedRoom = useMemo(
@@ -452,11 +511,18 @@ export default function EscapeRoomTracker() {
         currentMember={currentMember}
         onSwitchMember={() => chooseMember(null)}
         onAdd={() => { setEditingRoom(emptyRoom(currentMember)); setView("edit-room"); }}
+        onImportFile={importRoomsFromFile}
       />
  
       {saveError && (
         <div style={{ background: "var(--danger)", color: "#fff", fontSize: 12.5, padding: "6px 20px" }}>
           {saveError}
+        </div>
+      )}
+ 
+      {importMessage && (
+        <div style={{ background: importMessage.type === "error" ? "var(--danger)" : "var(--success)", color: "#fff", fontSize: 12.5, padding: "6px 20px" }}>
+          {importMessage.text}
         </div>
       )}
  
@@ -479,7 +545,6 @@ export default function EscapeRoomTracker() {
             rooms={wishlistRooms}
             emptyLabel="No rooms on the wishlist yet. Add one and mark it 'wishlist'."
             onOpen={(id) => { setSelectedRoomId(id); setReturnView("wishlist"); setView("room-detail"); }}
-            onPreload={preloadLockmeRooms}
           />
         )}
  
@@ -653,7 +718,30 @@ function WhoAmI({ members, authRecords, onChoose, onCreatePassword, onVerifyPass
 /* ---------------------------------------------------------------
    HEADER / NAV
 --------------------------------------------------------------- */
-function Header({ currentMember, onSwitchMember, onAdd }) {
+function Header({ currentMember, onSwitchMember, onAdd, onImportFile }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = React.useRef(null);
+  const fileInputRef = React.useRef(null);
+ 
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [menuOpen]);
+ 
+  const triggerFilePicker = () => {
+    setMenuOpen(false);
+    fileInputRef.current?.click();
+  };
+  const handleFileChange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) onImportFile(file);
+    e.target.value = "";
+  };
+ 
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 24px 10px", borderBottom: "1px solid var(--border-soft)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -669,9 +757,41 @@ function Header({ currentMember, onSwitchMember, onAdd }) {
         <button className="ert-btn ert-btn-ghost" onClick={onSwitchMember} style={{ padding: "8px 10px" }}>
           <Users size={14} />
         </button>
-        <button className="ert-btn ert-btn-brass" onClick={onAdd}>
-          <Plus size={15} /> Add room
-        </button>
+ 
+        <div style={{ display: "flex", position: "relative" }} ref={menuRef}>
+          <button
+            className="ert-btn ert-btn-brass"
+            onClick={onAdd}
+            style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+          >
+            <Plus size={15} /> Add room
+          </button>
+          <button
+            className="ert-btn ert-btn-brass"
+            onClick={() => setMenuOpen((v) => !v)}
+            title="More ways to add rooms"
+            style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: "1px solid rgba(0,0,0,0.18)", padding: "8px 9px" }}
+          >
+            <ChevronDown size={14} />
+          </button>
+ 
+          {menuOpen && (
+            <div
+              className="ert-card-raised"
+              style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 210, zIndex: 20, padding: 6, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
+            >
+              <button
+                className="ert-btn ert-btn-ghost"
+                style={{ width: "100%", justifyContent: "flex-start", border: "none" }}
+                onClick={triggerFilePicker}
+              >
+                <Upload size={14} /> Upload from file (CSV)
+              </button>
+            </div>
+          )}
+        </div>
+ 
+        <input ref={fileInputRef} type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={handleFileChange} />
       </div>
     </div>
   );
@@ -680,8 +800,8 @@ function Header({ currentMember, onSwitchMember, onAdd }) {
 function Nav({ view, setView }) {
   const tabs = [
     { id: "dashboard", label: "Overview", icon: LayoutDashboard },
-    { id: "rooms", label: "Completed", icon: ListChecks },
     { id: "ranking", label: "Ranking", icon: Trophy },
+    { id: "rooms", label: "Completed", icon: ListChecks },
     { id: "wishlist", label: "Wishlist", icon: Sparkles },
     { id: "settings", label: "Crew", icon: Settings },
   ];
@@ -733,6 +853,11 @@ function Dashboard({ rooms, members, onOpenRoom }) {
   }, [played]);
  
   const recent = [...played].sort((a, b) => (b.datePlayed || "").localeCompare(a.datePlayed || "")).slice(0, 5);
+  const topRated = [...played]
+    .map((r) => ({ ...r, _avg: avgRating(r) }))
+    .filter((r) => r._avg !== null)
+    .sort((a, b) => b._avg - a._avg)
+    .slice(0, 5);
  
   return (
     <div>
@@ -745,19 +870,40 @@ function Dashboard({ rooms, members, onOpenRoom }) {
       </div>
  
       <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16 }}>
-        <div className="ert-card" style={{ padding: 18 }}>
-          <div className="ert-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Recently played</div>
-          {recent.length === 0 && <EmptyNote text="Nothing logged yet — add your first room." />}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {recent.map((r) => (
-              <div key={r.id} onClick={() => onOpenRoom(r.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 11px", background: "var(--surface-raised)", borderRadius: 7, cursor: "pointer" }}>
-                <div>
-                  <div style={{ fontSize: 13.5, fontWeight: 600 }}>{r.name}</div>
-                  <div style={{ fontSize: 11.5, color: "var(--text-dim)" }}>{r.venue}{r.city ? ` · ${r.city}` : ""}</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="ert-card" style={{ padding: 18 }}>
+            <div className="ert-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Top rooms</div>
+            {topRated.length === 0 && <EmptyNote text="No ratings yet — rate a room to build your ranking." />}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {topRated.map((r, i) => (
+                <div key={r.id} onClick={() => onOpenRoom(r.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 11px", background: "var(--surface-raised)", borderRadius: 7, cursor: "pointer" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span className="ert-display" style={{ fontSize: 14, fontWeight: 700, color: i === 0 ? "var(--brass-bright)" : "var(--text-dim)", width: 16 }}>{i + 1}</span>
+                    <div>
+                      <div style={{ fontSize: 13.5, fontWeight: 600 }}>{r.name}</div>
+                      <div style={{ fontSize: 11.5, color: "var(--text-dim)" }}>{r.venue}{r.city ? ` · ${r.city}` : ""}</div>
+                    </div>
+                  </div>
+                  <div className="ert-mono" style={{ fontSize: 13, color: "var(--brass)" }}>{fmtRating(r._avg)}</div>
                 </div>
-                <div className="ert-mono" style={{ fontSize: 13, color: "var(--brass)" }}>{fmtRating(avgRating(r))}</div>
-              </div>
-            ))}
+              ))}
+            </div>
+          </div>
+ 
+          <div className="ert-card" style={{ padding: 18 }}>
+            <div className="ert-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Recently played</div>
+            {recent.length === 0 && <EmptyNote text="Nothing logged yet — add your first room." />}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {recent.map((r) => (
+                <div key={r.id} onClick={() => onOpenRoom(r.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 11px", background: "var(--surface-raised)", borderRadius: 7, cursor: "pointer" }}>
+                  <div>
+                    <div style={{ fontSize: 13.5, fontWeight: 600 }}>{r.name}</div>
+                    <div style={{ fontSize: 11.5, color: "var(--text-dim)" }}>{r.venue}{r.city ? ` · ${r.city}` : ""}</div>
+                  </div>
+                  <div className="ert-mono" style={{ fontSize: 13, color: "var(--brass)" }}>{fmtRating(avgRating(r))}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
  
@@ -895,7 +1041,7 @@ function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres
   );
 }
  
-function RoomsView({ rooms, onOpen, emptyLabel, onPreload }) {
+function RoomsView({ rooms, onOpen, emptyLabel }) {
   const [search, setSearch] = useState("");
   const [selectedCities, setSelectedCities] = useState([]);
   const [selectedGenres, setSelectedGenres] = useState([]);
@@ -937,11 +1083,6 @@ function RoomsView({ rooms, onOpen, emptyLabel, onPreload }) {
           onToggleCountry={toggleCountry}
           onClear={clearFilters}
         />
-        {onPreload && (
-          <button className="ert-btn ert-btn-ghost" onClick={onPreload} title="Add lock.me's top-ranked Poland rooms (name & city only)">
-            <Sparkles size={14} /> Preload lock.me top rooms
-          </button>
-        )}
       </div>
  
       {filtered.length === 0 ? (
@@ -1506,4 +1647,3 @@ function SettingsView({ members, currentMember, onChangePassword, rooms }) {
     </div>
   );
 }
- 
