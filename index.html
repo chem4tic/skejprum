@@ -54,7 +54,7 @@
  
   try {
     console.log("[EscapeLog] fetching escape-room-tracker.jsx…");
-    const res = await fetch("./escape-room-tracker.jsx");
+    const res = await fetch(`./escape-room-tracker.jsx?v=${Date.now()}`, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status} fetching escape-room-tracker.jsx`);
     const raw = await res.text();
     console.log("[EscapeLog] fetched, length:", raw.length);
