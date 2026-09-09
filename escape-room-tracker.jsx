@@ -3,7 +3,7 @@ import {
   Lock, Unlock, MapPin, Star, Plus, Search, X, Edit2, Trash2,
   ExternalLink, Users, Trophy, ListChecks, LayoutDashboard,
   Camera, ChevronLeft, Settings, Check, Clock, Skull, Sparkles, Filter,
-  ChevronDown, Upload,
+  ChevronDown, Upload, ArrowUpDown,
 } from "lucide-react";
  
 /* ---------------------------------------------------------------
