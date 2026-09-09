@@ -56,6 +56,182 @@ function getFirebaseHandle() {
   return firebaseHandlePromise;
 }
  
+/* ---------------------------------------------------------------
+   GOOGLE DRIVE (photo storage)
+   Photos are stored as files in your own Google Drive, in a folder
+   you create — never as public links. The app authenticates once
+   (you click "Connect Google Drive"), and the resulting refresh
+   token is saved in the same shared Firestore document as
+   everything else, so any of the four of you can then upload or
+   view photos from any device without personally signing in.
+ 
+   Setup (see the accompanying instructions):
+   1. In Google Cloud Console (the same project as Firebase works
+      fine), enable the "Google Drive API".
+   2. Create an OAuth 2.0 Client ID of type "Web application", with
+      this site's URL added as an authorized redirect URI.
+   3. Create a folder in your Drive for photos and copy its ID from
+      the folder's URL.
+   4. Paste the three values below.
+ 
+   Scope is drive.file — the app can only see files it creates
+   itself, nothing else in your Drive.
+--------------------------------------------------------------- */
+const GOOGLE_DRIVE_CONFIG = {
+  clientId: "250414337783-9f270fq0b53c2oel5qu40m233v2d08bk.apps.googleusercontent.com",
+  clientSecret: "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",
+  folderId: "1gWPydSc7SF2EUC7Q_XlTSL6uT0QK7t7y",
+};
+const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
+const PKCE_VERIFIER_KEY = "escape-room-club-drive-pkce-verifier";
+ 
+function isDriveConfigured() {
+  return (
+    GOOGLE_DRIVE_CONFIG.clientId &&
+    !GOOGLE_DRIVE_CONFIG.clientId.startsWith("YOUR_") &&
+    GOOGLE_DRIVE_CONFIG.folderId &&
+    !GOOGLE_DRIVE_CONFIG.folderId.startsWith("YOUR_")
+  );
+}
+ 
+function randomPKCEVerifier() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+async function pkceChallengeFromVerifier(verifier) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
+  let str = "";
+  new Uint8Array(digest).forEach((b) => { str += String.fromCharCode(b); });
+  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function currentRedirectUri() {
+  return window.location.origin + window.location.pathname;
+}
+ 
+// Kicks off the one-time "Connect Google Drive" flow by redirecting to
+// Google's consent screen. On return, handleDriveOAuthRedirect() picks up
+// the ?code= param and finishes the exchange.
+async function startDriveConnect() {
+  const verifier = randomPKCEVerifier();
+  window.sessionStorage.setItem(PKCE_VERIFIER_KEY, verifier);
+  const challenge = await pkceChallengeFromVerifier(verifier);
+  const params = new URLSearchParams({
+    client_id: GOOGLE_DRIVE_CONFIG.clientId,
+    redirect_uri: currentRedirectUri(),
+    response_type: "code",
+    scope: GOOGLE_DRIVE_SCOPE,
+    access_type: "offline",
+    prompt: "consent",
+    code_challenge: challenge,
+    code_challenge_method: "S256",
+  });
+  window.location.href = `${GOOGLE_AUTH_URL}?${params.toString()}`;
+}
+ 
+// Call once on app load. If Google just redirected back with a ?code=,
+// exchanges it for tokens and returns the refresh token to persist.
+async function handleDriveOAuthRedirect() {
+  const url = new URL(window.location.href);
+  const code = url.searchParams.get("code");
+  if (!code) return null;
+  const verifier = window.sessionStorage.getItem(PKCE_VERIFIER_KEY);
+  window.sessionStorage.removeItem(PKCE_VERIFIER_KEY);
+  url.searchParams.delete("code");
+  url.searchParams.delete("scope");
+  window.history.replaceState({}, "", url.toString());
+  if (!verifier) return null;
+ 
+  const body = new URLSearchParams({
+    client_id: GOOGLE_DRIVE_CONFIG.clientId,
+    client_secret: GOOGLE_DRIVE_CONFIG.clientSecret,
+    code,
+    code_verifier: verifier,
+    grant_type: "authorization_code",
+    redirect_uri: currentRedirectUri(),
+  });
+  const res = await fetch(GOOGLE_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  if (!res.ok) throw new Error("Google Drive authorization failed");
+  const json = await res.json();
+  if (!json.refresh_token) {
+    throw new Error("Google didn't return a refresh token — try connecting again (Google only issues one on first consent).");
+  }
+  return json.refresh_token;
+}
+ 
+// In-memory access-token cache (never persisted — short-lived by design).
+let driveAccessTokenCache = null; // { token, expiresAt }
+ 
+async function getDriveAccessToken(refreshToken) {
+  if (!refreshToken) throw new Error("Google Drive isn't connected yet.");
+  if (driveAccessTokenCache && driveAccessTokenCache.expiresAt > Date.now() + 30000) {
+    return driveAccessTokenCache.token;
+  }
+  const body = new URLSearchParams({
+    client_id: GOOGLE_DRIVE_CONFIG.clientId,
+    client_secret: GOOGLE_DRIVE_CONFIG.clientSecret,
+    refresh_token: refreshToken,
+    grant_type: "refresh_token",
+  });
+  const res = await fetch(GOOGLE_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  if (!res.ok) throw new Error("Couldn't refresh Google Drive access — it may need reconnecting.");
+  const json = await res.json();
+  driveAccessTokenCache = { token: json.access_token, expiresAt: Date.now() + json.expires_in * 1000 };
+  return json.access_token;
+}
+ 
+async function uploadPhotoToDrive(file, accessToken) {
+  const metadata = { name: file.name, parents: [GOOGLE_DRIVE_CONFIG.folderId] };
+  const boundary = "escapelog" + Math.random().toString(36).slice(2);
+  const fileBytes = new Uint8Array(await file.arrayBuffer());
+  const encoder = new TextEncoder();
+  const pre = encoder.encode(
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
+    `--${boundary}\r\nContent-Type: ${file.type || "application/octet-stream"}\r\n\r\n`
+  );
+  const post = encoder.encode(`\r\n--${boundary}--`);
+  const body = new Blob([pre, fileBytes, post]);
+ 
+  const res = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": `multipart/related; boundary=${boundary}` },
+    body,
+  });
+  if (!res.ok) throw new Error("Photo upload to Google Drive failed.");
+  return res.json(); // { id, name, mimeType }
+}
+ 
+async function deletePhotoFromDrive(fileId, accessToken) {
+  await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  }).catch(() => {}); // best-effort — a failed remote delete shouldn't block removing it from the room
+}
+ 
+const driveBlobCache = new Map(); // fileId -> object URL, so re-opening a room doesn't re-fetch
+ 
+async function fetchDrivePhotoUrl(fileId, accessToken) {
+  if (driveBlobCache.has(fileId)) return driveBlobCache.get(fileId);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error("Couldn't load that photo from Google Drive.");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  driveBlobCache.set(fileId, url);
+  return url;
+}
+ 
 // Personal, per-device value (e.g. "who am I") — never goes through Firebase.
 async function storageGet(key, shared) {
   if (hasClaudeStorage) return window.storage.get(key, shared);
@@ -216,7 +392,7 @@ function emptyRoom(addedBy) {
     createdAt: Date.now(),
   };
 }
-
+ 
 /* ---------------------------------------------------------------
    CSV IMPORT
    Batch-add rooms from a CSV file -- the same column layout this app
@@ -261,7 +437,7 @@ function parseCSV(text) {
   }
   return rows;
 }
-
+ 
 function roomsFromCSV(text, addedBy) {
   const rows = parseCSV(text).filter((r) => r.some((c) => c.trim() !== ""));
   if (!rows.length) return [];
@@ -271,7 +447,7 @@ function roomsFromCSV(text, addedBy) {
     const i = idx(name);
     return i === -1 ? "" : (row[i] || "").trim();
   };
-
+ 
   return rows
     .slice(1)
     .map((row) => {
@@ -296,7 +472,7 @@ function roomsFromCSV(text, addedBy) {
     })
     .filter(Boolean);
 }
-
+ 
 function avgRating(room) {
   const vals = Object.values(room.ratings || {}).filter((v) => typeof v === "number");
   if (!vals.length) return null;
@@ -314,7 +490,7 @@ export default function EscapeRoomTracker() {
   const [loading, setLoading] = useState(true);
   const [saveError, setSaveError] = useState(null);
   const [importMessage, setImportMessage] = useState(null);
-  const [data, setData] = useState({ rooms: [], auth: {} });
+  const [data, setData] = useState({ rooms: [], auth: {}, driveAuth: null });
   const [currentMember, setCurrentMember] = useState(null);
   const [view, setView] = useState("dashboard");
   const [selectedRoomId, setSelectedRoomId] = useState(null);
@@ -330,7 +506,7 @@ export default function EscapeRoomTracker() {
     if (hasClaudeStorage) {
       (async () => {
         try {
-          let loaded = { rooms: [], auth: {} };
+          let loaded = { rooms: [], auth: {}, driveAuth: null };
           try {
             const res = await storageGet(STORAGE_KEY, true);
             if (res && res.value) loaded = JSON.parse(res.value);
@@ -351,7 +527,7 @@ export default function EscapeRoomTracker() {
           unsubscribeFirestore = onSnapshot(
             ref,
             (snap) => {
-              setData(snap.exists() ? snap.data() : { rooms: [], auth: {} });
+              setData(snap.exists() ? snap.data() : { rooms: [], auth: {}, driveAuth: null });
               setLoading(false);
               setSaveError(null);
             },
@@ -431,6 +607,37 @@ export default function EscapeRoomTracker() {
     await persist({ ...data, auth: { ...(data.auth || {}), [name]: { salt, hash } } });
     return true;
   };
+ 
+  const [driveMessage, setDriveMessage] = useState(null);
+ 
+  // Pick up an in-progress "Connect Google Drive" flow returning from Google.
+  // Waits for the real shared data to finish loading first, so this can't
+  // clobber it with the empty initial state.
+  const driveRedirectHandled = React.useRef(false);
+  useEffect(() => {
+    if (loading || driveRedirectHandled.current) return;
+    if (hasClaudeStorage || !isDriveConfigured()) return;
+    if (!window.location.search.includes("code=")) return;
+    driveRedirectHandled.current = true;
+    (async () => {
+      try {
+        const refreshToken = await handleDriveOAuthRedirect();
+        if (refreshToken) {
+          await persist({ ...data, driveAuth: { refreshToken } });
+          setDriveMessage({ type: "success", text: "Google Drive connected — photos will now upload there." });
+        }
+      } catch (e) {
+        setDriveMessage({ type: "error", text: e.message || "Couldn't connect Google Drive." });
+      }
+      setTimeout(() => setDriveMessage(null), 6000);
+    })();
+  }, [loading, data]);
+ 
+  const connectGoogleDrive = () => {
+    startDriveConnect().catch((e) => setDriveMessage({ type: "error", text: e.message || "Couldn't start the connection." }));
+  };
+ 
+  const getRoomsAccessToken = () => getDriveAccessToken(data.driveAuth && data.driveAuth.refreshToken);
  
   const saveRoom = (room) => {
     const exists = data.rooms.some((r) => r.id === room.id);
@@ -520,10 +727,16 @@ export default function EscapeRoomTracker() {
           {saveError}
         </div>
       )}
-
+ 
       {importMessage && (
         <div style={{ background: importMessage.type === "error" ? "var(--danger)" : "var(--success)", color: "#fff", fontSize: 12.5, padding: "6px 20px" }}>
           {importMessage.text}
+        </div>
+      )}
+ 
+      {driveMessage && (
+        <div style={{ background: driveMessage.type === "error" ? "var(--danger)" : "var(--success)", color: "#fff", fontSize: 12.5, padding: "6px 20px" }}>
+          {driveMessage.text}
         </div>
       )}
  
@@ -572,6 +785,10 @@ export default function EscapeRoomTracker() {
             onEdit={() => { setEditingRoom(selectedRoom); setView("edit-room"); }}
             onDelete={() => deleteRoom(selectedRoom.id)}
             onUpdate={(patch) => updateRoomField(selectedRoom.id, patch)}
+            driveConnected={!hasClaudeStorage && !!(data.driveAuth && data.driveAuth.refreshToken)}
+            driveAvailable={!hasClaudeStorage && isDriveConfigured()}
+            onConnectDrive={connectGoogleDrive}
+            getDriveAccessToken={getRoomsAccessToken}
           />
         )}
       </div>
@@ -723,7 +940,7 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = React.useRef(null);
   const fileInputRef = React.useRef(null);
-
+ 
   useEffect(() => {
     if (!menuOpen) return;
     const handleClick = (e) => {
@@ -732,7 +949,7 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile }) {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [menuOpen]);
-
+ 
   const triggerFilePicker = () => {
     setMenuOpen(false);
     fileInputRef.current?.click();
@@ -742,7 +959,7 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile }) {
     if (file) onImportFile(file);
     e.target.value = "";
   };
-
+ 
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 24px 10px", borderBottom: "1px solid var(--border-soft)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -758,7 +975,7 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile }) {
         <button className="ert-btn ert-btn-ghost" onClick={onSwitchMember} style={{ padding: "8px 10px" }}>
           <Users size={14} />
         </button>
-
+ 
         <div style={{ display: "flex", position: "relative" }} ref={menuRef}>
           <button
             className="ert-btn ert-btn-brass"
@@ -775,7 +992,7 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile }) {
           >
             <ChevronDown size={14} />
           </button>
-
+ 
           {menuOpen && (
             <div
               className="ert-card-raised"
@@ -791,7 +1008,7 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile }) {
             </div>
           )}
         </div>
-
+ 
         <input ref={fileInputRef} type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={handleFileChange} />
       </div>
     </div>
@@ -859,7 +1076,7 @@ function Dashboard({ rooms, members, onOpenRoom }) {
     .filter((r) => r._avg !== null)
     .sort((a, b) => b._avg - a._avg)
     .slice(0, 5);
-
+ 
   return (
     <div>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 22 }}>
@@ -869,7 +1086,7 @@ function Dashboard({ rooms, members, onOpenRoom }) {
         <StatBlock label="Wishlist" value={wishlist.length} />
         <StatBlock label="Crew" value={members.length} />
       </div>
-
+ 
       <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div className="ert-card" style={{ padding: 18 }}>
@@ -890,7 +1107,7 @@ function Dashboard({ rooms, members, onOpenRoom }) {
               ))}
             </div>
           </div>
-
+ 
           <div className="ert-card" style={{ padding: 18 }}>
             <div className="ert-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Recently played</div>
             {recent.length === 0 && <EmptyNote text="Nothing logged yet — add your first room." />}
@@ -907,7 +1124,7 @@ function Dashboard({ rooms, members, onOpenRoom }) {
             </div>
           </div>
         </div>
-
+ 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div className="ert-card" style={{ padding: 18 }}>
             <div className="ert-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Top cities</div>
@@ -951,7 +1168,7 @@ function BarRow({ label, count, max }) {
 function EmptyNote({ text }) {
   return <div style={{ fontSize: 12.5, color: "var(--text-dim)", fontStyle: "italic" }}>{text}</div>;
 }
-
+ 
 /* ---------------------------------------------------------------
    STAR ROW
    A 1-10 rating control that supports half-point precision -- click
@@ -967,7 +1184,7 @@ function StarRow({ value, onChange, size }) {
     const isHalf = clickX < rect.width / 2;
     onChange(starIndex + (isHalf ? 0.5 : 1));
   };
-
+ 
   return (
     <>
       {Array.from({ length: 10 }).map((_, idx) => {
@@ -1214,13 +1431,14 @@ function RankingView({ rooms, members, onOpen }) {
 /* ---------------------------------------------------------------
    ROOM DETAIL
 --------------------------------------------------------------- */
-function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, onUpdate }) {
+function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, onUpdate, driveConnected, driveAvailable, onConnectDrive, getDriveAccessToken }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [myRating, setMyRating] = useState(room.ratings[currentMember] || 0);
   const [myNote, setMyNote] = useState(room.notes[currentMember] || "");
   const [noteSaved, setNoteSaved] = useState(false);
   const [editingNote, setEditingNote] = useState(false);
-  const [newPhotoUrl, setNewPhotoUrl] = useState("");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState(null);
   const [walkthrough, setWalkthrough] = useState(room.walkthrough || "");
   const [walkthroughSaved, setWalkthroughSaved] = useState(false);
   const [editingWalkthrough, setEditingWalkthrough] = useState(false);
@@ -1251,13 +1469,35 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
     setWalkthroughSaved(true);
     setTimeout(() => setWalkthroughSaved(false), 1500);
   };
-  const addPhoto = () => {
-    if (!newPhotoUrl.trim()) return;
-    onUpdate({ photos: [...(room.photos || []), { url: newPhotoUrl.trim() }] });
-    setNewPhotoUrl("");
+  const handlePhotoSelected = async (file) => {
+    if (!file) return;
+    setPhotoError(null);
+    setUploadingPhoto(true);
+    try {
+      const token = await getDriveAccessToken();
+      const uploaded = await uploadPhotoToDrive(file, token);
+      const photo = {
+        id: uid(),
+        driveFileId: uploaded.id,
+        name: uploaded.name,
+        mimeType: uploaded.mimeType,
+        addedBy: currentMember,
+      };
+      onUpdate({ photos: [...(room.photos || []), photo] });
+    } catch (e) {
+      setPhotoError(e.message || "Couldn't upload that photo.");
+    } finally {
+      setUploadingPhoto(false);
+    }
   };
-  const removePhoto = (idx) => {
-    onUpdate({ photos: room.photos.filter((_, i) => i !== idx) });
+  const removePhoto = async (photo) => {
+    onUpdate({ photos: room.photos.filter((p) => p.id !== photo.id) });
+    try {
+      const token = await getDriveAccessToken();
+      await deletePhotoFromDrive(photo.driveFileId, token);
+    } catch (e) {
+      /* the room's photo list is already updated; a failed remote delete just leaves an orphaned Drive file */
+    }
   };
   const markPlayed = () => {
     onUpdate({
@@ -1465,28 +1705,89 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
           <Camera size={15} color="var(--brass)" />
           <div className="ert-display" style={{ fontSize: 15, fontWeight: 700 }}>Photos</div>
         </div>
-        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          <input className="ert-input" placeholder="Paste an image URL…" value={newPhotoUrl} onChange={(e) => setNewPhotoUrl(e.target.value)} />
-          <button className="ert-btn ert-btn-ghost" onClick={addPhoto}><Plus size={14} /></button>
-        </div>
-        {(!room.photos || room.photos.length === 0) ? (
-          <EmptyNote text="No photos yet — paste a link to an image (e.g. from your phone's cloud backup)." />
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 8 }}>
-            {room.photos.map((p, i) => (
-              <div key={i} style={{ position: "relative", borderRadius: 8, overflow: "hidden", aspectRatio: "1", background: "var(--surface-raised)" }}>
-                <img src={p.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} onError={(e) => { e.target.style.display = "none"; }} />
-                <button
-                  onClick={() => removePhoto(i)}
-                  style={{ position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.6)", border: "none", borderRadius: 5, padding: 3, cursor: "pointer" }}
-                >
-                  <X size={12} color="#fff" />
-                </button>
-              </div>
-            ))}
+ 
+        {!driveAvailable ? (
+          <EmptyNote text="Photo upload uses Google Drive and only works on the hosted site, not in this preview." />
+        ) : !driveConnected ? (
+          <div>
+            <p style={{ fontSize: 12.5, color: "var(--text-dim)", marginBottom: 10 }}>
+              Photos upload straight to a Google Drive folder — not a public link. One of you needs to connect it once; after that, everyone can upload and view from any device.
+            </p>
+            <button className="ert-btn ert-btn-brass" onClick={onConnectDrive}>
+              <Upload size={14} /> Connect Google Drive
+            </button>
           </div>
+        ) : (
+          <>
+            <div style={{ marginBottom: 12 }}>
+              <input
+                id={`photo-input-${room.id}`}
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={(e) => { handlePhotoSelected(e.target.files && e.target.files[0]); e.target.value = ""; }}
+              />
+              <label
+                htmlFor={`photo-input-${room.id}`}
+                className="ert-btn ert-btn-ghost"
+                style={{ cursor: "pointer", opacity: uploadingPhoto ? 0.6 : 1, pointerEvents: uploadingPhoto ? "none" : "auto" }}
+              >
+                <Upload size={14} /> {uploadingPhoto ? "Uploading…" : "Upload photo"}
+              </label>
+              {photoError && <div style={{ color: "var(--danger)", fontSize: 12, marginTop: 6 }}>{photoError}</div>}
+            </div>
+ 
+            {(!room.photos || room.photos.length === 0) ? (
+              <EmptyNote text="No photos yet — upload one from the room." />
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 8 }}>
+                {room.photos.map((p) => (
+                  <DrivePhoto key={p.id} photo={p} getDriveAccessToken={getDriveAccessToken} onRemove={() => removePhoto(p)} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
+    </div>
+  );
+}
+ 
+function DrivePhoto({ photo, getDriveAccessToken, onRemove }) {
+  const [src, setSrc] = useState(null);
+  const [failed, setFailed] = useState(false);
+ 
+  useEffect(() => {
+    let cancelled = false;
+    setSrc(null);
+    setFailed(false);
+    (async () => {
+      try {
+        const token = await getDriveAccessToken();
+        const url = await fetchDrivePhotoUrl(photo.driveFileId, token);
+        if (!cancelled) setSrc(url);
+      } catch (e) {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [photo.driveFileId]);
+ 
+  return (
+    <div style={{ position: "relative", borderRadius: 8, overflow: "hidden", aspectRatio: "1", background: "var(--surface-raised)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      {failed ? (
+        <span style={{ fontSize: 11, color: "var(--text-dim)", padding: 8, textAlign: "center" }}>Couldn't load</span>
+      ) : !src ? (
+        <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)" }}>loading…</span>
+      ) : (
+        <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+      )}
+      <button
+        onClick={onRemove}
+        style={{ position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.6)", border: "none", borderRadius: 5, padding: 3, cursor: "pointer" }}
+      >
+        <X size={12} color="#fff" />
+      </button>
     </div>
   );
 }
