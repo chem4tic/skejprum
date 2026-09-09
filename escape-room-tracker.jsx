@@ -284,6 +284,9 @@ async function hashPassword(password, salt) {
 const TOKENS = `
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
  
+  .ert-root, .ert-root *, .ert-root *::before, .ert-root *::after {
+    box-sizing: border-box;
+  }
   .ert-root {
     --bg: #14161c;
     --surface: #1c1f28;
