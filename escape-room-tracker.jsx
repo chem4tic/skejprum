@@ -3,7 +3,7 @@ import {
   Lock, Unlock, MapPin, Star, StarHalf, Plus, Search, X, Edit2, Trash2,
   ExternalLink, Users, Trophy, ListChecks, LayoutDashboard,
   Camera, ChevronLeft, Settings, Check, Clock, Skull, Sparkles, Filter,
-  ChevronDown, Upload, ArrowUpDown,
+  ChevronDown, Upload, ArrowUpDown, Plane, Calendar,
 } from "lucide-react";
  
 /* ---------------------------------------------------------------
@@ -1346,6 +1346,8 @@ function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres
 const SORT_OPTIONS = [
   { id: "date-desc", label: "Date added (newest)" },
   { id: "date-asc", label: "Date added (oldest)" },
+  { id: "visited-desc", label: "Date visited (newest)" },
+  { id: "visited-asc", label: "Date visited (oldest)" },
   { id: "rating-desc", label: "Rating (high to low)" },
   { id: "alpha", label: "Alphabetical (A\u2013Z)" },
 ];
@@ -1355,6 +1357,24 @@ function sortRooms(rooms, sortBy) {
   switch (sortBy) {
     case "date-asc":
       return arr.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    case "visited-desc":
+      return arr.sort((a, b) => {
+        const av = a.datePlayed || "";
+        const bv = b.datePlayed || "";
+        if (!av && !bv) return 0;
+        if (!av) return 1;
+        if (!bv) return -1;
+        return bv.localeCompare(av);
+      });
+    case "visited-asc":
+      return arr.sort((a, b) => {
+        const av = a.datePlayed || "";
+        const bv = b.datePlayed || "";
+        if (!av && !bv) return 0;
+        if (!av) return 1;
+        if (!bv) return -1;
+        return av.localeCompare(bv);
+      });
     case "rating-desc":
       return arr.sort((a, b) => {
         const av = avgRating(a);
@@ -1590,6 +1610,7 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
   const [editingNote, setEditingNote] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState(null);
+  const [previewSrc, setPreviewSrc] = useState(null);
   const [walkthrough, setWalkthrough] = useState(room.walkthrough || "");
   const [walkthroughSaved, setWalkthroughSaved] = useState(false);
   const [editingWalkthrough, setEditingWalkthrough] = useState(false);
@@ -1893,18 +1914,41 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 8 }}>
                 {room.photos.map((p) => (
-                  <DrivePhoto key={p.id} photo={p} getDriveAccessToken={getDriveAccessToken} onRemove={() => removePhoto(p)} />
+                  <DrivePhoto key={p.id} photo={p} getDriveAccessToken={getDriveAccessToken} onRemove={() => removePhoto(p)} onPreview={setPreviewSrc} />
                 ))}
               </div>
             )}
           </>
         )}
       </div>
+       
+      {previewSrc && (
+        <div
+          onClick={() => setPreviewSrc(null)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(10,11,15,0.9)", zIndex: 100,
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 24, cursor: "zoom-out",
+          }}
+        >
+          <img
+            src={previewSrc}
+            alt=""
+            style={{ maxWidth: "100%", maxHeight: "100%", borderRadius: 8, boxShadow: "0 12px 40px rgba(0,0,0,0.6)" }}
+          />
+          <button
+            onClick={(e) => { e.stopPropagation(); setPreviewSrc(null); }}
+            className="ert-btn ert-btn-ghost"
+            style={{ position: "absolute", top: 20, right: 20, padding: "8px 10px" }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
  
-function DrivePhoto({ photo, getDriveAccessToken, onRemove }) {
+function DrivePhoto({ photo, getDriveAccessToken, onRemove, onPreview }) {
   const [src, setSrc] = useState(null);
   const [failed, setFailed] = useState(false);
  
@@ -1931,7 +1975,12 @@ function DrivePhoto({ photo, getDriveAccessToken, onRemove }) {
       ) : !src ? (
         <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)" }}>loading…</span>
       ) : (
-        <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        <img
+          src={src}
+          alt=""
+          onClick={() => onPreview(src)}
+          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", cursor: "pointer" }}
+        />
       )}
       <button
         onClick={onRemove}
