@@ -1212,22 +1212,48 @@ function StarRow({ value, onChange, size }) {
 --------------------------------------------------------------- */
 function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres, selectedCountries, onToggleCity, onToggleGenre, onToggleCountry, onClear }) {
   const [open, setOpen] = useState(false);
+  const [panelStyle, setPanelStyle] = useState(null);
   const ref = React.useRef(null);
+  const btnRef = React.useRef(null);
+ 
+  // Positioned in real screen pixels measured from the button itself at the
+  // moment it opens (and kept in sync on resize/scroll) rather than guessed
+  // from CSS percentages of the viewport -- that keeps it correct regardless
+  // of window size, browser zoom, or display scaling.
+  const recomputePosition = useCallback(() => {
+    const btn = btnRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const panelWidth = Math.min(260, window.innerWidth - 24);
+    let left = rect.right - panelWidth;
+    left = Math.max(12, Math.min(left, window.innerWidth - panelWidth - 12));
+    const top = rect.bottom + 6;
+    setPanelStyle({ position: "fixed", top, left, width: panelWidth, maxHeight: Math.min(360, window.innerHeight - top - 12) });
+  }, []);
  
   useEffect(() => {
     if (!open) return;
+    recomputePosition();
     const handleClick = (e) => {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
     };
+    const handleReposition = () => recomputePosition();
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
+    window.addEventListener("resize", handleReposition);
+    window.addEventListener("scroll", handleReposition, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("resize", handleReposition);
+      window.removeEventListener("scroll", handleReposition, true);
+    };
+  }, [open, recomputePosition]);
  
   const activeCount = selectedCities.length + selectedGenres.length + selectedCountries.length;
  
   return (
     <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
       <button
+        ref={btnRef}
         type="button"
         className="ert-btn ert-btn-ghost"
         onClick={() => setOpen((o) => !o)}
@@ -1242,10 +1268,10 @@ function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres
         )}
       </button>
  
-      {open && (
+      {open && panelStyle && (
         <div
           className="ert-card-raised ert-scrollbar"
-          style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 240, maxWidth: "calc(100vw - 48px)", maxHeight: 360, overflowY: "auto", zIndex: 20, padding: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
+          style={{ ...panelStyle, overflowY: "auto", zIndex: 20, padding: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)", textTransform: "uppercase" }}>Filters</span>
