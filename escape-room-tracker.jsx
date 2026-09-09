@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  Lock, Unlock, MapPin, Star, Plus, Search, X, Edit2, Trash2,
+  Lock, Unlock, MapPin, Star, StarHalf, Plus, Search, X, Edit2, Trash2,
   ExternalLink, Users, Trophy, ListChecks, LayoutDashboard,
   Camera, ChevronLeft, Settings, Check, Clock, Skull, Sparkles, Filter,
   ChevronDown, Upload, ArrowUpDown,
@@ -20,6 +20,17 @@ import {
    alongside this file.
 --------------------------------------------------------------- */
 const hasClaudeStorage = typeof window !== "undefined" && window.storage && typeof window.storage.get === "function";
+ 
+// In-app browsers (Facebook/Messenger, Instagram, TikTok, LinkedIn, etc.)
+// often run in a sandboxed WebView that blocks IndexedDB, which Firestore
+// needs to sync data. This is a heuristic, not a guarantee -- it just lets
+// the app warn people to open the real link in Safari/Chrome instead of
+// silently losing changes.
+function isKnownInAppBrowser() {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  return /FBAN|FBAV|Instagram|Messenger|Line\/|MicroMessenger|TikTok|LinkedInApp/i.test(ua);
+}
  
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyDd0Z3d95XxKHOo6rGeGpMmgtkpvoxscOA",
@@ -737,6 +748,12 @@ export default function EscapeRoomTracker() {
       {driveMessage && (
         <div style={{ background: driveMessage.type === "error" ? "var(--danger)" : "var(--success)", color: "#fff", fontSize: 12.5, padding: "6px 20px" }}>
           {driveMessage.text}
+        </div>
+      )}
+ 
+      {isKnownInAppBrowser() && (
+        <div style={{ background: "var(--danger)", color: "#fff", fontSize: 12.5, padding: "6px 20px" }}>
+          This looks like an in-app browser (e.g. Messenger, Instagram) — these often block the storage this app needs, so changes may not save. Open this link in Safari or Chrome instead.
         </div>
       )}
  
