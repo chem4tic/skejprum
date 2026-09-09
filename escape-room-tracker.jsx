@@ -1323,11 +1323,114 @@ function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres
   );
 }
  
+const SORT_OPTIONS = [
+  { id: "date-desc", label: "Date added (newest)" },
+  { id: "date-asc", label: "Date added (oldest)" },
+  { id: "rating-desc", label: "Rating (high to low)" },
+  { id: "alpha", label: "Alphabetical (A\u2013Z)" },
+];
+ 
+function sortRooms(rooms, sortBy) {
+  const arr = [...rooms];
+  switch (sortBy) {
+    case "date-asc":
+      return arr.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    case "rating-desc":
+      return arr.sort((a, b) => {
+        const av = avgRating(a);
+        const bv = avgRating(b);
+        if (av === null && bv === null) return 0;
+        if (av === null) return 1;
+        if (bv === null) return -1;
+        return bv - av;
+      });
+    case "alpha":
+      return arr.sort((a, b) => a.name.localeCompare(b.name));
+    case "date-desc":
+    default:
+      return arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  }
+}
+ 
+function SortPopover({ sortBy, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [panelStyle, setPanelStyle] = useState(null);
+  const ref = React.useRef(null);
+  const btnRef = React.useRef(null);
+ 
+  const recomputePosition = useCallback(() => {
+    const btn = btnRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const panelWidth = Math.min(220, window.innerWidth - 24);
+    let left = rect.right - panelWidth;
+    left = Math.max(12, Math.min(left, window.innerWidth - panelWidth - 12));
+    const top = rect.bottom + 6;
+    setPanelStyle({ position: "fixed", top, left, width: panelWidth });
+  }, []);
+ 
+  useEffect(() => {
+    if (!open) return;
+    recomputePosition();
+    const handleClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    const handleReposition = () => recomputePosition();
+    document.addEventListener("mousedown", handleClick);
+    window.addEventListener("resize", handleReposition);
+    window.addEventListener("scroll", handleReposition, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("resize", handleReposition);
+      window.removeEventListener("scroll", handleReposition, true);
+    };
+  }, [open, recomputePosition]);
+ 
+  const current = SORT_OPTIONS.find((o) => o.id === sortBy) || SORT_OPTIONS[0];
+ 
+  return (
+    <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
+      <button
+        ref={btnRef}
+        type="button"
+        className="ert-btn ert-btn-ghost"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <ArrowUpDown size={14} />
+        Sort
+      </button>
+ 
+      {open && panelStyle && (
+        <div
+          className="ert-card-raised"
+          style={{ ...panelStyle, zIndex: 20, padding: 6, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
+        >
+          {SORT_OPTIONS.map((opt) => (
+            <div
+              key={opt.id}
+              onClick={() => { onChange(opt.id); setOpen(false); }}
+              style={{
+                padding: "8px 10px", borderRadius: 6, fontSize: 13, cursor: "pointer",
+                color: opt.id === current.id ? "var(--brass-bright)" : "var(--text)",
+                background: opt.id === current.id ? "var(--surface-raised)" : "transparent",
+                fontWeight: opt.id === current.id ? 600 : 400,
+              }}
+            >
+              {opt.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+ 
 function RoomsView({ rooms, onOpen, emptyLabel }) {
   const [search, setSearch] = useState("");
   const [selectedCities, setSelectedCities] = useState([]);
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [selectedCountries, setSelectedCountries] = useState([]);
+  const [sortBy, setSortBy] = useState("date-desc");
  
   const cities = useMemo(() => Array.from(new Set(rooms.map((r) => r.city).filter(Boolean))).sort(), [rooms]);
   const cats = useMemo(() => Array.from(new Set(rooms.map((r) => r.category).filter(Boolean))).sort(), [rooms]);
@@ -1345,6 +1448,7 @@ function RoomsView({ rooms, onOpen, emptyLabel }) {
     if (selectedGenres.length && !selectedGenres.includes(r.category)) return false;
     return true;
   });
+  const sorted = sortRooms(filtered, sortBy);
  
   return (
     <div>
@@ -1365,13 +1469,14 @@ function RoomsView({ rooms, onOpen, emptyLabel }) {
           onToggleCountry={toggleCountry}
           onClear={clearFilters}
         />
+        <SortPopover sortBy={sortBy} onChange={setSortBy} />
       </div>
  
-      {filtered.length === 0 ? (
+      {sorted.length === 0 ? (
         <EmptyNote text={emptyLabel || "No rooms match those filters."} />
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
-          {filtered.map((r, i) => <RoomCard key={r.id} room={r} index={i} onOpen={() => onOpen(r.id)} />)}
+          {sorted.map((r, i) => <RoomCard key={r.id} room={r} index={i} onOpen={() => onOpen(r.id)} />)}
         </div>
       )}
     </div>
