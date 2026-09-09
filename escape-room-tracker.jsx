@@ -3,7 +3,7 @@ import {
   Lock, Unlock, MapPin, Star, StarHalf, Plus, Search, X, Edit2, Trash2,
   ExternalLink, Users, Trophy, ListChecks, LayoutDashboard,
   Camera, ChevronLeft, Settings, Check, Clock, Skull, Sparkles, Filter,
-  ChevronDown, Upload, ArrowUpDown,
+  ChevronDown, Upload, ArrowUpDown, Plane, Calendar,
 } from "lucide-react";
  
 /* ---------------------------------------------------------------
@@ -487,6 +487,33 @@ function roomsFromCSV(text, addedBy) {
     .filter(Boolean);
 }
  
+function emptyTrip(createdBy) {
+  return {
+    id: uid(),
+    name: "",
+    city: "",
+    startDate: "",
+    endDate: "",
+    roomIds: [],
+    notes: "",
+    createdBy: createdBy || null,
+    createdAt: Date.now(),
+  };
+}
+ 
+function tripStats(trip, rooms) {
+  const included = rooms.filter((r) => trip.roomIds.includes(r.id));
+  const ratedAvgs = included.map(avgRating).filter((v) => v !== null);
+  const avg = ratedAvgs.length ? ratedAvgs.reduce((a, b) => a + b, 0) / ratedAvgs.length : null;
+  const escaped = included.filter((r) => r.result === "escaped").length;
+  return {
+    rooms: included,
+    count: included.length,
+    avg,
+    escapeRate: included.length ? Math.round((escaped / included.length) * 100) : null,
+  };
+}
+ 
 function avgRating(room) {
   const vals = Object.values(room.ratings || {}).filter((v) => typeof v === "number");
   if (!vals.length) return null;
@@ -504,12 +531,14 @@ export default function EscapeRoomTracker() {
   const [loading, setLoading] = useState(true);
   const [saveError, setSaveError] = useState(null);
   const [importMessage, setImportMessage] = useState(null);
-  const [data, setData] = useState({ rooms: [], auth: {}, driveAuth: null });
+  const [data, setData] = useState({ rooms: [], auth: {}, driveAuth: null, trips: [] });
   const [currentMember, setCurrentMember] = useState(null);
   const [view, setView] = useState("dashboard");
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [returnView, setReturnView] = useState("rooms");
   const [editingRoom, setEditingRoom] = useState(null); // room object being added/edited, or null
+  const [selectedTripId, setSelectedTripId] = useState(null);
+  const [editingTrip, setEditingTrip] = useState(null); // trip object being added/edited, or null
  
   // ---- load ----
   useEffect(() => {
@@ -520,7 +549,7 @@ export default function EscapeRoomTracker() {
     if (hasClaudeStorage) {
       (async () => {
         try {
-          let loaded = { rooms: [], auth: {}, driveAuth: null };
+          let loaded = { rooms: [], auth: {}, driveAuth: null, trips: [] };
           try {
             const res = await storageGet(STORAGE_KEY, true);
             if (res && res.value) loaded = JSON.parse(res.value);
@@ -541,7 +570,7 @@ export default function EscapeRoomTracker() {
           unsubscribeFirestore = onSnapshot(
             ref,
             (snap) => {
-              setData(snap.exists() ? snap.data() : { rooms: [], auth: {}, driveAuth: null });
+              setData(snap.exists() ? snap.data() : { rooms: [], auth: {}, driveAuth: null, trips: [] });
               setLoading(false);
               setSaveError(null);
             },
@@ -671,6 +700,24 @@ export default function EscapeRoomTracker() {
     persist({ ...data, rooms });
   };
  
+  const saveTrip = (trip) => {
+    const exists = data.trips.some((t) => t.id === trip.id);
+    const trips = exists ? data.trips.map((t) => (t.id === trip.id ? trip : t)) : [trip, ...data.trips];
+    persist({ ...data, trips });
+    setEditingTrip(null);
+    setView("trip-detail");
+    setSelectedTripId(trip.id);
+  };
+  const deleteTrip = (id) => {
+    persist({ ...data, trips: data.trips.filter((t) => t.id !== id) });
+    setView("trips");
+    setSelectedTripId(null);
+  };
+  const updateTripField = (id, patch) => {
+    const trips = data.trips.map((t) => (t.id === id ? { ...t, ...patch } : t));
+    persist({ ...data, trips });
+  };
+ 
   const importRoomsFromFile = async (file) => {
     try {
       const text = await file.text();
@@ -702,6 +749,10 @@ export default function EscapeRoomTracker() {
  
   const playedRooms = useMemo(() => data.rooms.filter((r) => r.status === "played"), [data.rooms]);
   const wishlistRooms = useMemo(() => data.rooms.filter((r) => r.status === "wishlist"), [data.rooms]);
+  const selectedTrip = useMemo(
+    () => data.trips.find((t) => t.id === selectedTripId) || null,
+    [data.trips, selectedTripId]
+  );
  
   if (loading) {
     return (
@@ -760,7 +811,7 @@ export default function EscapeRoomTracker() {
         </div>
       )}
  
-      <Nav view={view} setView={(v) => { setView(v); setSelectedRoomId(null); setEditingRoom(null); }} />
+      <Nav view={view} setView={(v) => { setView(v); setSelectedRoomId(null); setEditingRoom(null); setSelectedTripId(null); setEditingTrip(null); }} />
  
       <div style={{ padding: "20px 24px 32px" }} className="ert-fade-in">
         {view === "dashboard" && (
@@ -809,6 +860,37 @@ export default function EscapeRoomTracker() {
             driveAvailable={!hasClaudeStorage && isDriveConfigured()}
             onConnectDrive={connectGoogleDrive}
             getDriveAccessToken={getRoomsAccessToken}
+          />
+        )}
+ 
+        {view === "trips" && (
+          <TripsView
+            trips={data.trips}
+            rooms={data.rooms}
+            onOpen={(id) => { setSelectedTripId(id); setView("trip-detail"); }}
+            onNew={() => { setEditingTrip(emptyTrip(currentMember)); setView("edit-trip"); }}
+          />
+        )}
+ 
+        {view === "edit-trip" && editingTrip && (
+          <TripForm
+            trip={editingTrip}
+            rooms={playedRooms}
+            onCancel={() => { setEditingTrip(null); setView(selectedTrip ? "trip-detail" : "trips"); }}
+            onSave={saveTrip}
+          />
+        )}
+ 
+        {view === "trip-detail" && selectedTrip && (
+          <TripDetail
+            trip={selectedTrip}
+            rooms={data.rooms}
+            currentMember={currentMember}
+            onBack={() => { setView("trips"); setSelectedTripId(null); }}
+            onEdit={() => { setEditingTrip(selectedTrip); setView("edit-trip"); }}
+            onDelete={() => deleteTrip(selectedTrip.id)}
+            onUpdate={(patch) => updateTripField(selectedTrip.id, patch)}
+            onOpenRoom={(id) => { setSelectedRoomId(id); setReturnView("trip-detail"); setView("room-detail"); }}
           />
         )}
       </div>
@@ -1041,6 +1123,7 @@ function Nav({ view, setView }) {
     { id: "ranking", label: "Ranking", icon: Trophy },
     { id: "rooms", label: "Completed", icon: ListChecks },
     { id: "wishlist", label: "Wishlist", icon: Sparkles },
+    { id: "trips", label: "Trips", icon: Plane },
     { id: "settings", label: "Crew", icon: Settings },
   ];
   return (
@@ -1346,6 +1429,8 @@ function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres
 const SORT_OPTIONS = [
   { id: "date-desc", label: "Date added (newest)" },
   { id: "date-asc", label: "Date added (oldest)" },
+  { id: "visited-desc", label: "Date visited (newest)" },
+  { id: "visited-asc", label: "Date visited (oldest)" },
   { id: "rating-desc", label: "Rating (high to low)" },
   { id: "alpha", label: "Alphabetical (A\u2013Z)" },
 ];
@@ -1355,6 +1440,24 @@ function sortRooms(rooms, sortBy) {
   switch (sortBy) {
     case "date-asc":
       return arr.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    case "visited-desc":
+      return arr.sort((a, b) => {
+        const av = a.datePlayed || "";
+        const bv = b.datePlayed || "";
+        if (!av && !bv) return 0;
+        if (!av) return 1;
+        if (!bv) return -1;
+        return bv.localeCompare(av);
+      });
+    case "visited-asc":
+      return arr.sort((a, b) => {
+        const av = a.datePlayed || "";
+        const bv = b.datePlayed || "";
+        if (!av && !bv) return 0;
+        if (!av) return 1;
+        if (!bv) return -1;
+        return av.localeCompare(bv);
+      });
     case "rating-desc":
       return arr.sort((a, b) => {
         const av = avgRating(a);
@@ -1590,6 +1693,7 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
   const [editingNote, setEditingNote] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState(null);
+  const [previewSrc, setPreviewSrc] = useState(null);
   const [walkthrough, setWalkthrough] = useState(room.walkthrough || "");
   const [walkthroughSaved, setWalkthroughSaved] = useState(false);
   const [editingWalkthrough, setEditingWalkthrough] = useState(false);
@@ -1893,18 +1997,41 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 8 }}>
                 {room.photos.map((p) => (
-                  <DrivePhoto key={p.id} photo={p} getDriveAccessToken={getDriveAccessToken} onRemove={() => removePhoto(p)} />
+                  <DrivePhoto key={p.id} photo={p} getDriveAccessToken={getDriveAccessToken} onRemove={() => removePhoto(p)} onPreview={setPreviewSrc} />
                 ))}
               </div>
             )}
           </>
         )}
       </div>
+ 
+      {previewSrc && (
+        <div
+          onClick={() => setPreviewSrc(null)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(10,11,15,0.9)", zIndex: 100,
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 24, cursor: "zoom-out",
+          }}
+        >
+          <img
+            src={previewSrc}
+            alt=""
+            style={{ maxWidth: "100%", maxHeight: "100%", borderRadius: 8, boxShadow: "0 12px 40px rgba(0,0,0,0.6)" }}
+          />
+          <button
+            onClick={(e) => { e.stopPropagation(); setPreviewSrc(null); }}
+            className="ert-btn ert-btn-ghost"
+            style={{ position: "absolute", top: 20, right: 20, padding: "8px 10px" }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
  
-function DrivePhoto({ photo, getDriveAccessToken, onRemove }) {
+function DrivePhoto({ photo, getDriveAccessToken, onRemove, onPreview }) {
   const [src, setSrc] = useState(null);
   const [failed, setFailed] = useState(false);
  
@@ -1931,7 +2058,12 @@ function DrivePhoto({ photo, getDriveAccessToken, onRemove }) {
       ) : !src ? (
         <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)" }}>loading…</span>
       ) : (
-        <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        <img
+          src={src}
+          alt=""
+          onClick={() => onPreview(src)}
+          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", cursor: "pointer" }}
+        />
       )}
       <button
         onClick={onRemove}
@@ -2021,6 +2153,298 @@ function Field({ label, children }) {
 /* ---------------------------------------------------------------
    SETTINGS
 --------------------------------------------------------------- */
+/* ---------------------------------------------------------------
+   TRIPS
+--------------------------------------------------------------- */
+function TripsView({ trips, rooms, onOpen, onNew }) {
+  const sorted = [...trips].sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""));
+ 
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+        <button className="ert-btn ert-btn-brass" onClick={onNew}>
+          <Plus size={15} /> New trip
+        </button>
+      </div>
+ 
+      {sorted.length === 0 ? (
+        <EmptyNote text="No trips yet — group the rooms from your next city trip together here." />
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
+          {sorted.map((t) => {
+            const stats = tripStats(t, rooms);
+            return (
+              <div key={t.id} className="ert-card" onClick={() => onOpen(t.id)} style={{ padding: 15, cursor: "pointer" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <Plane size={14} color="var(--brass)" />
+                  <span className="ert-display" style={{ fontSize: 15.5, fontWeight: 700 }}>{t.name || "Untitled trip"}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5, color: "var(--text-dim)", marginTop: 8 }}>
+                  <MapPin size={11} /> {t.city || "—"}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5, color: "var(--text-dim)", marginTop: 4 }}>
+                  <Calendar size={11} /> {t.startDate || "?"}{t.endDate && t.endDate !== t.startDate ? ` \u2013 ${t.endDate}` : ""}
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
+                  <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: "var(--surface-raised)", color: "var(--text-dim)" }}>
+                    {stats.count} room{stats.count === 1 ? "" : "s"}
+                  </span>
+                  {stats.avg !== null && (
+                    <span className="ert-mono" style={{ fontSize: 13, color: "var(--brass)", display: "flex", alignItems: "center", gap: 3 }}>
+                      <Star size={12} fill="var(--brass)" color="var(--brass)" /> {fmtRating(stats.avg)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+ 
+function TripForm({ trip, rooms, onCancel, onSave }) {
+  const [form, setForm] = useState(trip);
+  const set = (patch) => setForm({ ...form, ...patch });
+ 
+  const inRange = (r) => {
+    if (!r.datePlayed) return false;
+    if (form.startDate && r.datePlayed < form.startDate) return false;
+    if (form.endDate && r.datePlayed > form.endDate) return false;
+    return true;
+  };
+ 
+  // Suggest completed rooms played within the date range (and matching city,
+  // if one's set) that aren't already selected -- this is the common case:
+  // several rooms played over a few days in one city.
+  const suggestions = useMemo(() => {
+    if (!form.startDate) return [];
+    return rooms.filter((r) => !form.roomIds.includes(r.id) && inRange(r) && (!form.city || r.city === form.city));
+  }, [rooms, form.startDate, form.endDate, form.city, form.roomIds]);
+ 
+  const toggleRoom = (id) => {
+    set({ roomIds: form.roomIds.includes(id) ? form.roomIds.filter((x) => x !== id) : [...form.roomIds, id] });
+  };
+  const addAllSuggestions = () => {
+    set({ roomIds: [...form.roomIds, ...suggestions.map((r) => r.id)] });
+  };
+ 
+  const canSave = form.name.trim().length > 0;
+  const selectedRooms = rooms.filter((r) => form.roomIds.includes(r.id));
+ 
+  return (
+    <div className="ert-card" style={{ padding: 22, maxWidth: 640 }}>
+      <div className="ert-display" style={{ fontSize: 17, fontWeight: 700, marginBottom: 16 }}>
+        {trip.name ? "Edit trip" : "New trip"}
+      </div>
+ 
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <Field label="Trip name *"><input className="ert-input" placeholder="e.g. Wroc\u0142aw weekend" value={form.name} onChange={(e) => set({ name: e.target.value })} /></Field>
+        <Field label="City"><input className="ert-input" value={form.city} onChange={(e) => set({ city: e.target.value })} /></Field>
+        <Field label="Start date"><input type="date" className="ert-input" value={form.startDate} onChange={(e) => set({ startDate: e.target.value })} /></Field>
+        <Field label="End date"><input type="date" className="ert-input" value={form.endDate} onChange={(e) => set({ endDate: e.target.value })} /></Field>
+      </div>
+ 
+      {suggestions.length > 0 && (
+        <div style={{ marginTop: 18, background: "var(--surface-raised)", borderRadius: 8, padding: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 600 }}>Rooms played in this window</span>
+            <button className="ert-btn ert-btn-ghost" style={{ padding: "3px 8px", fontSize: 11.5 }} onClick={addAllSuggestions}>Add all</button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {suggestions.map((r) => (
+              <label key={r.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input type="checkbox" checked={form.roomIds.includes(r.id)} onChange={() => toggleRoom(r.id)} />
+                {r.name} <span style={{ color: "var(--text-dim)", fontSize: 11.5 }}>{r.datePlayed}{r.city ? ` \u00b7 ${r.city}` : ""}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+ 
+      <div style={{ marginTop: 18 }}>
+        <div style={{ fontSize: 11.5, color: "var(--text-dim)", marginBottom: 6 }}>Rooms on this trip ({selectedRooms.length})</div>
+        {selectedRooms.length === 0 ? (
+          <EmptyNote text="No rooms added yet — pick a date range above, or add rooms after saving." />
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {selectedRooms.map((r) => (
+              <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-raised)", padding: "6px 10px", borderRadius: 6, fontSize: 13 }}>
+                <span>{r.name}</span>
+                <button className="ert-btn ert-btn-ghost" style={{ padding: "2px 7px" }} onClick={() => toggleRoom(r.id)}><X size={11} /></button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+ 
+      <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+        <button className="ert-btn ert-btn-brass" disabled={!canSave} style={{ opacity: canSave ? 1 : 0.5 }} onClick={() => canSave && onSave(form)}>
+          <Check size={14} /> Save trip
+        </button>
+        <button className="ert-btn ert-btn-ghost" onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+ 
+function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUpdate, onOpenRoom }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [notes, setNotes] = useState(trip.notes || "");
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesSaved, setNotesSaved] = useState(false);
+  const [addingRooms, setAddingRooms] = useState(false);
+  const [addSearch, setAddSearch] = useState("");
+ 
+  useEffect(() => {
+    setNotes(trip.notes || "");
+    setEditingNotes(false);
+    setNotesSaved(false);
+  }, [trip.id]);
+ 
+  const stats = tripStats(trip, rooms);
+  const notesDirty = notes !== (trip.notes || "");
+  const saveNotes = () => {
+    onUpdate({ notes });
+    setNotesSaved(true);
+    setTimeout(() => setNotesSaved(false), 1500);
+  };
+ 
+  const removeRoom = (roomId) => {
+    onUpdate({ roomIds: trip.roomIds.filter((id) => id !== roomId) });
+  };
+  const addRoom = (roomId) => {
+    onUpdate({ roomIds: [...trip.roomIds, roomId] });
+  };
+  const addableRooms = rooms.filter(
+    (r) => r.status === "played" && !trip.roomIds.includes(r.id) && (!addSearch || r.name.toLowerCase().includes(addSearch.toLowerCase()))
+  );
+ 
+  return (
+    <div>
+      <button className="ert-btn ert-btn-ghost" onClick={onBack} style={{ marginBottom: 14 }}>
+        <ChevronLeft size={14} /> Back
+      </button>
+ 
+      <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Plane size={16} color="var(--brass)" />
+              <span className="ert-mono" style={{ fontSize: 11, color: "var(--text-dim)", textTransform: "uppercase" }}>Trip</span>
+            </div>
+            <div className="ert-display" style={{ fontSize: 24, fontWeight: 700, marginTop: 6 }}>{trip.name}</div>
+            <div style={{ display: "flex", gap: 14, marginTop: 6, fontSize: 12.5, color: "var(--text-dim)" }}>
+              {trip.city && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={12} /> {trip.city}</span>}
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <Calendar size={12} /> {trip.startDate || "?"}{trip.endDate && trip.endDate !== trip.startDate ? ` \u2013 ${trip.endDate}` : ""}
+              </span>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="ert-btn ert-btn-ghost" onClick={onEdit}><Edit2 size={13} /> Edit</button>
+            {confirmDelete ? (
+              <button className="ert-btn ert-btn-danger" onClick={onDelete}>Confirm delete</button>
+            ) : (
+              <button className="ert-btn ert-btn-danger" onClick={() => setConfirmDelete(true)}><Trash2 size={13} /></button>
+            )}
+          </div>
+        </div>
+ 
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
+          <StatBlock label="Rooms" value={stats.count} />
+          <StatBlock label="Group avg" value={fmtRating(stats.avg)} sub="out of 10" />
+          <StatBlock label="Escape rate" value={stats.escapeRate === null ? "\u2014" : `${stats.escapeRate}%`} />
+        </div>
+      </div>
+ 
+      <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
+        <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Trip summary</div>
+        <p style={{ fontSize: 11.5, color: "var(--text-dim)", marginBottom: 10 }}>
+          Shared by the whole crew \u2014 click to write up highlights, favorites, or a running joke from the trip.
+        </p>
+        {editingNotes ? (
+          <>
+            <textarea className="ert-textarea" rows={5} value={notes} autoFocus onChange={(e) => setNotes(e.target.value)} />
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+              <button className="ert-btn ert-btn-brass" disabled={!notesDirty} style={{ opacity: notesDirty ? 1 : 0.5 }} onClick={() => { saveNotes(); setEditingNotes(false); }}>
+                <Check size={14} /> Save
+              </button>
+              <button className="ert-btn ert-btn-ghost" onClick={() => { setNotes(trip.notes || ""); setEditingNotes(false); }}>Cancel</button>
+              {notesSaved && <span style={{ fontSize: 12, color: "var(--success)" }}>Saved.</span>}
+            </div>
+          </>
+        ) : (
+          <div
+            onClick={() => setEditingNotes(true)}
+            title="Click to edit"
+            style={{
+              fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", cursor: "pointer",
+              background: "var(--surface-raised)", borderRadius: 8, padding: "12px 14px", minHeight: 50,
+              color: trip.notes ? "var(--text)" : "var(--text-dim)", fontStyle: trip.notes ? "normal" : "italic",
+            }}
+          >
+            {trip.notes || "No summary yet \u2014 click here to add one."}
+          </div>
+        )}
+      </div>
+ 
+      <div className="ert-card" style={{ padding: 22 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div className="ert-display" style={{ fontSize: 15, fontWeight: 700 }}>Rooms on this trip</div>
+          <button className="ert-btn ert-btn-ghost" onClick={() => setAddingRooms((v) => !v)}>
+            <Plus size={14} /> Add rooms
+          </button>
+        </div>
+ 
+        {addingRooms && (
+          <div style={{ marginBottom: 14, background: "var(--surface-raised)", borderRadius: 8, padding: 12 }}>
+            <input
+              className="ert-input"
+              placeholder="Search completed rooms\u2026"
+              value={addSearch}
+              onChange={(e) => setAddSearch(e.target.value)}
+              style={{ marginBottom: 8 }}
+            />
+            {addableRooms.length === 0 ? (
+              <EmptyNote text="No matching completed rooms to add." />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 220, overflowY: "auto" }} className="ert-scrollbar">
+                {addableRooms.map((r) => (
+                  <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", fontSize: 13 }}>
+                    <span>{r.name}{r.city ? ` \u00b7 ${r.city}` : ""}</span>
+                    <button className="ert-btn ert-btn-ghost" style={{ padding: "3px 9px", fontSize: 11.5 }} onClick={() => addRoom(r.id)}>Add</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+ 
+        {stats.rooms.length === 0 ? (
+          <EmptyNote text="No rooms on this trip yet." />
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
+            {stats.rooms.map((r, i) => (
+              <div key={r.id} style={{ position: "relative" }}>
+                <RoomCard room={r} index={i} onOpen={() => onOpenRoom(r.id)} />
+                <button
+                  onClick={(e) => { e.stopPropagation(); removeRoom(r.id); }}
+                  style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.5)", border: "none", borderRadius: 5, padding: 3, cursor: "pointer" }}
+                  title="Remove from trip"
+                >
+                  <X size={12} color="#fff" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+ 
 function SettingsView({ members, currentMember, onChangePassword, rooms }) {
   const [changing, setChanging] = useState(false);
   const [current, setCurrent] = useState("");
