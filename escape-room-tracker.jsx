@@ -375,6 +375,13 @@ const TOKENS = `
  
   @keyframes ert-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
   .ert-fade-in { animation: ert-fade-in 0.2s ease-out; }
+
+  @keyframes ert-slide-from-right { from { opacity: 0; transform: translateX(36px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes ert-slide-from-left { from { opacity: 0; transform: translateX(-36px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes ert-photo-fade { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+  .ert-slide-next { animation: ert-slide-from-right 0.24s ease-out; }
+  .ert-slide-prev { animation: ert-slide-from-left 0.24s ease-out; }
+  .ert-slide-fade { animation: ert-photo-fade 0.18s ease-out; }
 `;
  
 /* ---------------------------------------------------------------
@@ -2101,6 +2108,7 @@ function DrivePhoto({ photo, getDriveAccessToken, onRemove, onPreview }) {
 function PhotoLightbox({ photos, index, onIndexChange, onClose, getDriveAccessToken }) {
   const [src, setSrc] = useState(null);
   const [failed, setFailed] = useState(false);
+  const [direction, setDirection] = useState(null); // 'next' | 'prev' | null (initial open)
   const photo = photos[index];
   const hasMultiple = photos.length > 1;
 
@@ -2121,10 +2129,14 @@ function PhotoLightbox({ photos, index, onIndexChange, onClose, getDriveAccessTo
   }, [photo.driveFileId]);
 
   const goPrev = useCallback(() => {
-    if (hasMultiple) onIndexChange((index - 1 + photos.length) % photos.length);
+    if (!hasMultiple) return;
+    setDirection("prev");
+    onIndexChange((index - 1 + photos.length) % photos.length);
   }, [index, photos.length, hasMultiple, onIndexChange]);
   const goNext = useCallback(() => {
-    if (hasMultiple) onIndexChange((index + 1) % photos.length);
+    if (!hasMultiple) return;
+    setDirection("next");
+    onIndexChange((index + 1) % photos.length);
   }, [index, photos.length, hasMultiple, onIndexChange]);
 
   useEffect(() => {
@@ -2178,7 +2190,11 @@ function PhotoLightbox({ photos, index, onIndexChange, onClose, getDriveAccessTo
           </button>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, maxHeight: "62vh", width: "100%" }}>
+        <div
+          key={photo.id}
+          className={direction === "next" ? "ert-slide-next" : direction === "prev" ? "ert-slide-prev" : "ert-slide-fade"}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, maxHeight: "62vh", width: "100%" }}
+        >
           {failed ? (
             <span style={{ fontSize: 12.5, color: "var(--text-dim)", padding: 24 }}>Couldn't load this photo.</span>
           ) : !src ? (
