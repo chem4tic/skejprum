@@ -1866,10 +1866,12 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
       {room.status === "played" && (
         <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
           <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Rating &amp; notes</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-            <span style={{ fontSize: 12, color: "var(--text-dim)", width: 72 }}>Your rating</span>
-            <StarRow value={myRating} onChange={saveMyRating} size={17} />
-            <span className="ert-mono" style={{ fontSize: 12.5, color: "var(--text-dim)", marginLeft: 4 }}>{myRating || "—"}/10</span>
+          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+            <span style={{ fontSize: 12, color: "var(--text-dim)" }}>Your rating</span>
+            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+              <StarRow value={myRating} onChange={saveMyRating} size={15} />
+              <span className="ert-mono" style={{ fontSize: 12.5, color: "var(--text-dim)" }}>{myRating || "—"}/10</span>
+            </div>
           </div>
  
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
