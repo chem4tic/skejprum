@@ -1667,7 +1667,7 @@ function RankingView({ rooms, members, onOpen }) {
  
   return (
     <div className="ert-card" style={{ overflow: "hidden" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "42px 1.6fr 1fr repeat(auto-fit, minmax(0,0))", padding: "10px 16px", borderBottom: "1px solid var(--border-soft)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "42px 1.6fr 1fr", padding: "10px 16px", borderBottom: "1px solid var(--border-soft)" }}>
         <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)" }}>#</span>
         <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)" }}>ROOM</span>
         <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)", textAlign: "right" }}>AVG</span>
@@ -1677,18 +1677,16 @@ function RankingView({ rooms, members, onOpen }) {
           key={r.id}
           onClick={() => onOpen(r.id)}
           style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px",
+            display: "grid", gridTemplateColumns: "42px 1.6fr 1fr", alignItems: "center", padding: "12px 16px",
             borderBottom: i < ranked.length - 1 ? "1px solid var(--border-soft)" : "none", cursor: "pointer",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <span className="ert-display" style={{ fontSize: 16, fontWeight: 700, color: i === 0 ? "var(--brass-bright)" : "var(--text-dim)", width: 24 }}>{i + 1}</span>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>{r.name}</div>
-              <div style={{ fontSize: 11.5, color: "var(--text-dim)" }}>{r.venue}{r.city ? ` · ${r.city}` : ""}</div>
-            </div>
+          <span className="ert-display" style={{ fontSize: 16, fontWeight: 700, color: i === 0 ? "var(--brass-bright)" : "var(--text-dim)" }}>{i + 1}</span>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>{r.name}</div>
+            <div style={{ fontSize: 11.5, color: "var(--text-dim)" }}>{r.venue}{r.city ? ` · ${r.city}` : ""}</div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
             <div style={{ display: "flex", gap: 4 }}>
               {members.map((m) =>
                 typeof r.ratings[m] === "number" ? (
