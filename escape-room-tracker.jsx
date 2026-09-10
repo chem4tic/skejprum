@@ -1741,25 +1741,43 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
     setWalkthroughSaved(true);
     setTimeout(() => setWalkthroughSaved(false), 1500);
   };
-  const handlePhotoSelected = async (file) => {
-    if (!file) return;
+  const [uploadProgress, setUploadProgress] = useState(null); // { done, total } while uploading
+  const handlePhotosSelected = async (fileList) => {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
     setPhotoError(null);
     setUploadingPhoto(true);
+    setUploadProgress({ done: 0, total: files.length });
+    const uploadedPhotos = [];
+    let failedCount = 0;
     try {
       const token = await getDriveAccessToken();
-      const uploaded = await uploadPhotoToDrive(file, token);
-      const photo = {
-        id: uid(),
-        driveFileId: uploaded.id,
-        name: uploaded.name,
-        mimeType: uploaded.mimeType,
-        addedBy: currentMember,
-      };
-      onUpdate({ photos: [...(room.photos || []), photo] });
+      for (const file of files) {
+        try {
+          const uploaded = await uploadPhotoToDrive(file, token);
+          uploadedPhotos.push({
+            id: uid(),
+            driveFileId: uploaded.id,
+            name: uploaded.name,
+            mimeType: uploaded.mimeType,
+            addedBy: currentMember,
+          });
+        } catch (e) {
+          failedCount += 1;
+        }
+        setUploadProgress((p) => ({ done: p.done + 1, total: p.total }));
+      }
+      if (uploadedPhotos.length) {
+        onUpdate({ photos: [...(room.photos || []), ...uploadedPhotos] });
+      }
+      if (failedCount) {
+        setPhotoError(`${failedCount} of ${files.length} photo${files.length === 1 ? "" : "s"} failed to upload.`);
+      }
     } catch (e) {
-      setPhotoError(e.message || "Couldn't upload that photo.");
+      setPhotoError(e.message || "Couldn't upload those photos.");
     } finally {
       setUploadingPhoto(false);
+      setUploadProgress(null);
     }
   };
   const removePhoto = async (photo) => {
@@ -1996,15 +2014,16 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
                 id={`photo-input-${room.id}`}
                 type="file"
                 accept="image/*"
+                multiple
                 style={{ display: "none" }}
-                onChange={(e) => { handlePhotoSelected(e.target.files && e.target.files[0]); e.target.value = ""; }}
+                onChange={(e) => { handlePhotosSelected(e.target.files); e.target.value = ""; }}
               />
               <label
                 htmlFor={`photo-input-${room.id}`}
                 className="ert-btn ert-btn-ghost"
                 style={{ cursor: "pointer", opacity: uploadingPhoto ? 0.6 : 1, pointerEvents: uploadingPhoto ? "none" : "auto" }}
               >
-                <Upload size={14} /> {uploadingPhoto ? "Uploading…" : "Upload photo"}
+                <Upload size={14} /> {uploadingPhoto ? `Uploading ${uploadProgress ? `${uploadProgress.done}/${uploadProgress.total}` : "…"}` : "Upload photos"}
               </label>
               {photoError && <div style={{ color: "var(--danger)", fontSize: 12, marginTop: 6 }}>{photoError}</div>}
             </div>
