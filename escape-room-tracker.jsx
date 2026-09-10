@@ -1499,7 +1499,7 @@ function sortRooms(rooms, sortBy) {
   }
 }
 
-function SortPopover({ sortBy, onChange }) {
+function SortPopover({ options, sortBy, onChange }) {
   const [open, setOpen] = useState(false);
   const [panelStyle, setPanelStyle] = useState(null);
   const ref = React.useRef(null);
@@ -1533,7 +1533,7 @@ function SortPopover({ sortBy, onChange }) {
     };
   }, [open, recomputePosition]);
 
-  const current = SORT_OPTIONS.find((o) => o.id === sortBy) || SORT_OPTIONS[0];
+  const current = options.find((o) => o.id === sortBy) || options[0];
 
   return (
     <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
@@ -1552,7 +1552,7 @@ function SortPopover({ sortBy, onChange }) {
           className="ert-card-raised"
           style={{ ...panelStyle, zIndex: 20, padding: 6, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
         >
-          {SORT_OPTIONS.map((opt) => (
+          {options.map((opt) => (
             <div
               key={opt.id}
               onClick={() => { onChange(opt.id); setOpen(false); }}
@@ -1616,7 +1616,7 @@ function RoomsView({ rooms, onOpen, emptyLabel }) {
           onToggleCountry={toggleCountry}
           onClear={clearFilters}
         />
-        <SortPopover sortBy={sortBy} onChange={setSortBy} />
+        <SortPopover options={SORT_OPTIONS} sortBy={sortBy} onChange={setSortBy} />
       </div>
 
       {sorted.length === 0 ? (
@@ -2149,6 +2149,25 @@ function PhotoLightbox({ photos, index, onIndexChange, onClose, getDriveAccessTo
     return () => document.removeEventListener("keydown", handleKey);
   }, [onClose, goPrev, goNext]);
 
+  // Swipe support for touch devices — horizontal drags of 40px+ change
+  // photo, anything more vertical (or too small) is ignored so scrolling
+  // gestures aren't mistaken for a swipe.
+  const touchStart = React.useRef(null);
+  const handleTouchStart = (e) => {
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+  };
+  const handleTouchEnd = (e) => {
+    if (!touchStart.current) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStart.current.x;
+    const dy = t.clientY - touchStart.current.y;
+    touchStart.current = null;
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    if (dx < 0) goNext();
+    else goPrev();
+  };
+
   const navButtonStyle = {
     position: "fixed", top: "50%", transform: "translateY(-50%)", zIndex: 102,
     background: "rgba(20,22,28,0.7)", border: "1px solid var(--border)", borderRadius: "50%",
@@ -2159,6 +2178,8 @@ function PhotoLightbox({ photos, index, onIndexChange, onClose, getDriveAccessTo
   return (
     <div
       onClick={onClose}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       style={{
         position: "fixed", inset: 0, background: "rgba(10,11,15,0.88)", zIndex: 100,
         display: "flex", alignItems: "center", justifyContent: "center", padding: 24, cursor: "zoom-out",
@@ -2310,19 +2331,137 @@ function Field({ label, children }) {
 /* ---------------------------------------------------------------
    TRIPS
 --------------------------------------------------------------- */
+const TRIP_SORT_OPTIONS = [
+  { id: "start-desc", label: "Trip date (newest)" },
+  { id: "start-asc", label: "Trip date (oldest)" },
+  { id: "date-desc", label: "Date added (newest)" },
+  { id: "date-asc", label: "Date added (oldest)" },
+  { id: "alpha", label: "Alphabetical (A\u2013Z)" },
+];
+
+function TripFilterPopover({ cities, selectedCities, onToggleCity, onClear }) {
+  const [open, setOpen] = useState(false);
+  const [panelStyle, setPanelStyle] = useState(null);
+  const ref = React.useRef(null);
+  const btnRef = React.useRef(null);
+
+  const recomputePosition = useCallback(() => {
+    const btn = btnRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const panelWidth = Math.min(220, window.innerWidth - 24);
+    let left = rect.right - panelWidth;
+    left = Math.max(12, Math.min(left, window.innerWidth - panelWidth - 12));
+    const top = rect.bottom + 6;
+    setPanelStyle({ position: "fixed", top, left, width: panelWidth, maxHeight: Math.min(320, window.innerHeight - top - 12) });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    recomputePosition();
+    const handleClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    const handleReposition = () => recomputePosition();
+    document.addEventListener("mousedown", handleClick);
+    window.addEventListener("resize", handleReposition);
+    window.addEventListener("scroll", handleReposition, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("resize", handleReposition);
+      window.removeEventListener("scroll", handleReposition, true);
+    };
+  }, [open, recomputePosition]);
+
+  return (
+    <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
+      <button
+        ref={btnRef}
+        type="button"
+        className="ert-btn ert-btn-ghost"
+        onClick={() => setOpen((o) => !o)}
+        style={{ borderColor: selectedCities.length ? "var(--brass)" : "var(--border)", color: selectedCities.length ? "var(--brass-bright)" : "var(--text)" }}
+      >
+        <Filter size={14} />
+        Filters
+        {selectedCities.length > 0 && (
+          <span className="ert-mono" style={{ background: "var(--brass)", color: "#17140c", borderRadius: 9, fontSize: 10.5, padding: "1px 6px", marginLeft: 2 }}>
+            {selectedCities.length}
+          </span>
+        )}
+      </button>
+
+      {open && panelStyle && (
+        <div className="ert-card-raised ert-scrollbar" style={{ ...panelStyle, overflowY: "auto", zIndex: 20, padding: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)", textTransform: "uppercase" }}>City</span>
+            {selectedCities.length > 0 && <span onClick={onClear} style={{ fontSize: 11.5, color: "var(--brass)", cursor: "pointer" }}>Clear</span>}
+          </div>
+          {cities.length === 0 ? (
+            <EmptyNote text="Nothing to filter yet." />
+          ) : (
+            cities.map((c) => (
+              <label key={c} style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 0", fontSize: 13, cursor: "pointer" }}>
+                <input type="checkbox" checked={selectedCities.includes(c)} onChange={() => onToggleCity(c)} />
+                {c}
+              </label>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function sortTrips(trips, sortBy) {
+  const arr = [...trips];
+  switch (sortBy) {
+    case "start-asc":
+      return arr.sort((a, b) => (a.startDate || "").localeCompare(b.startDate || ""));
+    case "date-desc":
+      return arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    case "date-asc":
+      return arr.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    case "alpha":
+      return arr.sort((a, b) => a.name.localeCompare(b.name));
+    case "start-desc":
+    default:
+      return arr.sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""));
+  }
+}
+
 function TripsView({ trips, rooms, onOpen, onNew }) {
-  const sorted = [...trips].sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""));
+  const [search, setSearch] = useState("");
+  const [selectedCities, setSelectedCities] = useState([]);
+  const [sortBy, setSortBy] = useState("start-desc");
+
+  const cities = useMemo(() => Array.from(new Set(trips.map((t) => t.city).filter(Boolean))).sort(), [trips]);
+  const toggleCity = (c) => setSelectedCities((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
+  const clearFilters = () => setSelectedCities([]);
+
+  const filtered = trips.filter((t) => {
+    if (search && !t.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (selectedCities.length && !selectedCities.includes(t.city)) return false;
+    return true;
+  });
+  const sorted = sortTrips(filtered, sortBy);
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
-        <button className="ert-btn ert-btn-brass" onClick={onNew}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ position: "relative", flex: "1 1 220px", minWidth: 160, maxWidth: 600 }}>
+          <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
+          <input className="ert-input" style={{ paddingLeft: 30 }} placeholder="Search trips…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <TripFilterPopover cities={cities} selectedCities={selectedCities} onToggleCity={toggleCity} onClear={clearFilters} />
+        <SortPopover options={TRIP_SORT_OPTIONS} sortBy={sortBy} onChange={setSortBy} />
+        <button className="ert-btn ert-btn-brass" onClick={onNew} style={{ flexShrink: 0 }}>
           <Plus size={15} /> New trip
         </button>
       </div>
 
       {sorted.length === 0 ? (
-        <EmptyNote text="No trips yet — group the rooms from your next city trip together here." />
+        <EmptyNote text={trips.length === 0 ? "No trips yet — group the rooms from your next city trip together here." : "No trips match those filters."} />
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
           {sorted.map((t) => {
@@ -2334,7 +2473,7 @@ function TripsView({ trips, rooms, onOpen, onNew }) {
                   <span className="ert-display" style={{ fontSize: 15.5, fontWeight: 700 }}>{t.name || "Untitled trip"}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5, color: "var(--text-dim)", marginTop: 8 }}>
-                  <MapPin size={11} /> {t.city || "—"}
+                  <MapPin size={11} /> {t.city || "\u2014"}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5, color: "var(--text-dim)", marginTop: 4 }}>
                   <Calendar size={11} /> {t.startDate || "?"}{t.endDate && t.endDate !== t.startDate ? ` \u2013 ${t.endDate}` : ""}
