@@ -14,16 +14,16 @@
  */
 window.ESCAPE_LOG_CONFIG = {
   FIREBASE_CONFIG: {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID",
+    apiKey: "AIzaSyDd0Z3d95XxKHOo6rGeGpMmgtkpvoxscOA",
+    authDomain: "escape-log-90c4c.firebaseapp.com",
+    projectId: "escape-log-90c4c",
+    storageBucket: "escape-log-90c4c.firebasestorage.app",
+    messagingSenderId: "250414337783",
+    appId: "1:250414337783:web:b0a65bd54af38702528df2",
   },
   GOOGLE_DRIVE_CONFIG: {
-    clientId: "YOUR_CLIENT_ID.apps.googleusercontent.com",
-    clientSecret: "YOUR_CLIENT_SECRET",
-    folderId: "YOUR_DRIVE_FOLDER_ID",
+    clientId: "250414337783-9f270fq0b53c2oel5qu40m233v2d08bk.apps.googleusercontent.com",
+    clientSecret: "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",
+    folderId: "1gWPydSc7SF2EUC7Q_XlTSL6uT0QK7t7y",
   },
 };
