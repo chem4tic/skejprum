@@ -3,7 +3,7 @@ import {
   Lock, Unlock, MapPin, Star, StarHalf, Plus, Search, X, Edit2, Trash2,
   ExternalLink, Users, Trophy, ListChecks, LayoutDashboard,
   Camera, ChevronLeft, Settings, Check, Clock, Skull, Sparkles, Filter,
-  ChevronDown, Upload, ArrowUpDown, Plane, Calendar,
+  ChevronDown, ChevronRight, Upload, ArrowUpDown, Plane, Calendar,
 } from "lucide-react";
  
 /* ---------------------------------------------------------------
@@ -20,7 +20,7 @@ import {
    alongside this file.
 --------------------------------------------------------------- */
 const hasClaudeStorage = typeof window !== "undefined" && window.storage && typeof window.storage.get === "function";
- 
+
 // In-app browsers (Facebook/Messenger, Instagram, TikTok, LinkedIn, etc.)
 // often run in a sandboxed WebView that blocks IndexedDB, which Firestore
 // needs to sync data. This is a heuristic, not a guarantee -- it just lets
@@ -78,7 +78,7 @@ function getFirebaseHandle() {
    token is saved in the same shared Firestore document as
    everything else, so any of the four of you can then upload or
    view photos from any device without personally signing in.
- 
+
    Setup (see the accompanying instructions):
    1. In Google Cloud Console (the same project as Firebase works
       fine), enable the "Google Drive API".
@@ -87,7 +87,7 @@ function getFirebaseHandle() {
    3. Create a folder in your Drive for photos and copy its ID from
       the folder's URL.
    4. Paste the three values into config.js (not this file).
- 
+
    Scope is drive.file — the app can only see files it creates
    itself, nothing else in your Drive.
 --------------------------------------------------------------- */
@@ -101,7 +101,7 @@ const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const PKCE_VERIFIER_KEY = "escape-room-club-drive-pkce-verifier";
- 
+
 function isDriveConfigured() {
   return (
     GOOGLE_DRIVE_CONFIG.clientId &&
@@ -110,7 +110,7 @@ function isDriveConfigured() {
     !GOOGLE_DRIVE_CONFIG.folderId.startsWith("YOUR_")
   );
 }
- 
+
 function randomPKCEVerifier() {
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
@@ -125,7 +125,7 @@ async function pkceChallengeFromVerifier(verifier) {
 function currentRedirectUri() {
   return window.location.origin + window.location.pathname;
 }
- 
+
 // Kicks off the one-time "Connect Google Drive" flow by redirecting to
 // Google's consent screen. On return, handleDriveOAuthRedirect() picks up
 // the ?code= param and finishes the exchange.
@@ -145,7 +145,7 @@ async function startDriveConnect() {
   });
   window.location.href = `${GOOGLE_AUTH_URL}?${params.toString()}`;
 }
- 
+
 // Call once on app load. If Google just redirected back with a ?code=,
 // exchanges it for tokens and returns the refresh token to persist.
 async function handleDriveOAuthRedirect() {
@@ -158,7 +158,7 @@ async function handleDriveOAuthRedirect() {
   url.searchParams.delete("scope");
   window.history.replaceState({}, "", url.toString());
   if (!verifier) return null;
- 
+
   const body = new URLSearchParams({
     client_id: GOOGLE_DRIVE_CONFIG.clientId,
     client_secret: GOOGLE_DRIVE_CONFIG.clientSecret,
@@ -179,10 +179,10 @@ async function handleDriveOAuthRedirect() {
   }
   return json.refresh_token;
 }
- 
+
 // In-memory access-token cache (never persisted — short-lived by design).
 let driveAccessTokenCache = null; // { token, expiresAt }
- 
+
 async function getDriveAccessToken(refreshToken) {
   if (!refreshToken) throw new Error("Google Drive isn't connected yet.");
   if (driveAccessTokenCache && driveAccessTokenCache.expiresAt > Date.now() + 30000) {
@@ -204,7 +204,7 @@ async function getDriveAccessToken(refreshToken) {
   driveAccessTokenCache = { token: json.access_token, expiresAt: Date.now() + json.expires_in * 1000 };
   return json.access_token;
 }
- 
+
 async function uploadPhotoToDrive(file, accessToken) {
   const metadata = { name: file.name, parents: [GOOGLE_DRIVE_CONFIG.folderId] };
   const boundary = "escapelog" + Math.random().toString(36).slice(2);
@@ -216,7 +216,7 @@ async function uploadPhotoToDrive(file, accessToken) {
   );
   const post = encoder.encode(`\r\n--${boundary}--`);
   const body = new Blob([pre, fileBytes, post]);
- 
+
   const res = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType", {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": `multipart/related; boundary=${boundary}` },
@@ -225,16 +225,16 @@ async function uploadPhotoToDrive(file, accessToken) {
   if (!res.ok) throw new Error("Photo upload to Google Drive failed.");
   return res.json(); // { id, name, mimeType }
 }
- 
+
 async function deletePhotoFromDrive(fileId, accessToken) {
   await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${accessToken}` },
   }).catch(() => {}); // best-effort — a failed remote delete shouldn't block removing it from the room
 }
- 
+
 const driveBlobCache = new Map(); // fileId -> object URL, so re-opening a room doesn't re-fetch
- 
+
 async function fetchDrivePhotoUrl(fileId, accessToken) {
   if (driveBlobCache.has(fileId)) return driveBlobCache.get(fileId);
   const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
@@ -246,7 +246,7 @@ async function fetchDrivePhotoUrl(fileId, accessToken) {
   driveBlobCache.set(fileId, url);
   return url;
 }
- 
+
 // Personal, per-device value (e.g. "who am I") — never goes through Firebase.
 async function storageGet(key, shared) {
   if (hasClaudeStorage) return window.storage.get(key, shared);
@@ -410,7 +410,7 @@ function emptyRoom(addedBy) {
     createdAt: Date.now(),
   };
 }
- 
+
 /* ---------------------------------------------------------------
    CSV IMPORT
    Batch-add rooms from a CSV file -- the same column layout this app
@@ -455,7 +455,7 @@ function parseCSV(text) {
   }
   return rows;
 }
- 
+
 function roomsFromCSV(text, addedBy) {
   const rows = parseCSV(text).filter((r) => r.some((c) => c.trim() !== ""));
   if (!rows.length) return [];
@@ -465,7 +465,7 @@ function roomsFromCSV(text, addedBy) {
     const i = idx(name);
     return i === -1 ? "" : (row[i] || "").trim();
   };
- 
+
   return rows
     .slice(1)
     .map((row) => {
@@ -490,7 +490,7 @@ function roomsFromCSV(text, addedBy) {
     })
     .filter(Boolean);
 }
- 
+
 // Backfills any fields missing from previously-saved data (e.g. accounts
 // that saved before "trips" existed) so the rest of the app never has to
 // null-check the shared data shape.
@@ -503,7 +503,7 @@ function normalizeData(raw) {
     trips: Array.isArray(safe.trips) ? safe.trips : [],
   };
 }
- 
+
 function emptyTrip(createdBy) {
   return {
     id: uid(),
@@ -517,7 +517,7 @@ function emptyTrip(createdBy) {
     createdAt: Date.now(),
   };
 }
- 
+
 function tripStats(trip, rooms) {
   const included = rooms.filter((r) => trip.roomIds.includes(r.id));
   const ratedAvgs = included.map(avgRating).filter((v) => v !== null);
@@ -530,7 +530,7 @@ function tripStats(trip, rooms) {
     escapeRate: included.length ? Math.round((escaped / included.length) * 100) : null,
   };
 }
- 
+
 function avgRating(room) {
   const vals = Object.values(room.ratings || {}).filter((v) => typeof v === "number");
   if (!vals.length) return null;
@@ -667,9 +667,9 @@ export default function EscapeRoomTracker() {
     await persist({ ...data, auth: { ...(data.auth || {}), [name]: { salt, hash } } });
     return true;
   };
- 
+
   const [driveMessage, setDriveMessage] = useState(null);
- 
+
   // Pick up an in-progress "Connect Google Drive" flow returning from Google.
   // Waits for the real shared data to finish loading first, so this can't
   // clobber it with the empty initial state.
@@ -692,11 +692,11 @@ export default function EscapeRoomTracker() {
       setTimeout(() => setDriveMessage(null), 6000);
     })();
   }, [loading, data]);
- 
+
   const connectGoogleDrive = () => {
     startDriveConnect().catch((e) => setDriveMessage({ type: "error", text: e.message || "Couldn't start the connection." }));
   };
- 
+
   const getRoomsAccessToken = () => getDriveAccessToken(data.driveAuth && data.driveAuth.refreshToken);
  
   const saveRoom = (room) => {
@@ -716,7 +716,7 @@ export default function EscapeRoomTracker() {
     const rooms = data.rooms.map((r) => (r.id === id ? { ...r, ...patch } : r));
     persist({ ...data, rooms });
   };
- 
+
   const saveTrip = (trip) => {
     const exists = data.trips.some((t) => t.id === trip.id);
     const trips = exists ? data.trips.map((t) => (t.id === trip.id ? trip : t)) : [trip, ...data.trips];
@@ -809,19 +809,19 @@ export default function EscapeRoomTracker() {
           {saveError}
         </div>
       )}
- 
+
       {importMessage && (
         <div style={{ background: importMessage.type === "error" ? "var(--danger)" : "var(--success)", color: "#fff", fontSize: 12.5, padding: "6px 20px" }}>
           {importMessage.text}
         </div>
       )}
- 
+
       {driveMessage && (
         <div style={{ background: driveMessage.type === "error" ? "var(--danger)" : "var(--success)", color: "#fff", fontSize: 12.5, padding: "6px 20px" }}>
           {driveMessage.text}
         </div>
       )}
- 
+
       {isKnownInAppBrowser() && (
         <div style={{ background: "var(--danger)", color: "#fff", fontSize: 12.5, padding: "6px 20px" }}>
           This looks like an in-app browser (e.g. Messenger, Instagram) — these often block the storage this app needs, so changes may not save. Open this link in Safari or Chrome instead.
@@ -879,7 +879,7 @@ export default function EscapeRoomTracker() {
             getDriveAccessToken={getRoomsAccessToken}
           />
         )}
- 
+
         {view === "trips" && (
           <TripsView
             trips={data.trips}
@@ -888,7 +888,7 @@ export default function EscapeRoomTracker() {
             onNew={() => { setEditingTrip(emptyTrip(currentMember)); setView("edit-trip"); }}
           />
         )}
- 
+
         {view === "edit-trip" && editingTrip && (
           <TripForm
             trip={editingTrip}
@@ -897,7 +897,7 @@ export default function EscapeRoomTracker() {
             onSave={saveTrip}
           />
         )}
- 
+
         {view === "trip-detail" && selectedTrip && (
           <TripDetail
             trip={selectedTrip}
@@ -1059,7 +1059,7 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = React.useRef(null);
   const fileInputRef = React.useRef(null);
- 
+
   useEffect(() => {
     if (!menuOpen) return;
     const handleClick = (e) => {
@@ -1068,7 +1068,7 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile }) {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [menuOpen]);
- 
+
   const triggerFilePicker = () => {
     setMenuOpen(false);
     fileInputRef.current?.click();
@@ -1078,7 +1078,7 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile }) {
     if (file) onImportFile(file);
     e.target.value = "";
   };
- 
+
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 24px 10px", borderBottom: "1px solid var(--border-soft)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1094,7 +1094,7 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile }) {
         <button className="ert-btn ert-btn-ghost" onClick={onSwitchMember} style={{ padding: "8px 10px" }}>
           <Users size={14} />
         </button>
- 
+
         <div style={{ display: "flex", position: "relative" }} ref={menuRef}>
           <button
             className="ert-btn ert-btn-brass"
@@ -1111,7 +1111,7 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile }) {
           >
             <ChevronDown size={14} />
           </button>
- 
+
           {menuOpen && (
             <div
               className="ert-card-raised"
@@ -1127,7 +1127,7 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile }) {
             </div>
           )}
         </div>
- 
+
         <input ref={fileInputRef} type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={handleFileChange} />
       </div>
     </div>
@@ -1196,7 +1196,7 @@ function Dashboard({ rooms, members, onOpenRoom }) {
     .filter((r) => r._avg !== null)
     .sort((a, b) => b._avg - a._avg)
     .slice(0, 5);
- 
+
   return (
     <div>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 22 }}>
@@ -1206,7 +1206,7 @@ function Dashboard({ rooms, members, onOpenRoom }) {
         <StatBlock label="Wishlist" value={wishlist.length} />
         <StatBlock label="Crew" value={members.length} />
       </div>
- 
+
       <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div className="ert-card" style={{ padding: 18 }}>
@@ -1227,7 +1227,7 @@ function Dashboard({ rooms, members, onOpenRoom }) {
               ))}
             </div>
           </div>
- 
+
           <div className="ert-card" style={{ padding: 18 }}>
             <div className="ert-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Recently played</div>
             {recent.length === 0 && <EmptyNote text="Nothing logged yet — add your first room." />}
@@ -1244,7 +1244,7 @@ function Dashboard({ rooms, members, onOpenRoom }) {
             </div>
           </div>
         </div>
- 
+
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div className="ert-card" style={{ padding: 18 }}>
             <div className="ert-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Top cities</div>
@@ -1288,7 +1288,7 @@ function BarRow({ label, count, max }) {
 function EmptyNote({ text }) {
   return <div style={{ fontSize: 12.5, color: "var(--text-dim)", fontStyle: "italic" }}>{text}</div>;
 }
- 
+
 /* ---------------------------------------------------------------
    STAR ROW
    A 1-10 rating control that supports half-point precision -- click
@@ -1304,7 +1304,7 @@ function StarRow({ value, onChange, size }) {
     const isHalf = clickX < rect.width / 2;
     onChange(starIndex + (isHalf ? 0.5 : 1));
   };
- 
+
   return (
     <>
       {Array.from({ length: 10 }).map((_, idx) => {
@@ -1335,7 +1335,7 @@ function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres
   const [panelStyle, setPanelStyle] = useState(null);
   const ref = React.useRef(null);
   const btnRef = React.useRef(null);
- 
+
   // Positioned in real screen pixels measured from the button itself at the
   // moment it opens (and kept in sync on resize/scroll) rather than guessed
   // from CSS percentages of the viewport -- that keeps it correct regardless
@@ -1350,7 +1350,7 @@ function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres
     const top = rect.bottom + 6;
     setPanelStyle({ position: "fixed", top, left, width: panelWidth, maxHeight: Math.min(360, window.innerHeight - top - 12) });
   }, []);
- 
+
   useEffect(() => {
     if (!open) return;
     recomputePosition();
@@ -1367,9 +1367,9 @@ function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres
       window.removeEventListener("scroll", handleReposition, true);
     };
   }, [open, recomputePosition]);
- 
+
   const activeCount = selectedCities.length + selectedGenres.length + selectedCountries.length;
- 
+
   return (
     <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
       <button
@@ -1387,7 +1387,7 @@ function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres
           </span>
         )}
       </button>
- 
+
       {open && panelStyle && (
         <div
           className="ert-card-raised ert-scrollbar"
@@ -1451,7 +1451,7 @@ const SORT_OPTIONS = [
   { id: "rating-desc", label: "Rating (high to low)" },
   { id: "alpha", label: "Alphabetical (A\u2013Z)" },
 ];
- 
+
 function sortRooms(rooms, sortBy) {
   const arr = [...rooms];
   switch (sortBy) {
@@ -1491,13 +1491,13 @@ function sortRooms(rooms, sortBy) {
       return arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }
 }
- 
+
 function SortPopover({ sortBy, onChange }) {
   const [open, setOpen] = useState(false);
   const [panelStyle, setPanelStyle] = useState(null);
   const ref = React.useRef(null);
   const btnRef = React.useRef(null);
- 
+
   const recomputePosition = useCallback(() => {
     const btn = btnRef.current;
     if (!btn) return;
@@ -1508,7 +1508,7 @@ function SortPopover({ sortBy, onChange }) {
     const top = rect.bottom + 6;
     setPanelStyle({ position: "fixed", top, left, width: panelWidth });
   }, []);
- 
+
   useEffect(() => {
     if (!open) return;
     recomputePosition();
@@ -1525,9 +1525,9 @@ function SortPopover({ sortBy, onChange }) {
       window.removeEventListener("scroll", handleReposition, true);
     };
   }, [open, recomputePosition]);
- 
+
   const current = SORT_OPTIONS.find((o) => o.id === sortBy) || SORT_OPTIONS[0];
- 
+
   return (
     <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
       <button
@@ -1539,7 +1539,7 @@ function SortPopover({ sortBy, onChange }) {
         <ArrowUpDown size={14} />
         Sort
       </button>
- 
+
       {open && panelStyle && (
         <div
           className="ert-card-raised"
@@ -1564,23 +1564,23 @@ function SortPopover({ sortBy, onChange }) {
     </div>
   );
 }
- 
+
 function RoomsView({ rooms, onOpen, emptyLabel }) {
   const [search, setSearch] = useState("");
   const [selectedCities, setSelectedCities] = useState([]);
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [selectedCountries, setSelectedCountries] = useState([]);
   const [sortBy, setSortBy] = useState("date-desc");
- 
+
   const cities = useMemo(() => Array.from(new Set(rooms.map((r) => r.city).filter(Boolean))).sort(), [rooms]);
   const cats = useMemo(() => Array.from(new Set(rooms.map((r) => r.category).filter(Boolean))).sort(), [rooms]);
   const countries = useMemo(() => Array.from(new Set(rooms.map((r) => r.country).filter(Boolean))).sort(), [rooms]);
- 
+
   const toggleCity = (c) => setSelectedCities((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   const toggleGenre = (c) => setSelectedGenres((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   const toggleCountry = (c) => setSelectedCountries((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   const clearFilters = () => { setSelectedCities([]); setSelectedGenres([]); setSelectedCountries([]); };
- 
+
   const filtered = rooms.filter((r) => {
     if (search && !`${r.name} ${r.venue}`.toLowerCase().includes(search.toLowerCase())) return false;
     if (selectedCountries.length && !selectedCountries.includes(r.country)) return false;
@@ -1589,7 +1589,7 @@ function RoomsView({ rooms, onOpen, emptyLabel }) {
     return true;
   });
   const sorted = sortRooms(filtered, sortBy);
- 
+
   return (
     <div>
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
@@ -1611,7 +1611,7 @@ function RoomsView({ rooms, onOpen, emptyLabel }) {
         />
         <SortPopover sortBy={sortBy} onChange={setSortBy} />
       </div>
- 
+
       {sorted.length === 0 ? (
         <EmptyNote text={emptyLabel || "No rooms match those filters."} />
       ) : (
@@ -1710,7 +1710,7 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
   const [editingNote, setEditingNote] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState(null);
-  const [previewSrc, setPreviewSrc] = useState(null);
+  const [previewIndex, setPreviewIndex] = useState(null);
   const [walkthrough, setWalkthrough] = useState(room.walkthrough || "");
   const [walkthroughSaved, setWalkthroughSaved] = useState(false);
   const [editingWalkthrough, setEditingWalkthrough] = useState(false);
@@ -1977,7 +1977,7 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
           <Camera size={15} color="var(--brass)" />
           <div className="ert-display" style={{ fontSize: 15, fontWeight: 700 }}>Photos</div>
         </div>
- 
+
         {!driveAvailable ? (
           <EmptyNote text="Photo upload uses Google Drive and only works on the hosted site, not in this preview." />
         ) : !driveConnected ? (
@@ -2008,50 +2008,37 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
               </label>
               {photoError && <div style={{ color: "var(--danger)", fontSize: 12, marginTop: 6 }}>{photoError}</div>}
             </div>
- 
+
             {(!room.photos || room.photos.length === 0) ? (
               <EmptyNote text="No photos yet — upload one from the room." />
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 8 }}>
-                {room.photos.map((p) => (
-                  <DrivePhoto key={p.id} photo={p} getDriveAccessToken={getDriveAccessToken} onRemove={() => removePhoto(p)} onPreview={setPreviewSrc} />
+                {room.photos.map((p, i) => (
+                  <DrivePhoto key={p.id} photo={p} getDriveAccessToken={getDriveAccessToken} onRemove={() => removePhoto(p)} onPreview={() => setPreviewIndex(i)} />
                 ))}
               </div>
             )}
           </>
         )}
       </div>
- 
-      {previewSrc && (
-        <div
-          onClick={() => setPreviewSrc(null)}
-          style={{
-            position: "fixed", inset: 0, background: "rgba(10,11,15,0.9)", zIndex: 100,
-            display: "flex", alignItems: "center", justifyContent: "center", padding: 24, cursor: "zoom-out",
-          }}
-        >
-          <img
-            src={previewSrc}
-            alt=""
-            style={{ maxWidth: "100%", maxHeight: "100%", borderRadius: 8, boxShadow: "0 12px 40px rgba(0,0,0,0.6)" }}
-          />
-          <button
-            onClick={(e) => { e.stopPropagation(); setPreviewSrc(null); }}
-            className="ert-btn ert-btn-ghost"
-            style={{ position: "absolute", top: 20, right: 20, padding: "8px 10px" }}
-          >
-            <X size={16} />
-          </button>
-        </div>
+
+      {previewIndex !== null && room.photos[previewIndex] && (
+        <PhotoLightbox
+          photos={room.photos}
+          index={previewIndex}
+          onIndexChange={setPreviewIndex}
+          onClose={() => setPreviewIndex(null)}
+          getDriveAccessToken={getDriveAccessToken}
+        />
       )}
     </div>
   );
 }
- 
+
 function DrivePhoto({ photo, getDriveAccessToken, onRemove, onPreview }) {
   const [src, setSrc] = useState(null);
   const [failed, setFailed] = useState(false);
- 
+
   useEffect(() => {
     let cancelled = false;
     setSrc(null);
@@ -2067,7 +2054,7 @@ function DrivePhoto({ photo, getDriveAccessToken, onRemove, onPreview }) {
     })();
     return () => { cancelled = true; };
   }, [photo.driveFileId]);
- 
+
   return (
     <div style={{ position: "relative", borderRadius: 8, overflow: "hidden", aspectRatio: "1", background: "var(--surface-raised)", display: "flex", alignItems: "center", justifyContent: "center" }}>
       {failed ? (
@@ -2078,7 +2065,7 @@ function DrivePhoto({ photo, getDriveAccessToken, onRemove, onPreview }) {
         <img
           src={src}
           alt=""
-          onClick={() => onPreview(src)}
+          onClick={onPreview}
           style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", cursor: "pointer" }}
         />
       )}
@@ -2092,6 +2079,121 @@ function DrivePhoto({ photo, getDriveAccessToken, onRemove, onPreview }) {
   );
 }
  
+function PhotoLightbox({ photos, index, onIndexChange, onClose, getDriveAccessToken }) {
+  const [src, setSrc] = useState(null);
+  const [failed, setFailed] = useState(false);
+  const photo = photos[index];
+  const hasMultiple = photos.length > 1;
+
+  useEffect(() => {
+    let cancelled = false;
+    setSrc(null);
+    setFailed(false);
+    (async () => {
+      try {
+        const token = await getDriveAccessToken();
+        const url = await fetchDrivePhotoUrl(photo.driveFileId, token);
+        if (!cancelled) setSrc(url);
+      } catch (e) {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [photo.driveFileId]);
+
+  const goPrev = useCallback(() => {
+    if (hasMultiple) onIndexChange((index - 1 + photos.length) % photos.length);
+  }, [index, photos.length, hasMultiple, onIndexChange]);
+  const goNext = useCallback(() => {
+    if (hasMultiple) onIndexChange((index + 1) % photos.length);
+  }, [index, photos.length, hasMultiple, onIndexChange]);
+
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowLeft") goPrev();
+      else if (e.key === "ArrowRight") goNext();
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onClose, goPrev, goNext]);
+
+  const navButtonStyle = {
+    position: "fixed", top: "50%", transform: "translateY(-50%)", zIndex: 102,
+    background: "rgba(20,22,28,0.7)", border: "1px solid var(--border)", borderRadius: "50%",
+    width: 42, height: 42, display: "flex", alignItems: "center", justifyContent: "center",
+    cursor: "pointer", color: "var(--text)",
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, background: "rgba(10,11,15,0.88)", zIndex: 100,
+        display: "flex", alignItems: "center", justifyContent: "center", padding: 24, cursor: "zoom-out",
+      }}
+    >
+      {hasMultiple && (
+        <button
+          onClick={(e) => { e.stopPropagation(); goPrev(); }}
+          style={{ ...navButtonStyle, left: 16 }}
+          title="Previous photo"
+        >
+          <ChevronLeft size={20} />
+        </button>
+      )}
+
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="ert-card-raised"
+        style={{
+          position: "relative", padding: 16, borderRadius: 14, cursor: "default",
+          maxWidth: "min(560px, 85vw)", maxHeight: "80vh",
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+          boxShadow: "0 20px 60px rgba(0,0,0,0.55)",
+        }}
+      >
+        <div style={{ width: "100%", display: "flex", justifyContent: "flex-end" }}>
+          <button onClick={onClose} className="ert-btn ert-btn-ghost" style={{ padding: "5px 8px" }}>
+            <X size={15} />
+          </button>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, maxHeight: "62vh", width: "100%" }}>
+          {failed ? (
+            <span style={{ fontSize: 12.5, color: "var(--text-dim)", padding: 24 }}>Couldn't load this photo.</span>
+          ) : !src ? (
+            <span className="ert-mono" style={{ fontSize: 11, color: "var(--text-dim)" }}>loading…</span>
+          ) : (
+            <img
+              src={src}
+              alt=""
+              style={{ maxWidth: "100%", maxHeight: "62vh", borderRadius: 8, display: "block" }}
+            />
+          )}
+        </div>
+
+        {(hasMultiple || photo.addedBy) && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", fontSize: 11.5, color: "var(--text-dim)" }}>
+            <span>{photo.addedBy ? `Added by ${photo.addedBy}` : ""}</span>
+            {hasMultiple && <span className="ert-mono">{index + 1} / {photos.length}</span>}
+          </div>
+        )}
+      </div>
+
+      {hasMultiple && (
+        <button
+          onClick={(e) => { e.stopPropagation(); goNext(); }}
+          style={{ ...navButtonStyle, right: 16 }}
+          title="Next photo"
+        >
+          <ChevronRight size={20} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* ---------------------------------------------------------------
    ADD / EDIT ROOM FORM
 --------------------------------------------------------------- */
@@ -2175,7 +2277,7 @@ function Field({ label, children }) {
 --------------------------------------------------------------- */
 function TripsView({ trips, rooms, onOpen, onNew }) {
   const sorted = [...trips].sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""));
- 
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
@@ -2183,7 +2285,7 @@ function TripsView({ trips, rooms, onOpen, onNew }) {
           <Plus size={15} /> New trip
         </button>
       </div>
- 
+
       {sorted.length === 0 ? (
         <EmptyNote text="No trips yet — group the rooms from your next city trip together here." />
       ) : (
@@ -2220,18 +2322,18 @@ function TripsView({ trips, rooms, onOpen, onNew }) {
     </div>
   );
 }
- 
+
 function TripForm({ trip, rooms, onCancel, onSave }) {
   const [form, setForm] = useState(trip);
   const set = (patch) => setForm({ ...form, ...patch });
- 
+
   const inRange = (r) => {
     if (!r.datePlayed) return false;
     if (form.startDate && r.datePlayed < form.startDate) return false;
     if (form.endDate && r.datePlayed > form.endDate) return false;
     return true;
   };
- 
+
   // Suggest completed rooms played within the date range (and matching city,
   // if one's set) that aren't already selected -- this is the common case:
   // several rooms played over a few days in one city.
@@ -2239,30 +2341,30 @@ function TripForm({ trip, rooms, onCancel, onSave }) {
     if (!form.startDate) return [];
     return rooms.filter((r) => !form.roomIds.includes(r.id) && inRange(r) && (!form.city || r.city === form.city));
   }, [rooms, form.startDate, form.endDate, form.city, form.roomIds]);
- 
+
   const toggleRoom = (id) => {
     set({ roomIds: form.roomIds.includes(id) ? form.roomIds.filter((x) => x !== id) : [...form.roomIds, id] });
   };
   const addAllSuggestions = () => {
     set({ roomIds: [...form.roomIds, ...suggestions.map((r) => r.id)] });
   };
- 
+
   const canSave = form.name.trim().length > 0;
   const selectedRooms = rooms.filter((r) => form.roomIds.includes(r.id));
- 
+
   return (
     <div className="ert-card" style={{ padding: 22, maxWidth: 640 }}>
       <div className="ert-display" style={{ fontSize: 17, fontWeight: 700, marginBottom: 16 }}>
         {trip.name ? "Edit trip" : "New trip"}
       </div>
- 
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Field label="Trip name *"><input className="ert-input" placeholder="e.g. Wroc\u0142aw weekend" value={form.name} onChange={(e) => set({ name: e.target.value })} /></Field>
         <Field label="City"><input className="ert-input" value={form.city} onChange={(e) => set({ city: e.target.value })} /></Field>
         <Field label="Start date"><input type="date" className="ert-input" value={form.startDate} onChange={(e) => set({ startDate: e.target.value })} /></Field>
         <Field label="End date"><input type="date" className="ert-input" value={form.endDate} onChange={(e) => set({ endDate: e.target.value })} /></Field>
       </div>
- 
+
       {suggestions.length > 0 && (
         <div style={{ marginTop: 18, background: "var(--surface-raised)", borderRadius: 8, padding: 12 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -2279,7 +2381,7 @@ function TripForm({ trip, rooms, onCancel, onSave }) {
           </div>
         </div>
       )}
- 
+
       <div style={{ marginTop: 18 }}>
         <div style={{ fontSize: 11.5, color: "var(--text-dim)", marginBottom: 6 }}>Rooms on this trip ({selectedRooms.length})</div>
         {selectedRooms.length === 0 ? (
@@ -2295,7 +2397,7 @@ function TripForm({ trip, rooms, onCancel, onSave }) {
           </div>
         )}
       </div>
- 
+
       <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
         <button className="ert-btn ert-btn-brass" disabled={!canSave} style={{ opacity: canSave ? 1 : 0.5 }} onClick={() => canSave && onSave(form)}>
           <Check size={14} /> Save trip
@@ -2305,7 +2407,7 @@ function TripForm({ trip, rooms, onCancel, onSave }) {
     </div>
   );
 }
- 
+
 function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUpdate, onOpenRoom }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [notes, setNotes] = useState(trip.notes || "");
@@ -2313,13 +2415,13 @@ function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUp
   const [notesSaved, setNotesSaved] = useState(false);
   const [addingRooms, setAddingRooms] = useState(false);
   const [addSearch, setAddSearch] = useState("");
- 
+
   useEffect(() => {
     setNotes(trip.notes || "");
     setEditingNotes(false);
     setNotesSaved(false);
   }, [trip.id]);
- 
+
   const stats = tripStats(trip, rooms);
   const notesDirty = notes !== (trip.notes || "");
   const saveNotes = () => {
@@ -2327,7 +2429,7 @@ function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUp
     setNotesSaved(true);
     setTimeout(() => setNotesSaved(false), 1500);
   };
- 
+
   const removeRoom = (roomId) => {
     onUpdate({ roomIds: trip.roomIds.filter((id) => id !== roomId) });
   };
@@ -2337,13 +2439,13 @@ function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUp
   const addableRooms = rooms.filter(
     (r) => r.status === "played" && !trip.roomIds.includes(r.id) && (!addSearch || r.name.toLowerCase().includes(addSearch.toLowerCase()))
   );
- 
+
   return (
     <div>
       <button className="ert-btn ert-btn-ghost" onClick={onBack} style={{ marginBottom: 14 }}>
         <ChevronLeft size={14} /> Back
       </button>
- 
+
       <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
           <div>
@@ -2368,14 +2470,14 @@ function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUp
             )}
           </div>
         </div>
- 
+
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
           <StatBlock label="Rooms" value={stats.count} />
           <StatBlock label="Group avg" value={fmtRating(stats.avg)} sub="out of 10" />
           <StatBlock label="Escape rate" value={stats.escapeRate === null ? "\u2014" : `${stats.escapeRate}%`} />
         </div>
       </div>
- 
+
       <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
         <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Trip summary</div>
         <p style={{ fontSize: 11.5, color: "var(--text-dim)", marginBottom: 10 }}>
@@ -2406,7 +2508,7 @@ function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUp
           </div>
         )}
       </div>
- 
+
       <div className="ert-card" style={{ padding: 22 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <div className="ert-display" style={{ fontSize: 15, fontWeight: 700 }}>Rooms on this trip</div>
@@ -2414,7 +2516,7 @@ function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUp
             <Plus size={14} /> Add rooms
           </button>
         </div>
- 
+
         {addingRooms && (
           <div style={{ marginBottom: 14, background: "var(--surface-raised)", borderRadius: 8, padding: 12 }}>
             <input
@@ -2438,7 +2540,7 @@ function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUp
             )}
           </div>
         )}
- 
+
         {stats.rooms.length === 0 ? (
           <EmptyNote text="No rooms on this trip yet." />
         ) : (
@@ -2461,7 +2563,7 @@ function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUp
     </div>
   );
 }
- 
+
 function SettingsView({ members, currentMember, onChangePassword, rooms }) {
   const [changing, setChanging] = useState(false);
   const [current, setCurrent] = useState("");
