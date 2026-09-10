@@ -52,6 +52,26 @@
       '<div class="boot-loader">' + label + ' — check the browser console for details.</div>';
   }
  
+  // config.js holds your Firebase/Google Drive credentials, kept out of
+  // escape-room-tracker.jsx so updating the app never means re-pasting
+  // them. It's optional — if it's missing, the app just falls back to
+  // placeholders (fine for this preview; the hosted site needs it filled in).
+  try {
+    console.log("[EscapeLog] fetching config.js…");
+    const configRes = await fetch(`./config.js?v=${Date.now()}`, { cache: "no-store" });
+    if (configRes.ok) {
+      const configCode = await configRes.text();
+      const script = document.createElement("script");
+      script.textContent = configCode;
+      document.head.appendChild(script);
+      console.log("[EscapeLog] config.js loaded");
+    } else {
+      console.warn("[EscapeLog] config.js not found (HTTP " + configRes.status + ") — using placeholder config.");
+    }
+  } catch (err) {
+    console.warn("[EscapeLog] couldn't load config.js — using placeholder config.", err);
+  }
+ 
   try {
     console.log("[EscapeLog] fetching escape-room-tracker.jsx…");
     const res = await fetch(`./escape-room-tracker.jsx?v=${Date.now()}`, { cache: "no-store" });
