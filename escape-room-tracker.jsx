@@ -2577,7 +2577,7 @@ function TripForm({ trip, rooms, onCancel, onSave }) {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <Field label="Trip name *"><input className="ert-input" placeholder="e.g. Wroc\u0142aw weekend" value={form.name} onChange={(e) => set({ name: e.target.value })} /></Field>
+        <Field label="Trip name *"><input className="ert-input" placeholder="e.g. Wrocław weekend" value={form.name} onChange={(e) => set({ name: e.target.value })} /></Field>
         <Field label="City"><input className="ert-input" value={form.city} onChange={(e) => set({ city: e.target.value })} /></Field>
         <Field label="Start date"><input type="date" className="ert-input" value={form.startDate} onChange={(e) => set({ startDate: e.target.value })} /></Field>
         <Field label="End date"><input type="date" className="ert-input" value={form.endDate} onChange={(e) => set({ endDate: e.target.value })} /></Field>
