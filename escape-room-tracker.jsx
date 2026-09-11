@@ -12,7 +12,7 @@ import {
    Outside Claude (e.g. hosted on GitHub Pages) it syncs shared room
    data through Firebase Firestore instead, so the whole crew sees
    the same live data. Your own "who am I" selection always stays in
-   this browser's localStorage — that's meant to be per-device.
+   this browser's localStorage. That's meant to be per-device.
  
    To enable the shared backend: create a Firebase project, create a
    Firestore database in it, register a web app, and paste the config
@@ -60,7 +60,7 @@ function getFirebaseHandle() {
       const db = getFirestore(app);
       // The Firestore rules require a signed-in request (see firestore.rules).
       // Anonymous auth gives every visitor an invisible sign-in with no
-      // login screen — it scopes access to just this app, not to any
+      // login screen. It scopes access to just this app, not to any
       // particular person.
       await signInAnonymously(getAuth(app));
       const ref = doc(db, ...FIREBASE_DOC_PATH);
@@ -73,7 +73,7 @@ function getFirebaseHandle() {
 /* ---------------------------------------------------------------
    GOOGLE DRIVE (photo storage)
    Photos are stored as files in your own Google Drive, in a folder
-   you create — never as public links. The app authenticates once
+   you create, never as public links. The app authenticates once
    (you click "Connect Google Drive"), and the resulting refresh
    token is saved in the same shared Firestore document as
    everything else, so any of the four of you can then upload or
@@ -88,7 +88,7 @@ function getFirebaseHandle() {
       the folder's URL.
    4. Paste the three values into config.js (not this file).
 
-   Scope is drive.file — the app can only see files it creates
+   Scope is drive.file. The app can only see files it creates
    itself, nothing else in your Drive.
 --------------------------------------------------------------- */
 // Also loaded from config.js -- see the note above FIREBASE_CONFIG.
@@ -175,12 +175,12 @@ async function handleDriveOAuthRedirect() {
   if (!res.ok) throw new Error("Google Drive authorization failed");
   const json = await res.json();
   if (!json.refresh_token) {
-    throw new Error("Google didn't return a refresh token — try connecting again (Google only issues one on first consent).");
+    throw new Error("Google didn't return a refresh token. Try connecting again (Google only issues one on first consent).");
   }
   return json.refresh_token;
 }
 
-// In-memory access-token cache (never persisted — short-lived by design).
+// In-memory access-token cache (never persisted, short-lived by design).
 let driveAccessTokenCache = null; // { token, expiresAt }
 
 async function getDriveAccessToken(refreshToken) {
@@ -199,7 +199,7 @@ async function getDriveAccessToken(refreshToken) {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
   });
-  if (!res.ok) throw new Error("Couldn't refresh Google Drive access — it may need reconnecting.");
+  if (!res.ok) throw new Error("Couldn't refresh Google Drive access. It may need reconnecting.");
   const json = await res.json();
   driveAccessTokenCache = { token: json.access_token, expiresAt: Date.now() + json.expires_in * 1000 };
   return json.access_token;
@@ -230,7 +230,7 @@ async function deletePhotoFromDrive(fileId, accessToken) {
   await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${accessToken}` },
-  }).catch(() => {}); // best-effort — a failed remote delete shouldn't block removing it from the room
+  }).catch(() => {}); // best-effort: a failed remote delete shouldn't block removing it from the room
 }
 
 const driveBlobCache = new Map(); // fileId -> object URL, so re-opening a room doesn't re-fetch
@@ -247,7 +247,7 @@ async function fetchDrivePhotoUrl(fileId, accessToken) {
   return url;
 }
 
-// Personal, per-device value (e.g. "who am I") — never goes through Firebase.
+// Personal, per-device value (e.g. "who am I"). Never goes through Firebase.
 async function storageGet(key, shared) {
   if (hasClaudeStorage) return window.storage.get(key, shared);
   const raw = window.localStorage.getItem(key);
@@ -263,7 +263,7 @@ async function storageSet(key, value, shared) {
 /* ---------------------------------------------------------------
    PASSWORDS
    Each crew member's password is hashed (SHA-256, salted) with the
-   Web Crypto API before it's ever written anywhere — only the salt
+   Web Crypto API before it's ever written anywhere. Only the salt
    and resulting hash are stored, in the same shared data doc as the
    rooms. The plaintext password never leaves the browser it was
    typed in, and never appears in the app's code.
@@ -281,7 +281,7 @@ async function hashPassword(password, salt) {
  
 /* ---------------------------------------------------------------
    TOKENS
-   Palette: a dim, brass-lit "room" rather than a generic dark UI —
+   Palette: a dim, brass-lit "room" rather than a generic dark UI,
    charcoal-blue walls, a brass key accent (the thing everyone's
    hunting for), and a UV-teal accent for "clue" moments.
 --------------------------------------------------------------- */
@@ -545,7 +545,7 @@ function avgRating(room) {
 }
  
 function fmtRating(n) {
-  return n === null || n === undefined ? "—" : n.toFixed(1);
+  return n === null || n === undefined ? "-" : n.toFixed(1);
 }
  
 /* ---------------------------------------------------------------
@@ -578,7 +578,7 @@ export default function EscapeRoomTracker() {
             const res = await storageGet(STORAGE_KEY, true);
             if (res && res.value) loaded = JSON.parse(res.value);
           } catch (e) {
-            // key doesn't exist yet — fine, use default
+            // key doesn't exist yet, fine, use default
           }
           setData(normalizeData(loaded));
         } catch (e) {
@@ -610,7 +610,7 @@ export default function EscapeRoomTracker() {
       })();
     }
  
-    // Personal, per-device value — always local, regardless of backend.
+    // Personal, per-device value. Always local, regardless of backend.
     (async () => {
       try {
         const memberRes = await storageGet(MEMBER_KEY, false);
@@ -630,7 +630,7 @@ export default function EscapeRoomTracker() {
     try {
       if (hasClaudeStorage) {
         const res = await storageSet(STORAGE_KEY, JSON.stringify(next), true);
-        if (!res) setSaveError("Save failed — your last change may not be stored.");
+        if (!res) setSaveError("Save failed. Your last change may not be stored.");
         else setSaveError(null);
       } else {
         const { setDoc, ref } = await getFirebaseHandle();
@@ -638,7 +638,7 @@ export default function EscapeRoomTracker() {
         setSaveError(null);
       }
     } catch (e) {
-      setSaveError("Save failed — your last change may not be stored.");
+      setSaveError("Save failed. Your last change may not be stored.");
     }
   }, []);
  
@@ -691,7 +691,7 @@ export default function EscapeRoomTracker() {
         const refreshToken = await handleDriveOAuthRedirect();
         if (refreshToken) {
           await persist({ ...data, driveAuth: { refreshToken } });
-          setDriveMessage({ type: "success", text: "Google Drive connected — photos will now upload there." });
+          setDriveMessage({ type: "success", text: "Google Drive connected. Photos will now upload there." });
         }
       } catch (e) {
         setDriveMessage({ type: "error", text: e.message || "Couldn't connect Google Drive." });
@@ -747,7 +747,7 @@ export default function EscapeRoomTracker() {
       const text = await file.text();
       const parsed = roomsFromCSV(text, currentMember);
       if (!parsed.length) {
-        setImportMessage({ type: "error", text: "No rooms found in that file — make sure it has a 'name' column." });
+        setImportMessage({ type: "error", text: "No rooms found in that file. Make sure it has a 'name' column." });
         setTimeout(() => setImportMessage(null), 6000);
         return;
       }
@@ -761,7 +761,7 @@ export default function EscapeRoomTracker() {
         text: `Imported ${toAdd.length} room${toAdd.length === 1 ? "" : "s"}${skipped ? `, skipped ${skipped} already on the list` : ""}.`,
       });
     } catch (e) {
-      setImportMessage({ type: "error", text: "Couldn't read that file — make sure it's a CSV in the format this app exports." });
+      setImportMessage({ type: "error", text: "Couldn't read that file. Make sure it's a CSV in the format this app exports." });
     }
     setTimeout(() => setImportMessage(null), 6000);
   };
@@ -831,7 +831,7 @@ export default function EscapeRoomTracker() {
 
       {isKnownInAppBrowser() && (
         <div style={{ background: "var(--danger)", color: "#fff", fontSize: 12.5, padding: "6px 20px" }}>
-          This looks like an in-app browser (e.g. Messenger, Instagram) — these often block the storage this app needs, so changes may not save. Open this link in Safari or Chrome instead.
+          This looks like an in-app browser (e.g. Messenger, Instagram). These often block the storage this app needs, so changes may not save. Open this link in Safari or Chrome instead.
         </div>
       )}
  
@@ -956,7 +956,7 @@ function WhoAmI({ members, authRecords, onChoose, onCreatePassword, onVerifyPass
       await onCreatePassword(selected, password);
       onChoose(selected);
     } catch (e) {
-      setError("Couldn't set the password — try again.");
+      setError("Couldn't set the password. Try again.");
     } finally {
       setBusy(false);
     }
@@ -970,7 +970,7 @@ function WhoAmI({ members, authRecords, onChoose, onCreatePassword, onVerifyPass
       if (ok) onChoose(selected);
       else setError("Wrong password.");
     } catch (e) {
-      setError("Couldn't check the password — try again.");
+      setError("Couldn't check the password. Try again.");
     } finally {
       setBusy(false);
     }
@@ -990,7 +990,7 @@ function WhoAmI({ members, authRecords, onChoose, onCreatePassword, onVerifyPass
           </div>
           <p style={{ fontSize: 13.5, color: "var(--text-dim)", marginTop: 4, marginBottom: 18 }}>
             {isNew
-              ? "First time logging in as you — pick a password you'll use each time."
+              ? "First time logging in as you. Pick a password you'll use each time."
               : "Enter your password to continue."}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
@@ -1040,7 +1040,7 @@ function WhoAmI({ members, authRecords, onChoose, onCreatePassword, onVerifyPass
           <div className="ert-display" style={{ fontSize: 20, fontWeight: 700 }}>Who's playing?</div>
         </div>
         <p style={{ fontSize: 13.5, color: "var(--text-dim)", marginTop: 4, marginBottom: 18 }}>
-          Pick your name — first time, you'll set a password; after that, you'll enter it each time.
+          Pick your name. First time, you'll set a password; after that, you'll enter it each time.
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {members.map((m) => (
@@ -1208,7 +1208,7 @@ function Dashboard({ rooms, members, onOpenRoom }) {
     <div>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 22 }}>
         <StatBlock label="Rooms played" value={played.length} />
-        <StatBlock label="Escape rate" value={escapeRate === null ? "—" : `${escapeRate}%`} sub={played.length ? `${escaped}/${played.length} escaped` : null} />
+        <StatBlock label="Escape rate" value={escapeRate === null ? "-" : `${escapeRate}%`} sub={played.length ? `${escaped}/${played.length} escaped` : null} />
         <StatBlock label="Group avg rating" value={fmtRating(overallAvg)} sub="out of 10" />
         <StatBlock label="Wishlist" value={wishlist.length} />
         <StatBlock label="Crew" value={members.length} />
@@ -1218,7 +1218,7 @@ function Dashboard({ rooms, members, onOpenRoom }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div className="ert-card" style={{ padding: 18 }}>
             <div className="ert-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Top rooms</div>
-            {topRated.length === 0 && <EmptyNote text="No ratings yet — rate a room to build your ranking." />}
+            {topRated.length === 0 && <EmptyNote text="No ratings yet. Rate a room to build your ranking." />}
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {topRated.map((r, i) => (
                 <div key={r.id} onClick={() => onOpenRoom(r.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 11px", background: "var(--surface-raised)", borderRadius: 7, cursor: "pointer" }}>
@@ -1237,7 +1237,7 @@ function Dashboard({ rooms, members, onOpenRoom }) {
 
           <div className="ert-card" style={{ padding: 18 }}>
             <div className="ert-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Recently played</div>
-            {recent.length === 0 && <EmptyNote text="Nothing logged yet — add your first room." />}
+            {recent.length === 0 && <EmptyNote text="Nothing logged yet. Add your first room." />}
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {recent.map((r) => (
                 <div key={r.id} onClick={() => onOpenRoom(r.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 11px", background: "var(--surface-raised)", borderRadius: 7, cursor: "pointer" }}>
@@ -1602,7 +1602,7 @@ function RoomsView({ rooms, onOpen, emptyLabel }) {
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         <div style={{ position: "relative", flex: "1 1 220px", minWidth: 160, maxWidth: 600 }}>
           <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
-          <input className="ert-input" style={{ paddingLeft: 30 }} placeholder="Search rooms or venues…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input className="ert-input" style={{ paddingLeft: 30 }} placeholder="Search rooms or venues" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <FilterPopover
           cities={cities}
@@ -1641,7 +1641,7 @@ function RoomCard({ room, index, onOpen }) {
       <div className="ert-display" style={{ fontSize: 15.5, fontWeight: 700, marginTop: 8, lineHeight: 1.25 }}>{room.name || "Untitled room"}</div>
       <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 3 }}>{room.venue}</div>
       <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5, color: "var(--text-dim)", marginTop: 6 }}>
-        <MapPin size={11} /> {room.city || "—"}{room.country ? `, ${room.country}` : ""}
+        <MapPin size={11} /> {room.city || "-"}{room.country ? `, ${room.country}` : ""}
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
         <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: "var(--surface-raised)", color: "var(--text-dim)" }}>{room.category}</span>
@@ -1663,7 +1663,7 @@ function RankingView({ rooms, members, onOpen }) {
     () => [...rooms].map((r) => ({ ...r, _avg: avgRating(r) })).sort((a, b) => (b._avg ?? -1) - (a._avg ?? -1)),
     [rooms]
   );
-  if (!ranked.length) return <EmptyNote text="No completed rooms yet — the ranking fills in once you log one." />;
+  if (!ranked.length) return <EmptyNote text="No completed rooms yet. The ranking fills in once you log one." />;
  
   return (
     <div className="ert-card" style={{ overflow: "hidden" }}>
@@ -1870,7 +1870,7 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
             <span style={{ fontSize: 12, color: "var(--text-dim)" }}>Your rating</span>
             <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
               <StarRow value={myRating} onChange={saveMyRating} size={15} />
-              <span className="ert-mono" style={{ fontSize: 12.5, color: "var(--text-dim)" }}>{myRating || "—"}/10</span>
+              <span className="ert-mono" style={{ fontSize: 12.5, color: "var(--text-dim)" }}>{myRating || "-"}/10</span>
             </div>
           </div>
  
@@ -1910,7 +1910,7 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
                       <textarea
                         className="ert-textarea"
                         rows={4}
-                        placeholder="Your impressions — puzzle quality, story, scares, whether it's worth recommending…"
+                        placeholder="Your impressions: puzzle quality, story, scares, whether it's worth recommending"
                         value={myNote}
                         autoFocus
                         onChange={(e) => setMyNote(e.target.value)}
@@ -1935,7 +1935,7 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
                     </>
                   ) : (
                     <div style={{ fontSize: 12.5, color: room.notes[m] ? "var(--text)" : "var(--text-dim)", fontStyle: room.notes[m] ? "normal" : "italic", whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
-                      {room.notes[m] || (isMe ? "No notes yet — click your name above to add some." : "No notes yet.")}
+                      {room.notes[m] || (isMe ? "No notes yet. Click your name above to add some." : "No notes yet.")}
                     </div>
                   )}
                 </div>
@@ -1949,7 +1949,7 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
         <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
           <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Walkthrough</div>
           <p style={{ fontSize: 11.5, color: "var(--text-dim)", marginBottom: 10 }}>
-            Shared by the whole crew — click to add or edit the solve path, hints used, or tips for a replay.
+            Shared by the whole crew. Click to add or edit the solve path, hints used, or tips for a replay.
           </p>
  
           {editingWalkthrough ? (
@@ -1957,7 +1957,7 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
               <textarea
                 className="ert-textarea"
                 rows={6}
-                placeholder="Step through how you solved it — puzzle order, hint usage, anything worth remembering next time…"
+                placeholder="Step through how you solved it: puzzle order, hint usage, anything worth remembering next time"
                 value={walkthrough}
                 autoFocus
                 onChange={(e) => setWalkthrough(e.target.value)}
@@ -1991,7 +1991,7 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
                 fontStyle: room.walkthrough ? "normal" : "italic",
               }}
             >
-              {room.walkthrough || "No walkthrough yet — click here to add one."}
+              {room.walkthrough || "No walkthrough yet. Click here to add one."}
             </div>
           )}
         </div>
@@ -2008,7 +2008,7 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
         ) : !driveConnected ? (
           <div>
             <p style={{ fontSize: 12.5, color: "var(--text-dim)", marginBottom: 10 }}>
-              Photos upload straight to a Google Drive folder — not a public link. One of you needs to connect it once; after that, everyone can upload and view from any device.
+              Photos upload straight to a Google Drive folder, not a public link. One of you needs to connect it once, and after that everyone can upload and view from any device.
             </p>
             <button className="ert-btn ert-btn-brass" onClick={onConnectDrive}>
               <Upload size={14} /> Connect Google Drive
@@ -2030,13 +2030,13 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
                 className="ert-btn ert-btn-ghost"
                 style={{ cursor: "pointer", opacity: uploadingPhoto ? 0.6 : 1, pointerEvents: uploadingPhoto ? "none" : "auto" }}
               >
-                <Upload size={14} /> {uploadingPhoto ? `Uploading ${uploadProgress ? `${uploadProgress.done}/${uploadProgress.total}` : "…"}` : "Upload photos"}
+                <Upload size={14} /> {uploadingPhoto ? (uploadProgress ? `Uploading ${uploadProgress.done}/${uploadProgress.total}` : "Uploading") : "Upload photos"}
               </label>
               {photoError && <div style={{ color: "var(--danger)", fontSize: 12, marginTop: 6 }}>{photoError}</div>}
             </div>
 
             {(!room.photos || room.photos.length === 0) ? (
-              <EmptyNote text="No photos yet — upload one from the room." />
+              <EmptyNote text="No photos yet. Upload one from the room." />
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 8 }}>
                 {room.photos.map((p, i) => (
@@ -2112,7 +2112,7 @@ function PhotoLightbox({ photos, index, onIndexChange, onClose, getDriveAccessTo
   const photo = photos[index];
   const hasMultiple = photos.length > 1;
 
-  // Prevent the page behind the lightbox from scrolling while it's open —
+  // Prevent the page behind the lightbox from scrolling while it's open.
   // otherwise a swipe to change photos also drags the page underneath.
   useEffect(() => {
     const prevOverflow = document.body.style.overflow;
@@ -2162,7 +2162,7 @@ function PhotoLightbox({ photos, index, onIndexChange, onClose, getDriveAccessTo
     return () => document.removeEventListener("keydown", handleKey);
   }, [onClose, goPrev, goNext]);
 
-  // Swipe support for touch devices — horizontal drags of 40px+ change
+  // Swipe support for touch devices. Horizontal drags of 40px+ change
   // photo, anything more vertical (or too small) is ignored so scrolling
   // gestures aren't mistaken for a swipe.
   const touchStart = React.useRef(null);
@@ -2464,7 +2464,7 @@ function TripsView({ trips, rooms, onOpen, onNew }) {
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         <div style={{ position: "relative", flex: "1 1 220px", minWidth: 160, maxWidth: 600 }}>
           <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
-          <input className="ert-input" style={{ paddingLeft: 30 }} placeholder="Search trips…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input className="ert-input" style={{ paddingLeft: 30 }} placeholder="Search trips" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <TripFilterPopover cities={cities} selectedCities={selectedCities} onToggleCity={toggleCity} onClear={clearFilters} />
         <SortPopover options={TRIP_SORT_OPTIONS} sortBy={sortBy} onChange={setSortBy} />
@@ -2474,7 +2474,7 @@ function TripsView({ trips, rooms, onOpen, onNew }) {
       </div>
 
       {sorted.length === 0 ? (
-        <EmptyNote text={trips.length === 0 ? "No trips yet — group the rooms from your next city trip together here." : "No trips match those filters."} />
+        <EmptyNote text={trips.length === 0 ? "No trips yet. Group the rooms from your next city trip together here." : "No trips match those filters."} />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {sorted.map((t) => {
@@ -2582,7 +2582,7 @@ function TripForm({ trip, rooms, onCancel, onSave }) {
       <div style={{ marginTop: 18 }}>
         <div style={{ fontSize: 11.5, color: "var(--text-dim)", marginBottom: 6 }}>Rooms on this trip ({selectedRooms.length})</div>
         {selectedRooms.length === 0 ? (
-          <EmptyNote text="No rooms added yet — pick a date range above, or add rooms after saving." />
+          <EmptyNote text="No rooms added yet. Pick a date range above, or add rooms after saving." />
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {selectedRooms.map((r) => (
@@ -2671,14 +2671,14 @@ function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUp
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
           <StatBlock label="Rooms" value={stats.count} />
           <StatBlock label="Group avg" value={fmtRating(stats.avg)} sub="out of 10" />
-          <StatBlock label="Escape rate" value={stats.escapeRate === null ? "\u2014" : `${stats.escapeRate}%`} />
+          <StatBlock label="Escape rate" value={stats.escapeRate === null ? "-" : `${stats.escapeRate}%`} />
         </div>
       </div>
 
       <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
         <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Trip summary</div>
         <p style={{ fontSize: 11.5, color: "var(--text-dim)", marginBottom: 10 }}>
-          Shared by the whole crew \u2014 click to write up highlights, favorites, or a running joke from the trip.
+          Shared by the whole crew. Click to write up highlights, favorites, or a running joke from the trip.
         </p>
         {editingNotes ? (
           <>
@@ -2701,7 +2701,7 @@ function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUp
               color: trip.notes ? "var(--text)" : "var(--text-dim)", fontStyle: trip.notes ? "normal" : "italic",
             }}
           >
-            {trip.notes || "No summary yet \u2014 click here to add one."}
+            {trip.notes || "No summary yet. Click here to add one."}
           </div>
         )}
       </div>
@@ -2718,7 +2718,7 @@ function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUp
           <div style={{ marginBottom: 14, background: "var(--surface-raised)", borderRadius: 8, padding: 12 }}>
             <input
               className="ert-input"
-              placeholder="Search completed rooms\u2026"
+              placeholder="Search completed rooms"
               value={addSearch}
               onChange={(e) => setAddSearch(e.target.value)}
               style={{ marginBottom: 8 }}
@@ -2807,7 +2807,7 @@ function SettingsView({ members, currentMember, onChangePassword, rooms }) {
         setError("Current password is incorrect.");
       }
     } catch (e) {
-      setError("Couldn't update the password — try again.");
+      setError("Couldn't update the password. Try again.");
     } finally {
       setBusy(false);
     }
