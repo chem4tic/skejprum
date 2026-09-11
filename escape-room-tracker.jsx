@@ -801,7 +801,7 @@ export default function EscapeRoomTracker() {
   }
  
   return (
-    <div className="ert-root" style={{ minHeight: 600, borderRadius: 14, overflow: "hidden" }}>
+    <div className="ert-root" style={{ minHeight: 600, borderRadius: 14, overflow: "hidden", maxWidth: 1600, margin: "0 auto" }}>
       <style>{TOKENS}</style>
  
       <Header
@@ -1687,7 +1687,7 @@ function RankingView({ rooms, members, onOpen }) {
   if (!ranked.length) return <EmptyNote text="No completed rooms yet. The ranking fills in once you log one." />;
  
   return (
-    <div className="ert-card" style={{ overflow: "hidden" }}>
+    <div className="ert-card" style={{ overflow: "hidden", maxWidth: 600 }}>
       <div style={{ display: "grid", gridTemplateColumns: "42px 1.6fr 1fr", padding: "10px 16px", borderBottom: "1px solid var(--border-soft)" }}>
         <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)" }}>#</span>
         <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)" }}>ROOM</span>
@@ -2481,7 +2481,7 @@ function TripsView({ trips, rooms, onOpen, onNew }) {
   const sorted = sortTrips(filtered, sortBy);
 
   return (
-    <div>
+    <div style={{ maxWidth: 900 }}>
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         <div style={{ position: "relative", flex: "1 1 220px", minWidth: 160, maxWidth: 600 }}>
           <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
