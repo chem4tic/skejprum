@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>The Escape Log — nasz dziennik pokoi</title>
+<title>The Escape Log: nasz dziennik pokoi</title>
 <meta name="description" content="Wspólny dziennik pokoi escape room dla ekipy Karola, Asi, Jano i Jaćki." />
 <style>
   html, body { margin: 0; padding: 0; background: #14161c; }
@@ -13,11 +13,11 @@
     color: #8d92a3; font-family: 'IBM Plex Mono', monospace; font-size: 13px; text-align: center; padding: 0 20px;
   }
 </style>
- 
+
 <!-- Gives us Babel.transform() to strip JSX from escape-room-tracker.jsx at
      runtime. -->
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
- 
+
 <!-- Maps the bare import specifiers used inside escape-room-tracker.jsx
      (react, lucide-react) and below (react, react-dom/client) to real CDN
      modules. Applies to every module in this page, including ones we
@@ -34,8 +34,8 @@
 </head>
 <body>
 <div id="escape-log-root"><div class="boot-loader">opening the door…</div></div>
- 
-<!-- The app's component code lives entirely in escape-room-tracker.jsx —
+
+<!-- The app's component code lives entirely in escape-room-tracker.jsx.
      edit that file, nothing here should need to change. This script fetches
      it, transforms the JSX with Babel, imports the result as a real ES
      module, and mounts the component it exports. Every step logs to the
@@ -43,21 +43,21 @@
 <script type="module">
   import React from "react";
   import { createRoot } from "react-dom/client";
- 
+
   const mount = document.getElementById("escape-log-root");
- 
+
   function showError(label, err) {
     console.error(label, err);
     mount.innerHTML =
-      '<div class="boot-loader">' + label + ' — check the browser console for details.</div>';
+      '<div class="boot-loader">' + label + '. Check the browser console for details.</div>';
   }
- 
+
   // config.js holds your Firebase/Google Drive credentials, kept out of
   // escape-room-tracker.jsx so updating the app never means re-pasting
-  // them. It's optional — if it's missing, the app just falls back to
+  // them. It's optional. If it's missing, the app just falls back to
   // placeholders (fine for this preview; the hosted site needs it filled in).
   try {
-    console.log("[EscapeLog] fetching config.js…");
+    console.log("[EscapeLog] fetching config.js");
     const configRes = await fetch(`./config.js?v=${Date.now()}`, { cache: "no-store" });
     if (configRes.ok) {
       const configCode = await configRes.text();
@@ -66,38 +66,38 @@
       document.head.appendChild(script);
       console.log("[EscapeLog] config.js loaded");
     } else {
-      console.warn("[EscapeLog] config.js not found (HTTP " + configRes.status + ") — using placeholder config.");
+      console.warn("[EscapeLog] config.js not found (HTTP " + configRes.status + "), using placeholder config.");
     }
   } catch (err) {
-    console.warn("[EscapeLog] couldn't load config.js — using placeholder config.", err);
+    console.warn("[EscapeLog] couldn't load config.js, using placeholder config.", err);
   }
- 
+
   try {
-    console.log("[EscapeLog] fetching escape-room-tracker.jsx…");
+    console.log("[EscapeLog] fetching escape-room-tracker.jsx");
     const res = await fetch(`./escape-room-tracker.jsx?v=${Date.now()}`, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status} fetching escape-room-tracker.jsx`);
     const raw = await res.text();
     console.log("[EscapeLog] fetched, length:", raw.length);
- 
+
     const { code } = Babel.transform(raw, {
       presets: [["react", { runtime: "classic" }]],
       sourceType: "module",
       filename: "escape-room-tracker.jsx",
     });
     console.log("[EscapeLog] Babel transform complete, length:", code.length);
- 
+
     const blob = new Blob([code], { type: "text/javascript" });
     const url = URL.createObjectURL(blob);
- 
+
     const mod = await import(/* @vite-ignore */ url);
     URL.revokeObjectURL(url);
     console.log("[EscapeLog] module imported:", mod);
- 
+
     const App = mod.default;
     if (typeof App !== "function") {
       throw new Error("escape-room-tracker.jsx has no default export component");
     }
- 
+
     createRoot(mount).render(React.createElement(App));
     console.log("[EscapeLog] mounted successfully");
   } catch (err) {
