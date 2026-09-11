@@ -1304,33 +1304,54 @@ function EmptyNote({ text }) {
 --------------------------------------------------------------- */
 function StarRow({ value, onChange, size }) {
   const starSize = size || 17;
+  const [hoverValue, setHoverValue] = useState(null);
+
+  const valueForEvent = (e, starIndex) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const isHalf = x < rect.width / 2;
+    return starIndex + (isHalf ? 0.5 : 1);
+  };
   const handleClick = (e, starIndex) => {
     if (!onChange) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const isHalf = clickX < rect.width / 2;
-    onChange(starIndex + (isHalf ? 0.5 : 1));
+    onChange(valueForEvent(e, starIndex));
+  };
+  const handleMouseMove = (e, starIndex) => {
+    if (!onChange) return;
+    setHoverValue(valueForEvent(e, starIndex));
   };
 
+  const displayValue = hoverValue !== null ? hoverValue : value;
+
   return (
-    <>
+    <div
+      style={{ display: "inline-flex" }}
+      onMouseLeave={onChange ? () => setHoverValue(null) : undefined}
+    >
       {Array.from({ length: 10 }).map((_, idx) => {
-        const full = value >= idx + 1;
-        const half = !full && value >= idx + 0.5;
+        const full = displayValue >= idx + 1;
+        const half = !full && displayValue >= idx + 0.5;
         const Icon = half ? StarHalf : Star;
         const lit = full || half;
+        const previewing = hoverValue !== null && lit;
         return (
           <span
             key={idx}
             className={onChange ? "ert-star-btn" : undefined}
             onClick={onChange ? (e) => handleClick(e, idx) : undefined}
+            onMouseMove={onChange ? (e) => handleMouseMove(e, idx) : undefined}
             style={{ display: "inline-flex", lineHeight: 0, cursor: onChange ? "pointer" : "default" }}
           >
-            <Icon size={starSize} fill={lit ? "var(--brass)" : "none"} color={lit ? "var(--brass)" : "var(--border)"} />
+            <Icon
+              size={starSize}
+              fill={lit ? (previewing ? "var(--brass-bright)" : "var(--brass)") : "none"}
+              color={lit ? (previewing ? "var(--brass-bright)" : "var(--brass)") : "var(--border)"}
+              style={{ transition: "fill 0.1s, color 0.1s" }}
+            />
           </span>
         );
       })}
-    </>
+    </div>
   );
 }
  
