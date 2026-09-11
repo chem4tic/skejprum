@@ -3,7 +3,7 @@ import {
   Lock, Unlock, MapPin, Star, StarHalf, Plus, Search, X, Edit2, Trash2,
   ExternalLink, Users, Trophy, ListChecks, LayoutDashboard,
   Camera, ChevronLeft, Settings, Check, Clock, Skull, Sparkles, Filter,
-  ChevronDown, ChevronRight, Upload, ArrowUpDown, Plane, Calendar,
+  ChevronDown, ChevronRight, Upload, ArrowUpDown, Plane, Calendar, Image as ImageIcon,
 } from "lucide-react";
  
 /* ---------------------------------------------------------------
@@ -392,7 +392,7 @@ const STORAGE_KEY = "escape-room-club-data-v1";
 const MEMBER_KEY = "escape-room-club-current-member";
 const MEMBERS = ["Karol", "Asia", "Jano", "Jaćka"];
  
-const CATEGORIES = ["Horror", "Adventure", "Mystery/Detective", "Sci-Fi", "Historical", "Fantasy", "Comedy", "Other"];
+const CATEGORIES = ["Horror", "Thriller", "Adventure", "Mystery/Detective", "Sci-Fi", "Historical", "Fantasy", "Comedy", "Other"];
 const DIFFICULTY_LEVELS = ["Beginner-friendly", "Easy", "Medium", "Hard", "Very hard", "Extreme"];
  
 function emptyRoom(addedBy) {
@@ -854,6 +854,7 @@ export default function EscapeRoomTracker() {
             rooms={wishlistRooms}
             emptyLabel="No rooms on the wishlist yet. Add one and mark it 'wishlist'."
             onOpen={(id) => { setSelectedRoomId(id); setReturnView("wishlist"); setView("room-detail"); }}
+            hideVisitedSort
           />
         )}
  
@@ -893,6 +894,16 @@ export default function EscapeRoomTracker() {
             rooms={data.rooms}
             onOpen={(id) => { setSelectedTripId(id); setView("trip-detail"); }}
             onNew={() => { setEditingTrip(emptyTrip(currentMember)); setView("edit-trip"); }}
+          />
+        )}
+
+        {view === "gallery" && (
+          <GalleryView
+            rooms={data.rooms}
+            driveConnected={!hasClaudeStorage && !!(data.driveAuth && data.driveAuth.refreshToken)}
+            driveAvailable={!hasClaudeStorage && isDriveConfigured()}
+            onConnectDrive={connectGoogleDrive}
+            getDriveAccessToken={getRoomsAccessToken}
           />
         )}
 
@@ -1148,6 +1159,7 @@ function Nav({ view, setView }) {
     { id: "rooms", label: "Completed", icon: ListChecks },
     { id: "wishlist", label: "Wishlist", icon: Sparkles },
     { id: "trips", label: "Trips", icon: Plane },
+    { id: "gallery", label: "Gallery", icon: ImageIcon },
     { id: "settings", label: "Crew", icon: Settings },
   ];
   return (
@@ -1472,10 +1484,10 @@ function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres
 }
  
 const SORT_OPTIONS = [
-  { id: "date-desc", label: "Date added (newest)" },
-  { id: "date-asc", label: "Date added (oldest)" },
   { id: "visited-desc", label: "Date visited (newest)" },
   { id: "visited-asc", label: "Date visited (oldest)" },
+  { id: "date-desc", label: "Date added (newest)" },
+  { id: "date-asc", label: "Date added (oldest)" },
   { id: "rating-desc", label: "Rating (high to low)" },
   { id: "alpha", label: "Alphabetical (A\u2013Z)" },
 ];
@@ -1485,15 +1497,8 @@ function sortRooms(rooms, sortBy) {
   switch (sortBy) {
     case "date-asc":
       return arr.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-    case "visited-desc":
-      return arr.sort((a, b) => {
-        const av = a.datePlayed || "";
-        const bv = b.datePlayed || "";
-        if (!av && !bv) return 0;
-        if (!av) return 1;
-        if (!bv) return -1;
-        return bv.localeCompare(av);
-      });
+    case "date-desc":
+      return arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     case "visited-asc":
       return arr.sort((a, b) => {
         const av = a.datePlayed || "";
@@ -1514,9 +1519,16 @@ function sortRooms(rooms, sortBy) {
       });
     case "alpha":
       return arr.sort((a, b) => a.name.localeCompare(b.name));
-    case "date-desc":
+    case "visited-desc":
     default:
-      return arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      return arr.sort((a, b) => {
+        const av = a.datePlayed || "";
+        const bv = b.datePlayed || "";
+        if (!av && !bv) return 0;
+        if (!av) return 1;
+        if (!bv) return -1;
+        return bv.localeCompare(av);
+      });
   }
 }
 
@@ -1593,12 +1605,13 @@ function SortPopover({ options, sortBy, onChange }) {
   );
 }
 
-function RoomsView({ rooms, onOpen, emptyLabel }) {
+function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort }) {
   const [search, setSearch] = useState("");
   const [selectedCities, setSelectedCities] = useState([]);
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [selectedCountries, setSelectedCountries] = useState([]);
-  const [sortBy, setSortBy] = useState("date-desc");
+  const [sortBy, setSortBy] = useState(hideVisitedSort ? "date-desc" : "visited-desc");
+  const sortOptions = hideVisitedSort ? SORT_OPTIONS.filter((o) => !o.id.startsWith("visited-")) : SORT_OPTIONS;
 
   const cities = useMemo(() => Array.from(new Set(rooms.map((r) => r.city).filter(Boolean))).sort(), [rooms]);
   const cats = useMemo(() => Array.from(new Set(rooms.map((r) => r.category).filter(Boolean))).sort(), [rooms]);
@@ -1637,7 +1650,7 @@ function RoomsView({ rooms, onOpen, emptyLabel }) {
           onToggleCountry={toggleCountry}
           onClear={clearFilters}
         />
-        <SortPopover options={SORT_OPTIONS} sortBy={sortBy} onChange={setSortBy} />
+        <SortPopover options={sortOptions} sortBy={sortBy} onChange={setSortBy} />
       </div>
 
       {sorted.length === 0 ? (
@@ -2116,12 +2129,14 @@ function DrivePhoto({ photo, getDriveAccessToken, onRemove, onPreview }) {
           style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", cursor: "pointer" }}
         />
       )}
-      <button
-        onClick={onRemove}
-        style={{ position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.6)", border: "none", borderRadius: 5, padding: 3, cursor: "pointer" }}
-      >
-        <X size={12} color="#fff" />
-      </button>
+      {onRemove && (
+        <button
+          onClick={onRemove}
+          style={{ position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.6)", border: "none", borderRadius: 5, padding: 3, cursor: "pointer" }}
+        >
+          <X size={12} color="#fff" />
+        </button>
+      )}
     </div>
   );
 }
@@ -2263,9 +2278,15 @@ function PhotoLightbox({ photos, index, onIndexChange, onClose, getDriveAccessTo
           )}
         </div>
 
-        {(hasMultiple || photo.addedBy) && (
+        {(hasMultiple || photo.addedBy || photo.roomName) && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", fontSize: 11.5, color: "var(--text-dim)" }}>
-            <span>{photo.addedBy ? `Added by ${photo.addedBy}` : ""}</span>
+            <span>
+              {photo.roomName
+                ? `${photo.roomName}${photo.city ? ` \u00b7 ${photo.city}` : ""}`
+                : photo.addedBy
+                ? `Added by ${photo.addedBy}`
+                : ""}
+            </span>
             {hasMultiple && <span className="ert-mono">{index + 1} / {photos.length}</span>}
           </div>
         )}
@@ -2778,6 +2799,144 @@ function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUp
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
+   GALLERY
+   Every photo across every room, tagged with that room's name, city,
+   country, genre and date visited, so the same search/filter/sort
+   pattern used elsewhere works here too. Reuses the same lightbox,
+   with prev/next moving through the whole filtered gallery rather
+   than just one room's photos.
+--------------------------------------------------------------- */
+const GALLERY_SORT_OPTIONS = [
+  { id: "visited-desc", label: "Date visited (newest)" },
+  { id: "visited-asc", label: "Date visited (oldest)" },
+  { id: "alpha", label: "Room (A\u2013Z)" },
+];
+
+function sortGalleryPhotos(items, sortBy) {
+  const arr = [...items];
+  switch (sortBy) {
+    case "visited-asc":
+      return arr.sort((a, b) => (a.datePlayed || "").localeCompare(b.datePlayed || ""));
+    case "alpha":
+      return arr.sort((a, b) => (a.roomName || "").localeCompare(b.roomName || ""));
+    case "visited-desc":
+    default:
+      return arr.sort((a, b) => (b.datePlayed || "").localeCompare(a.datePlayed || ""));
+  }
+}
+
+function GalleryView({ rooms, driveConnected, driveAvailable, onConnectDrive, getDriveAccessToken }) {
+  const [search, setSearch] = useState("");
+  const [selectedCities, setSelectedCities] = useState([]);
+  const [selectedGenres, setSelectedGenres] = useState([]);
+  const [selectedCountries, setSelectedCountries] = useState([]);
+  const [sortBy, setSortBy] = useState("visited-desc");
+  const [previewIndex, setPreviewIndex] = useState(null);
+
+  const allPhotos = useMemo(() => {
+    const items = [];
+    rooms.forEach((r) => {
+      (r.photos || []).forEach((p) => {
+        items.push({
+          ...p,
+          roomId: r.id,
+          roomName: r.name,
+          city: r.city,
+          country: r.country,
+          category: r.category,
+          datePlayed: r.datePlayed,
+        });
+      });
+    });
+    return items;
+  }, [rooms]);
+
+  const cities = useMemo(() => Array.from(new Set(allPhotos.map((p) => p.city).filter(Boolean))).sort(), [allPhotos]);
+  const cats = useMemo(() => Array.from(new Set(allPhotos.map((p) => p.category).filter(Boolean))).sort(), [allPhotos]);
+  const countries = useMemo(() => Array.from(new Set(allPhotos.map((p) => p.country).filter(Boolean))).sort(), [allPhotos]);
+
+  const toggleCity = (c) => setSelectedCities((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
+  const toggleGenre = (c) => setSelectedGenres((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
+  const toggleCountry = (c) => setSelectedCountries((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
+  const clearFilters = () => { setSelectedCities([]); setSelectedGenres([]); setSelectedCountries([]); };
+
+  const filtered = allPhotos.filter((p) => {
+    if (search && !(p.roomName || "").toLowerCase().includes(search.toLowerCase())) return false;
+    if (selectedCountries.length && !selectedCountries.includes(p.country)) return false;
+    if (selectedCities.length && !selectedCities.includes(p.city)) return false;
+    if (selectedGenres.length && !selectedGenres.includes(p.category)) return false;
+    return true;
+  });
+  const sorted = sortGalleryPhotos(filtered, sortBy);
+
+  if (!driveAvailable) {
+    return <EmptyNote text="The gallery uses Google Drive and only works on the hosted site, not in this preview." />;
+  }
+  if (!driveConnected) {
+    return (
+      <div className="ert-card" style={{ padding: 22, maxWidth: 480 }}>
+        <div className="ert-display" style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>Gallery</div>
+        <p style={{ fontSize: 12.5, color: "var(--text-dim)", marginBottom: 12 }}>
+          Connect Google Drive from any room's Photos section to start building a shared gallery.
+        </p>
+        <button className="ert-btn ert-btn-brass" onClick={onConnectDrive}>
+          <Upload size={14} /> Connect Google Drive
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ position: "relative", flex: "1 1 220px", minWidth: 160, maxWidth: 600 }}>
+          <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
+          <input className="ert-input" style={{ paddingLeft: 30 }} placeholder="Search by room name" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <FilterPopover
+          cities={cities}
+          cats={cats}
+          countries={countries}
+          selectedCities={selectedCities}
+          selectedGenres={selectedGenres}
+          selectedCountries={selectedCountries}
+          onToggleCity={toggleCity}
+          onToggleGenre={toggleGenre}
+          onToggleCountry={toggleCountry}
+          onClear={clearFilters}
+        />
+        <SortPopover options={GALLERY_SORT_OPTIONS} sortBy={sortBy} onChange={setSortBy} />
+      </div>
+
+      {sorted.length === 0 ? (
+        <EmptyNote text={allPhotos.length === 0 ? "No photos yet. Upload some from a room's Photos section." : "No photos match those filters."} />
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
+          {sorted.map((p, i) => (
+            <div key={p.id}>
+              <DrivePhoto photo={p} getDriveAccessToken={getDriveAccessToken} onPreview={() => setPreviewIndex(i)} />
+              <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {p.roomName}{p.city ? ` \u00b7 ${p.city}` : ""}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {previewIndex !== null && sorted[previewIndex] && (
+        <PhotoLightbox
+          photos={sorted}
+          index={previewIndex}
+          onIndexChange={setPreviewIndex}
+          onClose={() => setPreviewIndex(null)}
+          getDriveAccessToken={getDriveAccessToken}
+        />
+      )}
     </div>
   );
 }
