@@ -2504,8 +2504,14 @@ function TripsView({ trips, rooms, onOpen, onNew }) {
   });
   const sorted = sortTrips(filtered, sortBy);
 
+  const byCity = useMemo(() => {
+    const map = {};
+    trips.forEach((t) => { if (t.city) map[t.city] = (map[t.city] || 0) + 1; });
+    return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  }, [trips]);
+
   return (
-    <div style={{ maxWidth: 900 }}>
+    <div>
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         <div style={{ position: "relative", flex: "1 1 220px", minWidth: 160, maxWidth: 600 }}>
           <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
@@ -2521,47 +2527,66 @@ function TripsView({ trips, rooms, onOpen, onNew }) {
         </span>
       </div>
 
-      {sorted.length === 0 ? (
-        <EmptyNote text={trips.length === 0 ? "No trips yet. Group the rooms from your next city trip together here." : "No trips match those filters."} />
+      {trips.length === 0 ? (
+        <EmptyNote text="No trips yet. Group the rooms from your next city trip together here." />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {sorted.map((t) => {
-            const stats = tripStats(t, rooms);
-            return (
-              <div
-                key={t.id}
-                className="ert-card"
-                onClick={() => onOpen(t.id)}
-                style={{ padding: 16, cursor: "pointer", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}
-              >
-                <div style={{ flex: "1 1 220px", minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                    <Plane size={12} color="var(--brass)" />
-                    <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Trip</span>
-                  </div>
-                  <div className="ert-display" style={{ fontSize: 16.5, fontWeight: 700, marginTop: 3 }}>{t.name || "Untitled trip"}</div>
-                  <div style={{ display: "flex", gap: 14, marginTop: 4, fontSize: 12, color: "var(--text-dim)", flexWrap: "wrap" }}>
-                    {t.city && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={12} /> {t.city}</span>}
-                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <Calendar size={12} /> {t.startDate || "?"}{t.endDate && t.endDate !== t.startDate ? ` \u2013 ${t.endDate}` : ""}
-                    </span>
-                  </div>
-                </div>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
+          <div style={{ flex: "1 1 500px", maxWidth: 900, display: "flex", flexDirection: "column", gap: 10 }}>
+            {sorted.length === 0 ? (
+              <EmptyNote text="No trips match those filters." />
+            ) : (
+              sorted.map((t) => {
+                const stats = tripStats(t, rooms);
+                return (
+                  <div
+                    key={t.id}
+                    className="ert-card"
+                    onClick={() => onOpen(t.id)}
+                    style={{ padding: 16, cursor: "pointer", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}
+                  >
+                    <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <Plane size={12} color="var(--brass)" />
+                        <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Trip</span>
+                      </div>
+                      <div className="ert-display" style={{ fontSize: 16.5, fontWeight: 700, marginTop: 3 }}>{t.name || "Untitled trip"}</div>
+                      <div style={{ display: "flex", gap: 14, marginTop: 4, fontSize: 12, color: "var(--text-dim)", flexWrap: "wrap" }}>
+                        {t.city && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={12} /> {t.city}</span>}
+                        <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <Calendar size={12} /> {t.startDate || "?"}{t.endDate && t.endDate !== t.startDate ? ` \u2013 ${t.endDate}` : ""}
+                        </span>
+                      </div>
+                    </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: 20, flexShrink: 0 }}>
-                  <div style={{ textAlign: "center" }}>
-                    <div className="ert-display" style={{ fontSize: 18, fontWeight: 700 }}>{stats.count}</div>
-                    <div className="ert-mono" style={{ fontSize: 9.5, color: "var(--text-dim)", textTransform: "uppercase" }}>room{stats.count === 1 ? "" : "s"}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 20, flexShrink: 0 }}>
+                      <div style={{ textAlign: "center" }}>
+                        <div className="ert-display" style={{ fontSize: 18, fontWeight: 700 }}>{stats.count}</div>
+                        <div className="ert-mono" style={{ fontSize: 9.5, color: "var(--text-dim)", textTransform: "uppercase" }}>room{stats.count === 1 ? "" : "s"}</div>
+                      </div>
+                      <div style={{ textAlign: "center", minWidth: 44 }}>
+                        <div className="ert-display" style={{ fontSize: 18, fontWeight: 700, color: stats.avg !== null ? "var(--brass)" : "var(--text-dim)" }}>{fmtRating(stats.avg)}</div>
+                        <div className="ert-mono" style={{ fontSize: 9.5, color: "var(--text-dim)", textTransform: "uppercase" }}>avg</div>
+                      </div>
+                      <ChevronRight size={18} color="var(--text-dim)" />
+                    </div>
                   </div>
-                  <div style={{ textAlign: "center", minWidth: 44 }}>
-                    <div className="ert-display" style={{ fontSize: 18, fontWeight: 700, color: stats.avg !== null ? "var(--brass)" : "var(--text-dim)" }}>{fmtRating(stats.avg)}</div>
-                    <div className="ert-mono" style={{ fontSize: 9.5, color: "var(--text-dim)", textTransform: "uppercase" }}>avg</div>
-                  </div>
-                  <ChevronRight size={18} color="var(--text-dim)" />
+                );
+              })
+            )}
+          </div>
+
+          {byCity.length > 0 && (
+            <div style={{ flex: "1 1 260px" }}>
+              <div className="ert-card" style={{ padding: 18 }}>
+                <div className="ert-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Most visited cities</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                  {byCity.map(([city, count]) => (
+                    <BarRow key={city} label={city} count={count} max={byCity[0][1]} />
+                  ))}
                 </div>
               </div>
-            );
-          })}
+            </div>
+          )}
         </div>
       )}
     </div>
