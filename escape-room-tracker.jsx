@@ -867,7 +867,7 @@ export default function EscapeRoomTracker() {
         {view === "edit-room" && editingRoom && (
           <RoomForm
             room={editingRoom}
-            onCancel={() => { setEditingRoom(null); setView(selectedRoom ? "room-detail" : returnView); }}
+            onCancel={() => { setEditingRoom(null); setView(selectedRoom ? "room-detail" : "dashboard"); }}
             onSave={saveRoom}
           />
         )}
@@ -1633,7 +1633,7 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort }) {
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         <div style={{ position: "relative", flex: "1 1 220px", minWidth: 160, maxWidth: 600 }}>
           <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
           <input className="ert-input" style={{ paddingLeft: 30 }} placeholder="Search rooms or venues" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -1651,6 +1651,9 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort }) {
           onClear={clearFilters}
         />
         <SortPopover options={sortOptions} sortBy={sortBy} onChange={setSortBy} />
+        <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em", marginLeft: "auto", flexShrink: 0 }}>
+          {sorted.length} room{sorted.length === 1 ? "" : "s"}
+        </span>
       </div>
 
       {sorted.length === 0 ? (
@@ -2513,6 +2516,9 @@ function TripsView({ trips, rooms, onOpen, onNew }) {
         <button className="ert-btn ert-btn-brass" onClick={onNew} style={{ flexShrink: 0 }}>
           <Plus size={15} /> New trip
         </button>
+        <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em", marginLeft: "auto", flexShrink: 0 }}>
+          {sorted.length} trip{sorted.length === 1 ? "" : "s"}
+        </span>
       </div>
 
       {sorted.length === 0 ? (
@@ -2911,6 +2917,9 @@ function GalleryView({ rooms, driveConnected, driveAvailable, onConnectDrive, ge
           onClear={clearFilters}
         />
         <SortPopover options={GALLERY_SORT_OPTIONS} sortBy={sortBy} onChange={setSortBy} />
+        <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em", marginLeft: "auto", flexShrink: 0 }}>
+          {sorted.length} photo{sorted.length === 1 ? "" : "s"}
+        </span>
       </div>
 
       {sorted.length === 0 ? (
