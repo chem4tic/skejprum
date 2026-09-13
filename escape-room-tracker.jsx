@@ -3,7 +3,7 @@ import {
   Lock, Unlock, MapPin, Star, StarHalf, Plus, Search, X, Edit2, Trash2,
   ExternalLink, Users, Trophy, ListChecks, LayoutDashboard,
   Camera, ChevronLeft, Settings, Check, Clock, Skull, Sparkles, Filter,
-  ChevronDown, ChevronUp, ChevronRight, Upload, ArrowUpDown, Plane, Calendar, Image as ImageIcon,
+  ChevronDown, ChevronUp, ChevronRight, Upload, ArrowUpDown, Plane, Calendar, Image as ImageIcon, Wallet,
 } from "lucide-react";
  
 /* ---------------------------------------------------------------
@@ -409,6 +409,8 @@ function emptyRoom(addedBy) {
     datePlayed: "",
     result: "escaped", // 'escaped' | 'not-escaped'
     timeNote: "",
+    price: "", // amount paid, as a string so the input can stay blank
+    currency: "PLN",
     photos: [],
     ratings: {},
     notes: {},
@@ -531,11 +533,16 @@ function tripStats(trip, rooms) {
   const ratedAvgs = included.map(avgRating).filter((v) => v !== null);
   const avg = ratedAvgs.length ? ratedAvgs.reduce((a, b) => a + b, 0) / ratedAvgs.length : null;
   const escaped = included.filter((r) => r.result === "escaped").length;
+  const priced = included.filter((r) => r.price !== "" && r.price !== undefined && r.price !== null && !isNaN(parseFloat(r.price)));
+  const totalSpent = priced.length ? priced.reduce((sum, r) => sum + parseFloat(r.price), 0) : null;
+  const spentCurrency = priced.length ? (priced[0].currency || "PLN") : null;
   return {
     rooms: included,
     count: included.length,
     avg,
     escapeRate: included.length ? Math.round((escaped / included.length) * 100) : null,
+    totalSpent,
+    spentCurrency,
   };
 }
 
@@ -1914,6 +1921,11 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
               {room.result === "escaped" ? "Escaped" : "Not escaped"}{room.timeNote ? ` · ${room.timeNote}` : ""}
             </span>
           )}
+          {room.status === "played" && room.price !== "" && room.price !== undefined && room.price !== null && (
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <Wallet size={13} /> {room.price} {room.currency || "PLN"}
+            </span>
+          )}
           <span style={{ padding: "2px 8px", borderRadius: 10, background: "var(--surface-raised)" }}>{room.category}</span>
           {room.lockmeUrl && (
             <a href={room.lockmeUrl} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--brass)" }}>
@@ -2396,6 +2408,12 @@ function RoomForm({ room, onCancel, onSave }) {
             <Field label="Time note (e.g. '4:12 left')">
               <input className="ert-input" value={form.timeNote} onChange={(e) => set({ timeNote: e.target.value })} />
             </Field>
+            <Field label="Price paid">
+              <input type="number" min="0" step="0.01" className="ert-input" placeholder="0" value={form.price || ""} onChange={(e) => set({ price: e.target.value })} />
+            </Field>
+            <Field label="Currency">
+              <input className="ert-input" value={form.currency || "PLN"} onChange={(e) => set({ currency: e.target.value })} />
+            </Field>
           </>
         )}
       </div>
@@ -2794,6 +2812,7 @@ function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUp
           <StatBlock label="Rooms" value={stats.count} />
           <StatBlock label="Group avg" value={fmtRating(stats.avg)} sub="out of 10" />
           <StatBlock label="Escape rate" value={stats.escapeRate === null ? "-" : `${stats.escapeRate}%`} />
+          <StatBlock label="Total spent" value={stats.totalSpent === null ? "-" : `${stats.totalSpent} ${stats.spentCurrency}`} />
         </div>
       </div>
 
