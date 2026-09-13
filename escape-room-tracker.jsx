@@ -3,7 +3,7 @@ import {
   Lock, Unlock, MapPin, Star, StarHalf, Plus, Search, X, Edit2, Trash2,
   ExternalLink, Users, Trophy, ListChecks, LayoutDashboard,
   Camera, ChevronLeft, Settings, Check, Clock, Skull, Sparkles, Filter,
-  ChevronDown, ChevronRight, Upload, ArrowUpDown, Plane, Calendar, Image as ImageIcon,
+  ChevronDown, ChevronUp, ChevronRight, Upload, ArrowUpDown, Plane, Calendar, Image as ImageIcon,
 } from "lucide-react";
  
 /* ---------------------------------------------------------------
@@ -520,6 +520,7 @@ function emptyTrip(createdBy) {
     endDate: "",
     roomIds: [],
     notes: "",
+    votes: {}, // { [memberName]: [roomId, roomId, ...] } favorite-to-least-favorite order
     createdBy: createdBy || null,
     createdAt: Date.now(),
   };
@@ -536,6 +537,41 @@ function tripStats(trip, rooms) {
     avg,
     escapeRate: included.length ? Math.round((escaped / included.length) * 100) : null,
   };
+}
+
+// Reconciles a saved favorite-order against the trip's current room list:
+// keeps the existing order for rooms still on the trip, and appends any
+// rooms added since (or not yet ranked) at the end.
+function reconcileRanking(savedOrder, tripRoomIds) {
+  const valid = (savedOrder || []).filter((id) => tripRoomIds.includes(id));
+  const missing = tripRoomIds.filter((id) => !valid.includes(id));
+  return [...valid, ...missing];
+}
+
+// Combines every crew member's personal favorite-to-least-favorite order
+// into one group ranking, by averaging each room's rank position across
+// whoever has ranked it. Lower average rank = more favored.
+function groupFavoritesForTrip(trip, tripRooms) {
+  const votes = trip.votes || {};
+  const tripRoomIds = tripRooms.map((r) => r.id);
+  const rankSums = {};
+  const rankCounts = {};
+  Object.values(votes).forEach((order) => {
+    if (!Array.isArray(order)) return;
+    const valid = order.filter((id) => tripRoomIds.includes(id));
+    valid.forEach((roomId, idx) => {
+      rankSums[roomId] = (rankSums[roomId] || 0) + (idx + 1);
+      rankCounts[roomId] = (rankCounts[roomId] || 0) + 1;
+    });
+  });
+  return tripRooms
+    .map((room) => ({
+      room,
+      avgRank: rankCounts[room.id] ? rankSums[room.id] / rankCounts[room.id] : null,
+      voters: rankCounts[room.id] || 0,
+    }))
+    .filter((entry) => entry.avgRank !== null)
+    .sort((a, b) => a.avgRank - b.avgRank);
 }
 
 function avgRating(room) {
@@ -2700,6 +2736,19 @@ function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUp
     setTimeout(() => setNotesSaved(false), 1500);
   };
 
+  const myRanking = useMemo(
+    () => reconcileRanking((trip.votes && trip.votes[currentMember]) || [], trip.roomIds),
+    [trip.votes, trip.roomIds, currentMember]
+  );
+  const moveMyRanking = (fromIdx, toIdx) => {
+    if (toIdx < 0 || toIdx >= myRanking.length) return;
+    const next = [...myRanking];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, moved);
+    onUpdate({ votes: { ...(trip.votes || {}), [currentMember]: next } });
+  };
+  const groupFavorites = useMemo(() => groupFavoritesForTrip(trip, stats.rooms), [trip, stats.rooms]);
+
   const removeRoom = (roomId) => {
     onUpdate({ roomIds: trip.roomIds.filter((id) => id !== roomId) });
   };
@@ -2775,6 +2824,64 @@ function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUp
             }}
           >
             {trip.notes || "No summary yet. Click here to add one."}
+          </div>
+        )}
+      </div>
+
+      <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
+        <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Rank your favorites</div>
+        <p style={{ fontSize: 11.5, color: "var(--text-dim)", marginBottom: 10 }}>
+          Order this trip's rooms from your favorite to least favorite. Everyone's own ranking combines into the group favorites below.
+        </p>
+        {myRanking.length === 0 ? (
+          <EmptyNote text="Add rooms to this trip first." />
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {myRanking.map((roomId, idx) => {
+              const room = rooms.find((r) => r.id === roomId);
+              if (!room) return null;
+              return (
+                <div key={roomId} style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--surface-raised)", borderRadius: 7, padding: "8px 10px" }}>
+                  <span className="ert-mono" style={{ fontSize: 12, color: "var(--brass)", width: 18 }}>{idx + 1}</span>
+                  <span style={{ flex: 1, fontSize: 13.5 }}>{room.name}</span>
+                  <button
+                    className="ert-btn ert-btn-ghost"
+                    style={{ padding: "3px 6px", opacity: idx === 0 ? 0.35 : 1 }}
+                    disabled={idx === 0}
+                    onClick={() => moveMyRanking(idx, idx - 1)}
+                  >
+                    <ChevronUp size={13} />
+                  </button>
+                  <button
+                    className="ert-btn ert-btn-ghost"
+                    style={{ padding: "3px 6px", opacity: idx === myRanking.length - 1 ? 0.35 : 1 }}
+                    disabled={idx === myRanking.length - 1}
+                    onClick={() => moveMyRanking(idx, idx + 1)}
+                  >
+                    <ChevronDown size={13} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
+        <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Group favorites</div>
+        {groupFavorites.length === 0 ? (
+          <EmptyNote text="No one has ranked this trip's rooms yet." />
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {groupFavorites.map((entry, idx) => (
+              <div key={entry.room.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--surface-raised)", borderRadius: 7, padding: "8px 10px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span className="ert-display" style={{ fontSize: 15, fontWeight: 700, color: idx === 0 ? "var(--brass-bright)" : "var(--text-dim)", width: 18 }}>{idx + 1}</span>
+                  <span style={{ fontSize: 13.5 }}>{entry.room.name}</span>
+                </div>
+                <span className="ert-mono" style={{ fontSize: 11, color: "var(--text-dim)" }}>{entry.voters} vote{entry.voters === 1 ? "" : "s"}</span>
+              </div>
+            ))}
           </div>
         )}
       </div>
