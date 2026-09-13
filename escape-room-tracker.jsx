@@ -3,7 +3,7 @@ import {
   Lock, Unlock, MapPin, Star, StarHalf, Plus, Search, X, Edit2, Trash2,
   ExternalLink, Users, Trophy, ListChecks, LayoutDashboard,
   Camera, ChevronLeft, Settings, Check, Clock, Skull, Sparkles, Filter,
-  ChevronDown, ChevronUp, ChevronRight, Upload, ArrowUpDown, Plane, Calendar, Image as ImageIcon, Wallet,
+  ChevronDown, ChevronUp, ChevronRight, Upload, ArrowUpDown, Plane, Calendar, Image as ImageIcon, Wallet, Ghost, Dumbbell,
 } from "lucide-react";
  
 /* ---------------------------------------------------------------
@@ -413,6 +413,8 @@ function emptyRoom(addedBy) {
     currency: "PLN",
     photos: [],
     ratings: {},
+    difficultyRatings: {}, // personal 1-5 "how hard did this feel" per member
+    scaryRatings: {}, // personal 1-5 "how scary was this" per member
     notes: {},
     walkthrough: "",
     addedBy: addedBy || null,
@@ -583,6 +585,14 @@ function groupFavoritesForTrip(trip, tripRooms) {
 
 function avgRating(room) {
   const vals = Object.values(room.ratings || {}).filter((v) => typeof v === "number");
+  if (!vals.length) return null;
+  return vals.reduce((a, b) => a + b, 0) / vals.length;
+}
+
+// Generic version for other per-member rating maps (difficulty, scariness)
+// that don't affect the main star rating above.
+function avgOfMap(map) {
+  const vals = Object.values(map || {}).filter((v) => typeof v === "number");
   if (!vals.length) return null;
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
@@ -1357,11 +1367,17 @@ function EmptyNote({ text }) {
    the left half of a star for a .5, the right half for a whole
    number. Read-only (no onChange) when used just for display.
 --------------------------------------------------------------- */
-function StarRow({ value, onChange, size }) {
+function StarRow({ value, onChange, size, max, allowHalf, icon, halfIcon, color }) {
   const starSize = size || 17;
+  const count = max || 10;
+  const half = allowHalf !== false;
+  const Filled = icon || Star;
+  const HalfFilled = halfIcon || StarHalf;
+  const litColor = color || "var(--brass)";
   const [hoverValue, setHoverValue] = useState(null);
 
   const valueForEvent = (e, starIndex) => {
+    if (!half) return starIndex + 1;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const isHalf = x < rect.width / 2;
@@ -1383,11 +1399,11 @@ function StarRow({ value, onChange, size }) {
       style={{ display: "inline-flex" }}
       onMouseLeave={onChange ? () => setHoverValue(null) : undefined}
     >
-      {Array.from({ length: 10 }).map((_, idx) => {
+      {Array.from({ length: count }).map((_, idx) => {
         const full = displayValue >= idx + 1;
-        const half = !full && displayValue >= idx + 0.5;
-        const Icon = half ? StarHalf : Star;
-        const lit = full || half;
+        const isHalf = !full && displayValue >= idx + 0.5;
+        const Icon = isHalf ? HalfFilled : Filled;
+        const lit = full || isHalf;
         const previewing = hoverValue !== null && lit;
         return (
           <span
@@ -1399,8 +1415,8 @@ function StarRow({ value, onChange, size }) {
           >
             <Icon
               size={starSize}
-              fill={lit ? (previewing ? "var(--brass-bright)" : "var(--brass)") : "none"}
-              color={lit ? (previewing ? "var(--brass-bright)" : "var(--brass)") : "var(--border)"}
+              fill={lit ? (previewing ? "var(--brass-bright)" : litColor) : "none"}
+              color={lit ? (previewing ? "var(--brass-bright)" : litColor) : "var(--border)"}
               style={{ transition: "fill 0.1s, color 0.1s" }}
             />
           </span>
@@ -1790,6 +1806,8 @@ function RankingView({ rooms, members, onOpen }) {
 function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, onUpdate, driveConnected, driveAvailable, onConnectDrive, getDriveAccessToken }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [myRating, setMyRating] = useState(room.ratings[currentMember] || 0);
+  const [myDifficulty, setMyDifficulty] = useState((room.difficultyRatings && room.difficultyRatings[currentMember]) || 0);
+  const [myScary, setMyScary] = useState((room.scaryRatings && room.scaryRatings[currentMember]) || 0);
   const [myNote, setMyNote] = useState(room.notes[currentMember] || "");
   const [noteSaved, setNoteSaved] = useState(false);
   const [editingNote, setEditingNote] = useState(false);
@@ -1799,9 +1817,11 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
   const [walkthrough, setWalkthrough] = useState(room.walkthrough || "");
   const [walkthroughSaved, setWalkthroughSaved] = useState(false);
   const [editingWalkthrough, setEditingWalkthrough] = useState(false);
- 
+
   useEffect(() => {
     setMyRating(room.ratings[currentMember] || 0);
+    setMyDifficulty((room.difficultyRatings && room.difficultyRatings[currentMember]) || 0);
+    setMyScary((room.scaryRatings && room.scaryRatings[currentMember]) || 0);
     setMyNote(room.notes[currentMember] || "");
     setWalkthrough(room.walkthrough || "");
     setNoteSaved(false);
@@ -1813,6 +1833,14 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
   const saveMyRating = (val) => {
     setMyRating(val);
     onUpdate({ ratings: { ...room.ratings, [currentMember]: val } });
+  };
+  const saveMyDifficulty = (val) => {
+    setMyDifficulty(val);
+    onUpdate({ difficultyRatings: { ...(room.difficultyRatings || {}), [currentMember]: val } });
+  };
+  const saveMyScary = (val) => {
+    setMyScary(val);
+    onUpdate({ scaryRatings: { ...(room.scaryRatings || {}), [currentMember]: val } });
   };
   const noteDirty = myNote !== (room.notes[currentMember] || "");
   const saveMyNote = () => {
@@ -1957,6 +1985,24 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
               <StarRow value={myRating} onChange={saveMyRating} size={15} />
               <span className="ert-mono" style={{ fontSize: 12.5, color: "var(--text-dim)" }}>{myRating || "-"}/10</span>
             </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 12, color: "var(--text-dim)", width: 72 }}>Difficulty</span>
+            <StarRow value={myDifficulty} onChange={saveMyDifficulty} size={15} max={5} allowHalf={false} icon={Dumbbell} color="var(--danger)" />
+            {(() => {
+              const avg = avgOfMap(room.difficultyRatings);
+              return avg !== null ? <span className="ert-mono" style={{ fontSize: 11, color: "var(--text-dim)" }}>avg {avg.toFixed(1)}</span> : null;
+            })()}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+            <span style={{ fontSize: 12, color: "var(--text-dim)", width: 72 }}>Scariness</span>
+            <StarRow value={myScary} onChange={saveMyScary} size={15} max={5} allowHalf={false} icon={Ghost} color="var(--teal)" />
+            {(() => {
+              const avg = avgOfMap(room.scaryRatings);
+              return avg !== null ? <span className="ert-mono" style={{ fontSize: 11, color: "var(--text-dim)" }}>avg {avg.toFixed(1)}</span> : null;
+            })()}
           </div>
  
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
