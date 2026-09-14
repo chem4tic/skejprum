@@ -920,6 +920,7 @@ export default function EscapeRoomTracker() {
         {view === "edit-room" && editingRoom && (
           <RoomForm
             room={editingRoom}
+            existingRooms={data.rooms}
             onCancel={() => { setEditingRoom(null); setView(selectedRoom ? "room-detail" : "dashboard"); }}
             onSave={saveRoom}
           />
@@ -1591,6 +1592,38 @@ function sortRooms(rooms, sortBy) {
   }
 }
 
+// Chunks an already date-sorted list into consecutive year groups, using
+// whichever date field the caller names (e.g. "datePlayed"). Items with no
+// date land in their own "Undated" group. Since it just reads the year out
+// of each item's date, any future year appears automatically -- nothing
+// here is tied to today's date.
+function groupByYear(items, dateField) {
+  const groups = [];
+  let currentYear = null;
+  let currentGroup = null;
+  items.forEach((item) => {
+    const year = item[dateField] ? item[dateField].slice(0, 4) : "Undated";
+    if (year !== currentYear) {
+      currentYear = year;
+      currentGroup = { year, items: [] };
+      groups.push(currentGroup);
+    }
+    currentGroup.items.push(item);
+  });
+  return groups;
+}
+
+function YearDivider({ year, count, itemLabel }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "6px 0 12px" }}>
+      <span className="ert-mono" style={{ fontSize: 11, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>
+        {year} · {count} {itemLabel}{count === 1 ? "" : "s"}
+      </span>
+      <div style={{ flex: 1, height: 1, background: "var(--border-soft)" }} />
+    </div>
+  );
+}
+
 function SortPopover({ options, sortBy, onChange }) {
   const [open, setOpen] = useState(false);
   const [panelStyle, setPanelStyle] = useState(null);
@@ -1689,6 +1722,8 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort }) {
     return true;
   });
   const sorted = sortRooms(filtered, sortBy);
+  const isDateGrouped = !hideVisitedSort && (sortBy === "visited-desc" || sortBy === "visited-asc");
+  const yearGroups = isDateGrouped ? groupByYear(sorted, "datePlayed") : [];
 
   return (
     <div>
@@ -1711,12 +1746,26 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort }) {
         />
         <SortPopover options={sortOptions} sortBy={sortBy} onChange={setSortBy} />
         <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em", marginLeft: "auto", flexShrink: 0 }}>
-          {sorted.length} room{sorted.length === 1 ? "" : "s"}
+          {sorted.length} room{sorted.length === 1 ? "" : "s"} total
         </span>
       </div>
 
       {sorted.length === 0 ? (
         <EmptyNote text={emptyLabel || "No rooms match those filters."} />
+      ) : isDateGrouped ? (
+        <div>
+          {yearGroups.map((group, gi) => {
+            const offset = yearGroups.slice(0, gi).reduce((n, g) => n + g.items.length, 0);
+            return (
+              <div key={group.year} style={{ marginBottom: 22 }}>
+                <YearDivider year={group.year} count={group.items.length} itemLabel="room" />
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
+                  {group.items.map((r, i) => <RoomCard key={r.id} room={r} index={offset + i} onOpen={() => onOpen(r.id)} />)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
           {sorted.map((r, i) => <RoomCard key={r.id} room={r} index={i} onOpen={() => onOpen(r.id)} />)}
@@ -2482,6 +2531,53 @@ function Field({ label, children }) {
     </div>
   );
 }
+
+function AutocompleteInput({ value, onChange, options, placeholder }) {
+  const [open, setOpen] = useState(false);
+  const ref = React.useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  const matches = options
+    .filter((o) => o.toLowerCase().includes((value || "").toLowerCase()) && o.toLowerCase() !== (value || "").toLowerCase())
+    .slice(0, 6);
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <input
+        className="ert-input"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setOpen(true)}
+      />
+      {open && matches.length > 0 && (
+        <div
+          className="ert-card-raised ert-scrollbar"
+          style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, maxHeight: 180, overflowY: "auto", zIndex: 20, padding: 4, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
+        >
+          {matches.map((o) => (
+            <div
+              key={o}
+              onClick={() => { onChange(o); setOpen(false); }}
+              style={{ padding: "7px 10px", borderRadius: 6, fontSize: 13, cursor: "pointer" }}
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              {o}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
  
 /* ---------------------------------------------------------------
    SETTINGS
@@ -2588,6 +2684,43 @@ function sortTrips(trips, sortBy) {
   }
 }
 
+function TripRow({ trip, rooms, onOpen }) {
+  const stats = tripStats(trip, rooms);
+  return (
+    <div
+      className="ert-card"
+      onClick={() => onOpen(trip.id)}
+      style={{ padding: 16, cursor: "pointer", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}
+    >
+      <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <Plane size={12} color="var(--brass)" />
+          <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Trip</span>
+        </div>
+        <div className="ert-display" style={{ fontSize: 16.5, fontWeight: 700, marginTop: 3 }}>{trip.name || "Untitled trip"}</div>
+        <div style={{ display: "flex", gap: 14, marginTop: 4, fontSize: 12, color: "var(--text-dim)", flexWrap: "wrap" }}>
+          {trip.city && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={12} /> {trip.city}</span>}
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <Calendar size={12} /> {trip.startDate || "?"}{trip.endDate && trip.endDate !== trip.startDate ? ` \u2013 ${trip.endDate}` : ""}
+          </span>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 20, flexShrink: 0 }}>
+        <div style={{ textAlign: "center" }}>
+          <div className="ert-display" style={{ fontSize: 18, fontWeight: 700 }}>{stats.count}</div>
+          <div className="ert-mono" style={{ fontSize: 9.5, color: "var(--text-dim)", textTransform: "uppercase" }}>room{stats.count === 1 ? "" : "s"}</div>
+        </div>
+        <div style={{ textAlign: "center", minWidth: 44 }}>
+          <div className="ert-display" style={{ fontSize: 18, fontWeight: 700, color: stats.avg !== null ? "var(--brass)" : "var(--text-dim)" }}>{fmtRating(stats.avg)}</div>
+          <div className="ert-mono" style={{ fontSize: 9.5, color: "var(--text-dim)", textTransform: "uppercase" }}>avg</div>
+        </div>
+        <ChevronRight size={18} color="var(--text-dim)" />
+      </div>
+    </div>
+  );
+}
+
 function TripsView({ trips, rooms, onOpen, onNew }) {
   const [search, setSearch] = useState("");
   const [selectedCities, setSelectedCities] = useState([]);
@@ -2603,6 +2736,8 @@ function TripsView({ trips, rooms, onOpen, onNew }) {
     return true;
   });
   const sorted = sortTrips(filtered, sortBy);
+  const isDateGrouped = sortBy === "start-desc" || sortBy === "start-asc";
+  const yearGroups = isDateGrouped ? groupByYear(sorted, "startDate") : [];
 
   const byCity = useMemo(() => {
     const map = {};
@@ -2623,7 +2758,7 @@ function TripsView({ trips, rooms, onOpen, onNew }) {
           <Plus size={15} /> New trip
         </button>
         <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em", marginLeft: "auto", flexShrink: 0 }}>
-          {sorted.length} trip{sorted.length === 1 ? "" : "s"}
+          {sorted.length} trip{sorted.length === 1 ? "" : "s"} total
         </span>
       </div>
 
@@ -2634,44 +2769,17 @@ function TripsView({ trips, rooms, onOpen, onNew }) {
           <div style={{ flex: "1 1 500px", maxWidth: 900, display: "flex", flexDirection: "column", gap: 10 }}>
             {sorted.length === 0 ? (
               <EmptyNote text="No trips match those filters." />
-            ) : (
-              sorted.map((t) => {
-                const stats = tripStats(t, rooms);
-                return (
-                  <div
-                    key={t.id}
-                    className="ert-card"
-                    onClick={() => onOpen(t.id)}
-                    style={{ padding: 16, cursor: "pointer", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}
-                  >
-                    <div style={{ flex: "1 1 220px", minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                        <Plane size={12} color="var(--brass)" />
-                        <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Trip</span>
-                      </div>
-                      <div className="ert-display" style={{ fontSize: 16.5, fontWeight: 700, marginTop: 3 }}>{t.name || "Untitled trip"}</div>
-                      <div style={{ display: "flex", gap: 14, marginTop: 4, fontSize: 12, color: "var(--text-dim)", flexWrap: "wrap" }}>
-                        {t.city && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={12} /> {t.city}</span>}
-                        <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                          <Calendar size={12} /> {t.startDate || "?"}{t.endDate && t.endDate !== t.startDate ? ` \u2013 ${t.endDate}` : ""}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div style={{ display: "flex", alignItems: "center", gap: 20, flexShrink: 0 }}>
-                      <div style={{ textAlign: "center" }}>
-                        <div className="ert-display" style={{ fontSize: 18, fontWeight: 700 }}>{stats.count}</div>
-                        <div className="ert-mono" style={{ fontSize: 9.5, color: "var(--text-dim)", textTransform: "uppercase" }}>room{stats.count === 1 ? "" : "s"}</div>
-                      </div>
-                      <div style={{ textAlign: "center", minWidth: 44 }}>
-                        <div className="ert-display" style={{ fontSize: 18, fontWeight: 700, color: stats.avg !== null ? "var(--brass)" : "var(--text-dim)" }}>{fmtRating(stats.avg)}</div>
-                        <div className="ert-mono" style={{ fontSize: 9.5, color: "var(--text-dim)", textTransform: "uppercase" }}>avg</div>
-                      </div>
-                      <ChevronRight size={18} color="var(--text-dim)" />
-                    </div>
+            ) : isDateGrouped ? (
+              yearGroups.map((group) => (
+                <div key={group.year} style={{ marginBottom: 12 }}>
+                  <YearDivider year={group.year} count={group.items.length} itemLabel="trip" />
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {group.items.map((t) => <TripRow key={t.id} trip={t} rooms={rooms} onOpen={onOpen} />)}
                   </div>
-                );
-              })
+                </div>
+              ))
+            ) : (
+              sorted.map((t) => <TripRow key={t.id} trip={t} rooms={rooms} onOpen={onOpen} />)
             )}
           </div>
 
@@ -3076,6 +3184,8 @@ function GalleryView({ rooms, driveConnected, driveAvailable, onConnectDrive, ge
     return true;
   });
   const sorted = sortGalleryPhotos(filtered, sortBy);
+  const isDateGrouped = sortBy === "visited-desc" || sortBy === "visited-asc";
+  const yearGroups = isDateGrouped ? groupByYear(sorted, "datePlayed") : [];
 
   if (!driveAvailable) {
     return <EmptyNote text="The gallery uses Google Drive and only works on the hosted site, not in this preview." />;
@@ -3115,12 +3225,33 @@ function GalleryView({ rooms, driveConnected, driveAvailable, onConnectDrive, ge
         />
         <SortPopover options={GALLERY_SORT_OPTIONS} sortBy={sortBy} onChange={setSortBy} />
         <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em", marginLeft: "auto", flexShrink: 0 }}>
-          {sorted.length} photo{sorted.length === 1 ? "" : "s"}
+          {sorted.length} photo{sorted.length === 1 ? "" : "s"} total
         </span>
       </div>
 
       {sorted.length === 0 ? (
         <EmptyNote text={allPhotos.length === 0 ? "No photos yet. Upload some from a room's Photos section." : "No photos match those filters."} />
+      ) : isDateGrouped ? (
+        <div>
+          {yearGroups.map((group, gi) => {
+            const offset = yearGroups.slice(0, gi).reduce((n, g) => n + g.items.length, 0);
+            return (
+              <div key={group.year} style={{ marginBottom: 22 }}>
+                <YearDivider year={group.year} count={group.items.length} itemLabel="photo" />
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
+                  {group.items.map((p, i) => (
+                    <div key={p.id}>
+                      <DrivePhoto photo={p} getDriveAccessToken={getDriveAccessToken} onPreview={() => setPreviewIndex(offset + i)} />
+                      <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {p.roomName}{p.city ? ` \u00b7 ${p.city}` : ""}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
           {sorted.map((p, i) => (
