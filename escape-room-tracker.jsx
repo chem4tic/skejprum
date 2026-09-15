@@ -2300,7 +2300,7 @@ function PhotoLightbox({ photos, index, onIndexChange, onClose, getDriveAccessTo
     const prevOverflow = document.body.style.overflow;
     const prevTouchAction = document.body.style.touchAction;
     document.body.style.overflow = "hidden";
-    document.body.style.touchAction = "none";
+    document.body.style.touchAction = "pan-y pinch-zoom";
     return () => {
       document.body.style.overflow = prevOverflow;
       document.body.style.touchAction = prevTouchAction;
@@ -2377,7 +2377,7 @@ function PhotoLightbox({ photos, index, onIndexChange, onClose, getDriveAccessTo
       onTouchEnd={handleTouchEnd}
       style={{
         position: "fixed", inset: 0, background: "rgba(10,11,15,0.88)", zIndex: 100,
-        display: "flex", alignItems: "center", justifyContent: "center", padding: 24, cursor: "zoom-out", touchAction: "none",
+        display: "flex", alignItems: "center", justifyContent: "center", padding: 24, cursor: "zoom-out", touchAction: "pan-y pinch-zoom",
       }}
     >
       {hasMultiple && (
