@@ -2454,22 +2454,29 @@ function PhotoLightbox({ photos, index, onIndexChange, onClose, getDriveAccessTo
 /* ---------------------------------------------------------------
    ADD / EDIT ROOM FORM
 --------------------------------------------------------------- */
-function RoomForm({ room, onCancel, onSave }) {
+function RoomForm({ room, existingRooms, onCancel, onSave }) {
   const [form, setForm] = useState(room);
   const set = (patch) => setForm({ ...form, ...patch });
- 
+
+  const cityOptions = useMemo(
+    () => Array.from(new Set((existingRooms || []).map((r) => r.city).filter(Boolean))).sort(),
+    [existingRooms]
+  );
+
   const canSave = form.name.trim().length > 0;
- 
+
   return (
     <div className="ert-card" style={{ padding: 22, maxWidth: 640 }}>
       <div className="ert-display" style={{ fontSize: 17, fontWeight: 700, marginBottom: 16 }}>
         {room.name ? "Edit room" : "Add a room"}
       </div>
- 
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Field label="Room name *"><input className="ert-input" value={form.name} onChange={(e) => set({ name: e.target.value })} /></Field>
         <Field label="Venue / company"><input className="ert-input" value={form.venue} onChange={(e) => set({ venue: e.target.value })} /></Field>
-        <Field label="City"><input className="ert-input" value={form.city} onChange={(e) => set({ city: e.target.value })} /></Field>
+        <Field label="City">
+          <AutocompleteInput value={form.city} onChange={(v) => set({ city: v })} options={cityOptions} />
+        </Field>
         <Field label="Country"><input className="ert-input" value={form.country} onChange={(e) => set({ country: e.target.value })} /></Field>
         <Field label="Genre">
           <select className="ert-select" value={form.category} onChange={(e) => set({ category: e.target.value })}>
