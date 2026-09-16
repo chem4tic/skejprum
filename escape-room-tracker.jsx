@@ -1821,7 +1821,10 @@ function RoomCard({ room, index, onOpen }) {
     <div className="ert-card" onClick={onOpen} style={{ padding: 15, cursor: "pointer", position: "relative" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <span className="ert-plaque-num">No. {String(index + 1).padStart(3, "0")}</span>
-        {room.status === "played" ? <Unlock size={15} color="var(--success)" /> : <Lock size={15} color="var(--text-dim)" />}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {room.photos && room.photos.length > 0 && <Camera size={13} color="var(--text-dim)" />}
+          {room.status === "played" ? <Unlock size={15} color="var(--success)" /> : <Lock size={15} color="var(--text-dim)" />}
+        </div>
       </div>
       <div className="ert-display" style={{ fontSize: 15.5, fontWeight: 700, marginTop: 8, lineHeight: 1.25 }}>{room.name || "Untitled room"}</div>
       <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 3 }}>{room.venue}</div>
