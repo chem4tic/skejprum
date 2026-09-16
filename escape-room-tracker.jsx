@@ -3,7 +3,7 @@ import {
   Lock, Unlock, MapPin, Star, StarHalf, Plus, Search, X, Edit2, Trash2,
   ExternalLink, Users, Trophy, ListChecks, LayoutDashboard,
   Camera, ChevronLeft, Settings, Check, Clock, Skull, Sparkles, Filter,
-  ChevronDown, ChevronUp, ChevronRight, Upload, ArrowUpDown, Plane, Calendar, Image as ImageIcon, Wallet, Ghost, Dumbbell,
+  ChevronDown, ChevronUp, ChevronRight, Upload, ArrowUpDown, Plane, Calendar, Image as ImageIcon, Wallet, Ghost, Dumbbell, SlidersHorizontal,
 } from "lucide-react";
  
 /* ---------------------------------------------------------------
@@ -392,7 +392,7 @@ const STORAGE_KEY = "escape-room-club-data-v1";
 const MEMBER_KEY = "escape-room-club-current-member";
 const MEMBERS = ["Karol", "Asia", "Jano", "Jaćka"];
  
-const CATEGORIES = ["Horror", "Thriller", "Adventure", "Mystery/Detective", "Sci-Fi", "Historical", "Fantasy", "Comedy", "Other"];
+const DEFAULT_CATEGORIES = ["Horror", "Thriller", "Adventure", "Mystery/Detective", "Sci-Fi", "Historical", "Fantasy", "Comedy", "Other"];
 const DIFFICULTY_LEVELS = ["Beginner-friendly", "Easy", "Medium", "Hard", "Very hard", "Extreme"];
  
 function emptyRoom(addedBy) {
@@ -467,7 +467,8 @@ function parseCSV(text) {
   return rows;
 }
 
-function roomsFromCSV(text, addedBy) {
+function roomsFromCSV(text, addedBy, categories) {
+  const validCategories = categories && categories.length ? categories : DEFAULT_CATEGORIES;
   const rows = parseCSV(text).filter((r) => r.some((c) => c.trim() !== ""));
   if (!rows.length) return [];
   const header = rows[0].map((h) => h.trim().toLowerCase());
@@ -488,7 +489,7 @@ function roomsFromCSV(text, addedBy) {
       room.city = get(row, "city");
       room.country = get(row, "country") || "Poland";
       const category = get(row, "category");
-      room.category = CATEGORIES.includes(category) ? category : "Other";
+      room.category = validCategories.includes(category) ? category : "Other";
       const difficulty = get(row, "difficulty");
       room.difficulty = DIFFICULTY_LEVELS.includes(difficulty) ? difficulty : "Medium";
       room.lockmeUrl = get(row, "lockmeurl") || get(row, "lockme link") || get(row, "lock.me link");
@@ -512,6 +513,7 @@ function normalizeData(raw) {
     auth: safe.auth && typeof safe.auth === "object" ? safe.auth : {},
     driveAuth: safe.driveAuth || null,
     trips: Array.isArray(safe.trips) ? safe.trips : [],
+    categories: Array.isArray(safe.categories) && safe.categories.length ? [...safe.categories].sort((a, b) => a.localeCompare(b)) : [...DEFAULT_CATEGORIES].sort((a, b) => a.localeCompare(b)),
   };
 }
 
@@ -608,7 +610,7 @@ export default function EscapeRoomTracker() {
   const [loading, setLoading] = useState(true);
   const [saveError, setSaveError] = useState(null);
   const [importMessage, setImportMessage] = useState(null);
-  const [data, setData] = useState({ rooms: [], auth: {}, driveAuth: null, trips: [] });
+  const [data, setData] = useState({ rooms: [], auth: {}, driveAuth: null, trips: [], categories: DEFAULT_CATEGORIES });
   const [currentMember, setCurrentMember] = useState(null);
   const [view, setView] = useState("dashboard");
   const [selectedRoomId, setSelectedRoomId] = useState(null);
@@ -616,6 +618,7 @@ export default function EscapeRoomTracker() {
   const [editingRoom, setEditingRoom] = useState(null); // room object being added/edited, or null
   const [selectedTripId, setSelectedTripId] = useState(null);
   const [editingTrip, setEditingTrip] = useState(null); // trip object being added/edited, or null
+  const [showAppSettings, setShowAppSettings] = useState(false);
  
   // ---- load ----
   useEffect(() => {
@@ -626,7 +629,7 @@ export default function EscapeRoomTracker() {
     if (hasClaudeStorage) {
       (async () => {
         try {
-          let loaded = { rooms: [], auth: {}, driveAuth: null, trips: [] };
+          let loaded = { rooms: [], auth: {}, driveAuth: null, trips: [], categories: DEFAULT_CATEGORIES };
           try {
             const res = await storageGet(STORAGE_KEY, true);
             if (res && res.value) loaded = JSON.parse(res.value);
@@ -794,11 +797,33 @@ export default function EscapeRoomTracker() {
     const trips = data.trips.map((t) => (t.id === id ? { ...t, ...patch } : t));
     persist({ ...data, trips });
   };
+
+  const addCategory = (name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const current = data.categories && data.categories.length ? data.categories : DEFAULT_CATEGORIES;
+    if (current.some((c) => c.toLowerCase() === trimmed.toLowerCase())) return;
+    const categories = [...current, trimmed].sort((a, b) => a.localeCompare(b));
+    persist({ ...data, categories });
+  };
+  const removeCategory = (name) => {
+    const current = data.categories && data.categories.length ? data.categories : DEFAULT_CATEGORIES;
+    persist({ ...data, categories: current.filter((c) => c !== name) });
+  };
+  const renameCategory = (oldName, newName) => {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === oldName) return;
+    const current = data.categories && data.categories.length ? data.categories : DEFAULT_CATEGORIES;
+    if (current.some((c) => c !== oldName && c.toLowerCase() === trimmed.toLowerCase())) return;
+    const categories = current.map((c) => (c === oldName ? trimmed : c)).sort((a, b) => a.localeCompare(b));
+    const rooms = data.rooms.map((r) => (r.category === oldName ? { ...r, category: trimmed } : r));
+    persist({ ...data, categories, rooms });
+  };
  
   const importRoomsFromFile = async (file) => {
     try {
       const text = await file.text();
-      const parsed = roomsFromCSV(text, currentMember);
+      const parsed = roomsFromCSV(text, currentMember, data.categories);
       if (!parsed.length) {
         setImportMessage({ type: "error", text: "No rooms found in that file. Make sure it has a 'name' column." });
         setTimeout(() => setImportMessage(null), 6000);
@@ -862,7 +887,18 @@ export default function EscapeRoomTracker() {
         onSwitchMember={() => chooseMember(null)}
         onAdd={() => { setEditingRoom(emptyRoom(currentMember)); setView("edit-room"); }}
         onImportFile={importRoomsFromFile}
+        onOpenAppSettings={() => setShowAppSettings(true)}
       />
+
+      {showAppSettings && (
+        <AppSettingsModal
+          categories={data.categories}
+          onClose={() => setShowAppSettings(false)}
+          onAddCategory={addCategory}
+          onRemoveCategory={removeCategory}
+          onRenameCategory={renameCategory}
+        />
+      )}
  
       {saveError && (
         <div style={{ background: "var(--danger)", color: "#fff", fontSize: 12.5, padding: "6px 20px" }}>
@@ -921,6 +957,7 @@ export default function EscapeRoomTracker() {
           <RoomForm
             room={editingRoom}
             existingRooms={data.rooms}
+            categories={data.categories}
             onCancel={() => { setEditingRoom(null); setView(selectedRoom ? "room-detail" : "dashboard"); }}
             onSave={saveRoom}
           />
@@ -1127,7 +1164,7 @@ function WhoAmI({ members, authRecords, onChoose, onCreatePassword, onVerifyPass
 /* ---------------------------------------------------------------
    HEADER / NAV
 --------------------------------------------------------------- */
-function Header({ currentMember, onSwitchMember, onAdd, onImportFile }) {
+function Header({ currentMember, onSwitchMember, onAdd, onImportFile, onOpenAppSettings }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = React.useRef(null);
   const fileInputRef = React.useRef(null);
@@ -1165,6 +1202,9 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile }) {
       <div style={{ display: "flex", gap: 8 }}>
         <button className="ert-btn ert-btn-ghost" onClick={onSwitchMember} style={{ padding: "8px 10px" }}>
           <Users size={14} />
+        </button>
+        <button className="ert-btn ert-btn-ghost" onClick={onOpenAppSettings} title="App settings" style={{ padding: "8px 10px" }}>
+          <SlidersHorizontal size={14} />
         </button>
 
         <div style={{ display: "flex", position: "relative" }} ref={menuRef}>
@@ -1850,6 +1890,119 @@ function RankingView({ rooms, members, onOpen }) {
 }
  
 /* ---------------------------------------------------------------
+   APP SETTINGS
+   A small out-of-the-way place for crew-wide configuration that
+   doesn't need its own tab -- starting with the list of genre
+   categories offered when adding a room. More settings can live
+   here later without cluttering the main nav.
+--------------------------------------------------------------- */
+function AppSettingsModal({ categories, onClose, onAddCategory, onRemoveCategory, onRenameCategory }) {
+  const [newCategory, setNewCategory] = useState("");
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [editValue, setEditValue] = useState("");
+  const list = categories && categories.length ? categories : DEFAULT_CATEGORIES;
+
+  const submitAdd = () => {
+    if (!newCategory.trim()) return;
+    onAddCategory(newCategory);
+    setNewCategory("");
+  };
+  const startEdit = (c) => {
+    setEditingCategory(c);
+    setEditValue(c);
+  };
+  const cancelEdit = () => {
+    setEditingCategory(null);
+    setEditValue("");
+  };
+  const submitEdit = () => {
+    if (editValue.trim() && editValue.trim() !== editingCategory) {
+      onRenameCategory(editingCategory, editValue);
+    }
+    cancelEdit();
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, background: "rgba(10,11,15,0.75)", zIndex: 100,
+        display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="ert-card-raised"
+        style={{ padding: 22, width: "100%", maxWidth: 420, maxHeight: "80vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.55)" }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <SlidersHorizontal size={16} color="var(--brass)" />
+            <div className="ert-display" style={{ fontSize: 16, fontWeight: 700 }}>App settings</div>
+          </div>
+          <button onClick={onClose} className="ert-btn ert-btn-ghost" style={{ padding: "5px 8px" }}>
+            <X size={15} />
+          </button>
+        </div>
+
+        <div style={{ marginTop: 14 }}>
+          <div className="ert-display" style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 4 }}>Categories</div>
+          <p style={{ fontSize: 11.5, color: "var(--text-dim)", marginBottom: 10 }}>
+            Shown as genre options when adding or editing a room. Renaming one updates every room already using it.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+            {list.map((c) =>
+              editingCategory === c ? (
+                <div key={c} style={{ display: "flex", gap: 6, alignItems: "center", background: "var(--surface-raised)", padding: "6px 8px", borderRadius: 7 }}>
+                  <input
+                    className="ert-input"
+                    style={{ padding: "5px 8px", fontSize: 13 }}
+                    value={editValue}
+                    autoFocus
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") submitEdit(); if (e.key === "Escape") cancelEdit(); }}
+                  />
+                  <button className="ert-btn ert-btn-brass" style={{ padding: "5px 8px" }} onClick={submitEdit}>
+                    <Check size={12} />
+                  </button>
+                  <button className="ert-btn ert-btn-ghost" style={{ padding: "5px 8px" }} onClick={cancelEdit}>
+                    <X size={12} />
+                  </button>
+                </div>
+              ) : (
+                <div key={c} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-raised)", padding: "7px 10px", borderRadius: 7 }}>
+                  <span style={{ fontSize: 13 }}>{c}</span>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <button className="ert-btn ert-btn-ghost" style={{ padding: "3px 7px" }} onClick={() => startEdit(c)}>
+                      <Edit2 size={11} />
+                    </button>
+                    <button className="ert-btn ert-btn-ghost" style={{ padding: "3px 7px" }} onClick={() => onRemoveCategory(c)}>
+                      <X size={11} />
+                    </button>
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              className="ert-input"
+              placeholder="Add a category"
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") submitAdd(); }}
+            />
+            <button className="ert-btn ert-btn-brass" onClick={submitAdd}>
+              <Plus size={14} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
    ROOM DETAIL
 --------------------------------------------------------------- */
 function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, onUpdate, driveConnected, driveAvailable, onConnectDrive, getDriveAccessToken }) {
@@ -2454,7 +2607,7 @@ function PhotoLightbox({ photos, index, onIndexChange, onClose, getDriveAccessTo
 /* ---------------------------------------------------------------
    ADD / EDIT ROOM FORM
 --------------------------------------------------------------- */
-function RoomForm({ room, existingRooms, onCancel, onSave }) {
+function RoomForm({ room, existingRooms, categories, onCancel, onSave }) {
   const [form, setForm] = useState(room);
   const set = (patch) => setForm({ ...form, ...patch });
 
@@ -2480,7 +2633,7 @@ function RoomForm({ room, existingRooms, onCancel, onSave }) {
         <Field label="Country"><input className="ert-input" value={form.country} onChange={(e) => set({ country: e.target.value })} /></Field>
         <Field label="Genre">
           <select className="ert-select" value={form.category} onChange={(e) => set({ category: e.target.value })}>
-            {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            {(categories && categories.length ? categories : DEFAULT_CATEGORIES).map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </Field>
         <Field label="Difficulty">
