@@ -3,7 +3,7 @@ import {
   Lock, Unlock, MapPin, Star, StarHalf, Plus, Search, X, Edit2, Trash2,
   ExternalLink, Users, Trophy, ListChecks, LayoutDashboard,
   Camera, ChevronLeft, Settings, Check, Clock, Skull, Sparkles, Filter,
-  ChevronDown, ChevronUp, ChevronRight, Upload, ArrowUpDown, Plane, Calendar, Image as ImageIcon, Wallet, Ghost, Dumbbell, SlidersHorizontal,
+  ChevronDown, ChevronUp, ChevronRight, Upload, ArrowUpDown, Plane, Calendar, Image as ImageIcon, Wallet, Ghost, Dumbbell, SlidersHorizontal, Ban, CornerUpRight,
 } from "lucide-react";
  
 /* ---------------------------------------------------------------
@@ -394,6 +394,13 @@ const MEMBERS = ["Karol", "Asia", "Jano", "Jaćka"];
  
 const DEFAULT_CATEGORIES = ["Horror", "Thriller", "Adventure", "Mystery/Detective", "Sci-Fi", "Historical", "Fantasy", "Comedy", "Other"];
 const DIFFICULTY_LEVELS = ["Beginner-friendly", "Easy", "Medium", "Hard", "Very hard", "Extreme"];
+
+// Small fixed set of status flags a room can carry, each with its own
+// pictogram shown on the room card next to the photo indicator.
+const ROOM_FLAGS = [
+  { id: "closed", label: "Permanently closed", icon: Ban, color: "var(--danger)" },
+  { id: "moved", label: "Moved", icon: CornerUpRight, color: "var(--teal)" },
+];
  
 function emptyRoom(addedBy) {
   return {
@@ -406,6 +413,7 @@ function emptyRoom(addedBy) {
     difficulty: "Medium",
     lockmeUrl: "",
     status: "wishlist", // 'wishlist' | 'played'
+    flags: [], // e.g. "closed", "moved" -- see ROOM_FLAGS
     datePlayed: "",
     result: "escaped", // 'escaped' | 'not-escaped'
     timeNote: "",
@@ -1822,6 +1830,11 @@ function RoomCard({ room, index, onOpen }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <span className="ert-plaque-num">No. {String(index + 1).padStart(3, "0")}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {(room.flags || []).map((fid) => {
+            const flag = ROOM_FLAGS.find((f) => f.id === fid);
+            if (!flag) return null;
+            return <flag.icon key={fid} size={13} color={flag.color} />;
+          })}
           {room.photos && room.photos.length > 0 && <Camera size={13} color="var(--text-dim)" />}
           {room.status === "played" ? <Unlock size={15} color="var(--success)" /> : <Lock size={15} color="var(--text-dim)" />}
         </div>
@@ -2160,6 +2173,15 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
             </span>
           )}
           <span style={{ padding: "2px 8px", borderRadius: 10, background: "var(--surface-raised)" }}>{room.category}</span>
+          {(room.flags || []).map((fid) => {
+            const flag = ROOM_FLAGS.find((f) => f.id === fid);
+            if (!flag) return null;
+            return (
+              <span key={fid} style={{ display: "flex", alignItems: "center", gap: 4, color: flag.color }}>
+                <flag.icon size={13} /> {flag.label}
+              </span>
+            );
+          })}
           {room.lockmeUrl && (
             <a href={room.lockmeUrl} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--brass)" }}>
               lock.me <ExternalLink size={12} />
@@ -2613,6 +2635,10 @@ function PhotoLightbox({ photos, index, onIndexChange, onClose, getDriveAccessTo
 function RoomForm({ room, existingRooms, categories, onCancel, onSave }) {
   const [form, setForm] = useState(room);
   const set = (patch) => setForm({ ...form, ...patch });
+  const toggleFlag = (id) => {
+    const current = form.flags || [];
+    set({ flags: current.includes(id) ? current.filter((f) => f !== id) : [...current, id] });
+  };
 
   const cityOptions = useMemo(
     () => Array.from(new Set((existingRooms || []).map((r) => r.city).filter(Boolean))).sort(),
@@ -2675,7 +2701,19 @@ function RoomForm({ room, existingRooms, categories, onCancel, onSave }) {
           </>
         )}
       </div>
- 
+
+      <div style={{ marginTop: 16 }}>
+        <div style={{ fontSize: 11.5, color: "var(--text-dim)", marginBottom: 6 }}>Flags</div>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+          {ROOM_FLAGS.map((f) => (
+            <label key={f.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+              <input type="checkbox" checked={(form.flags || []).includes(f.id)} onChange={() => toggleFlag(f.id)} />
+              <f.icon size={14} color={f.color} /> {f.label}
+            </label>
+          ))}
+        </div>
+      </div>
+
       <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
         <button className="ert-btn ert-btn-brass" disabled={!canSave} style={{ opacity: canSave ? 1 : 0.5 }} onClick={() => canSave && onSave(form)}>
           <Check size={14} /> Save room
