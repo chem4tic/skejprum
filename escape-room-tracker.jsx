@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Lock, Unlock, MapPin, Star, StarHalf, Plus, Search, X, Edit2, Trash2,
-  ExternalLink, Users, Trophy, ListChecks, LayoutDashboard,
+  ExternalLink, Users, User, Trophy, ListChecks, LayoutDashboard,
   Camera, ChevronLeft, Settings, Check, Clock, Skull, Sparkles, Filter,
   ChevronDown, ChevronUp, ChevronRight, Upload, ArrowUpDown, Plane, Calendar, Image as ImageIcon, Wallet, Ghost, Dumbbell, SlidersHorizontal, Ban, CornerUpRight,
 } from "lucide-react";
+import * as LucideIcons from "lucide-react";
  
 /* ---------------------------------------------------------------
    STORAGE
@@ -397,10 +398,37 @@ const DIFFICULTY_LEVELS = ["Beginner-friendly", "Easy", "Medium", "Hard", "Very 
 
 // Small fixed set of status flags a room can carry, each with its own
 // pictogram shown on the room card next to the photo indicator.
-const ROOM_FLAGS = [
-  { id: "closed", label: "Permanently closed", icon: Ban, color: "var(--danger)" },
-  { id: "moved", label: "Moved", icon: CornerUpRight, color: "var(--teal)" },
+// Default flags, stored using icon *names* (strings) rather than component
+// references, so the set can be edited from Settings and saved as plain
+// data. Any lucide-react icon name works -- resolveFlagIcon() looks it up.
+const DEFAULT_FLAGS = [
+  { id: "closed", label: "Permanently closed", icon: "Ban", color: "var(--danger)" },
+  { id: "moved", label: "Moved", icon: "CornerUpRight", color: "var(--teal)" },
 ];
+
+// A curated set of icons offered in the Settings picker -- broad enough to
+// cover common flag ideas without listing lucide's entire (huge) icon set.
+const FLAG_ICON_CHOICES = [
+  "Ban", "CornerUpRight", "AlertTriangle", "Flag", "Star", "Heart", "ThumbsUp",
+  "ThumbsDown", "Flame", "Snowflake", "Sun", "Moon", "Clock", "Wrench",
+  "Construction", "PartyPopper", "Sparkles", "Zap", "Trophy", "Building2",
+  "MapPin", "Lock", "Unlock", "Check", "X", "Info", "Users", "Drama",
+];
+const FLAG_COLOR_CHOICES = [
+  { label: "Red", value: "var(--danger)" },
+  { label: "Teal", value: "var(--teal)" },
+  { label: "Brass", value: "var(--brass)" },
+  { label: "Green", value: "var(--success)" },
+  { label: "Gray", value: "var(--text-dim)" },
+  { label: "Purple", value: "#a78bfa" },
+  { label: "Pink", value: "#f472b6" },
+  { label: "Orange", value: "#fb923c" },
+  { label: "Blue", value: "#60a5fa" },
+];
+
+function resolveFlagIcon(name) {
+  return (LucideIcons && LucideIcons[name]) || LucideIcons.Flag;
+}
  
 function emptyRoom(addedBy) {
   return {
@@ -413,7 +441,7 @@ function emptyRoom(addedBy) {
     difficulty: "Medium",
     lockmeUrl: "",
     status: "wishlist", // 'wishlist' | 'played'
-    flags: [], // e.g. "closed", "moved" -- see ROOM_FLAGS
+    flags: [], // e.g. "closed", "moved" -- see DEFAULT_FLAGS
     datePlayed: "",
     result: "escaped", // 'escaped' | 'not-escaped'
     timeNote: "",
@@ -522,6 +550,7 @@ function normalizeData(raw) {
     driveAuth: safe.driveAuth || null,
     trips: Array.isArray(safe.trips) ? safe.trips : [],
     categories: Array.isArray(safe.categories) && safe.categories.length ? [...safe.categories].sort((a, b) => a.localeCompare(b)) : [...DEFAULT_CATEGORIES].sort((a, b) => a.localeCompare(b)),
+    flags: Array.isArray(safe.flags) && safe.flags.length ? safe.flags : DEFAULT_FLAGS,
   };
 }
 
@@ -618,7 +647,7 @@ export default function EscapeRoomTracker() {
   const [loading, setLoading] = useState(true);
   const [saveError, setSaveError] = useState(null);
   const [importMessage, setImportMessage] = useState(null);
-  const [data, setData] = useState({ rooms: [], auth: {}, driveAuth: null, trips: [], categories: DEFAULT_CATEGORIES });
+  const [data, setData] = useState({ rooms: [], auth: {}, driveAuth: null, trips: [], categories: DEFAULT_CATEGORIES, flags: DEFAULT_FLAGS });
   const [currentMember, setCurrentMember] = useState(null);
   const [view, setView] = useState("dashboard");
   const [selectedRoomId, setSelectedRoomId] = useState(null);
@@ -626,7 +655,6 @@ export default function EscapeRoomTracker() {
   const [editingRoom, setEditingRoom] = useState(null); // room object being added/edited, or null
   const [selectedTripId, setSelectedTripId] = useState(null);
   const [editingTrip, setEditingTrip] = useState(null); // trip object being added/edited, or null
-  const [showAppSettings, setShowAppSettings] = useState(false);
  
   // ---- load ----
   useEffect(() => {
@@ -637,7 +665,7 @@ export default function EscapeRoomTracker() {
     if (hasClaudeStorage) {
       (async () => {
         try {
-          let loaded = { rooms: [], auth: {}, driveAuth: null, trips: [], categories: DEFAULT_CATEGORIES };
+          let loaded = { rooms: [], auth: {}, driveAuth: null, trips: [], categories: DEFAULT_CATEGORIES, flags: DEFAULT_FLAGS };
           try {
             const res = await storageGet(STORAGE_KEY, true);
             if (res && res.value) loaded = JSON.parse(res.value);
@@ -827,6 +855,24 @@ export default function EscapeRoomTracker() {
     const rooms = data.rooms.map((r) => (r.category === oldName ? { ...r, category: trimmed } : r));
     persist({ ...data, categories, rooms });
   };
+
+  const currentFlags = () => (data.flags && data.flags.length ? data.flags : DEFAULT_FLAGS);
+  const addFlag = ({ label, icon, color }) => {
+    const trimmed = label.trim();
+    if (!trimmed) return;
+    const id = trimmed.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || uid();
+    const flags = [...currentFlags(), { id, label: trimmed, icon, color }];
+    persist({ ...data, flags });
+  };
+  const updateFlag = (id, patch) => {
+    const flags = currentFlags().map((f) => (f.id === id ? { ...f, ...patch } : f));
+    persist({ ...data, flags });
+  };
+  const removeFlag = (id) => {
+    const flags = currentFlags().filter((f) => f.id !== id);
+    const rooms = data.rooms.map((r) => (r.flags && r.flags.includes(id) ? { ...r, flags: r.flags.filter((x) => x !== id) } : r));
+    persist({ ...data, flags, rooms });
+  };
  
   const importRoomsFromFile = async (file) => {
     try {
@@ -895,18 +941,8 @@ export default function EscapeRoomTracker() {
         onSwitchMember={() => chooseMember(null)}
         onAdd={() => { setEditingRoom(emptyRoom(currentMember)); setView("edit-room"); }}
         onImportFile={importRoomsFromFile}
-        onOpenAppSettings={() => setShowAppSettings(true)}
+        onOpenAppSettings={() => setView("app-settings")}
       />
-
-      {showAppSettings && (
-        <AppSettingsModal
-          categories={data.categories}
-          onClose={() => setShowAppSettings(false)}
-          onAddCategory={addCategory}
-          onRemoveCategory={removeCategory}
-          onRenameCategory={renameCategory}
-        />
-      )}
  
       {saveError && (
         <div style={{ background: "var(--danger)", color: "#fff", fontSize: 12.5, padding: "6px 20px" }}>
@@ -943,34 +979,51 @@ export default function EscapeRoomTracker() {
           <RoomsView
             rooms={playedRooms}
             onOpen={(id) => { setSelectedRoomId(id); setReturnView("rooms"); setView("room-detail"); }}
+            flags={currentFlags()}
           />
         )}
- 
+
         {view === "wishlist" && (
           <RoomsView
             rooms={wishlistRooms}
             emptyLabel="No rooms on the wishlist yet. Add one and mark it 'wishlist'."
             onOpen={(id) => { setSelectedRoomId(id); setReturnView("wishlist"); setView("room-detail"); }}
             hideVisitedSort
+            flags={currentFlags()}
           />
         )}
- 
-        {view === "ranking" && <RankingView rooms={playedRooms} members={MEMBERS} onOpen={(id) => { setSelectedRoomId(id); setReturnView("ranking"); setView("room-detail"); }} />}
- 
+
+        {view === "ranking" && <RankingView rooms={playedRooms} members={MEMBERS} currentMember={currentMember} onOpen={(id) => { setSelectedRoomId(id); setReturnView("ranking"); setView("room-detail"); }} />}
+
         {view === "settings" && (
           <SettingsView members={MEMBERS} currentMember={currentMember} onChangePassword={changePassword} rooms={data.rooms} />
         )}
- 
+
+        {view === "app-settings" && (
+          <AppSettingsView
+            categories={data.categories}
+            onBack={() => setView("dashboard")}
+            onAddCategory={addCategory}
+            onRemoveCategory={removeCategory}
+            onRenameCategory={renameCategory}
+            flags={data.flags && data.flags.length ? data.flags : DEFAULT_FLAGS}
+            onAddFlag={addFlag}
+            onUpdateFlag={updateFlag}
+            onRemoveFlag={removeFlag}
+          />
+        )}
+
         {view === "edit-room" && editingRoom && (
           <RoomForm
             room={editingRoom}
             existingRooms={data.rooms}
             categories={data.categories}
+            flags={currentFlags()}
             onCancel={() => { setEditingRoom(null); setView(selectedRoom ? "room-detail" : "dashboard"); }}
             onSave={saveRoom}
           />
         )}
- 
+
         {view === "room-detail" && selectedRoom && (
           <RoomDetail
             room={selectedRoom}
@@ -984,6 +1037,7 @@ export default function EscapeRoomTracker() {
             driveAvailable={!hasClaudeStorage && isDriveConfigured()}
             onConnectDrive={connectGoogleDrive}
             getDriveAccessToken={getRoomsAccessToken}
+            flags={currentFlags()}
           />
         )}
 
@@ -1025,6 +1079,7 @@ export default function EscapeRoomTracker() {
             onDelete={() => deleteTrip(selectedTrip.id)}
             onUpdate={(patch) => updateTripField(selectedTrip.id, patch)}
             onOpenRoom={(id) => { setSelectedRoomId(id); setReturnView("trip-detail"); setView("room-detail"); }}
+            flags={currentFlags()}
           />
         )}
       </div>
@@ -1209,7 +1264,7 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile, onOpenAppS
       </div>
       <div style={{ display: "flex", gap: 8 }}>
         <button className="ert-btn ert-btn-ghost" onClick={onSwitchMember} style={{ padding: "8px 10px" }}>
-          <Users size={14} />
+          <User size={14} />
         </button>
         <button className="ert-btn ert-btn-ghost" onClick={onOpenAppSettings} title="App settings" style={{ padding: "8px 10px" }}>
           <SlidersHorizontal size={14} />
@@ -1745,7 +1800,7 @@ function SortPopover({ options, sortBy, onChange }) {
   );
 }
 
-function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort }) {
+function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags }) {
   const [search, setSearch] = useState("");
   const [selectedCities, setSelectedCities] = useState([]);
   const [selectedGenres, setSelectedGenres] = useState([]);
@@ -1808,7 +1863,7 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort }) {
               <div key={group.year} style={{ marginBottom: 22 }}>
                 <YearDivider year={group.year} count={group.items.length} itemLabel="room" />
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
-                  {group.items.map((r, i) => <RoomCard key={r.id} room={r} index={offset + i} onOpen={() => onOpen(r.id)} />)}
+                  {group.items.map((r, i) => <RoomCard key={r.id} room={r} index={offset + i} onOpen={() => onOpen(r.id)} flags={flags} />)}
                 </div>
               </div>
             );
@@ -1816,14 +1871,14 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort }) {
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
-          {sorted.map((r, i) => <RoomCard key={r.id} room={r} index={i} onOpen={() => onOpen(r.id)} />)}
+          {sorted.map((r, i) => <RoomCard key={r.id} room={r} index={i} onOpen={() => onOpen(r.id)} flags={flags} />)}
         </div>
       )}
     </div>
   );
 }
  
-function RoomCard({ room, index, onOpen }) {
+function RoomCard({ room, index, onOpen, flags }) {
   const avg = avgRating(room);
   return (
     <div className="ert-card" onClick={onOpen} style={{ padding: 15, cursor: "pointer", position: "relative" }}>
@@ -1831,9 +1886,10 @@ function RoomCard({ room, index, onOpen }) {
         <span className="ert-plaque-num">No. {String(index + 1).padStart(3, "0")}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {(room.flags || []).map((fid) => {
-            const flag = ROOM_FLAGS.find((f) => f.id === fid);
+            const flag = (flags || DEFAULT_FLAGS).find((f) => f.id === fid);
             if (!flag) return null;
-            return <flag.icon key={fid} size={13} color={flag.color} />;
+            const Icon = resolveFlagIcon(flag.icon);
+            return <Icon key={fid} size={13} color={flag.color} />;
           })}
           {room.photos && room.photos.length > 0 && <Camera size={13} color="var(--text-dim)" />}
           {room.status === "played" ? <Unlock size={15} color="var(--success)" /> : <Lock size={15} color="var(--text-dim)" />}
@@ -1859,7 +1915,7 @@ function RoomCard({ room, index, onOpen }) {
 /* ---------------------------------------------------------------
    RANKING
 --------------------------------------------------------------- */
-function RankingView({ rooms, members, onOpen }) {
+function RankingView({ rooms, members, currentMember, onOpen }) {
   const ranked = useMemo(
     () => [...rooms].map((r) => ({ ...r, _avg: avgRating(r) })).sort((a, b) => (b._avg ?? -1) - (a._avg ?? -1)),
     [rooms]
@@ -1891,7 +1947,17 @@ function RankingView({ rooms, members, onOpen }) {
             <div style={{ display: "flex", gap: 4 }}>
               {members.map((m) =>
                 typeof r.ratings[m] === "number" ? (
-                  <span key={m} title={m} className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)", background: "var(--surface-raised)", padding: "2px 5px", borderRadius: 4 }}>
+                  <span
+                    key={m}
+                    title={m}
+                    className="ert-mono"
+                    style={{
+                      fontSize: 10.5, padding: "2px 5px", borderRadius: 4,
+                      color: m === currentMember ? "#17140c" : "var(--text-dim)",
+                      background: m === currentMember ? "var(--brass)" : "var(--surface-raised)",
+                      fontWeight: m === currentMember ? 700 : 400,
+                    }}
+                  >
                     {r.ratings[m]}
                   </span>
                 ) : null
@@ -1912,7 +1978,9 @@ function RankingView({ rooms, members, onOpen }) {
    categories offered when adding a room. More settings can live
    here later without cluttering the main nav.
 --------------------------------------------------------------- */
-function AppSettingsModal({ categories, onClose, onAddCategory, onRemoveCategory, onRenameCategory }) {
+function AppSettingsView({ categories, onBack, onAddCategory, onRemoveCategory, onRenameCategory, flags, onAddFlag, onUpdateFlag, onRemoveFlag }) {
+  const [tab, setTab] = useState("categories");
+
   const [newCategory, setNewCategory] = useState("");
   const [editingCategory, setEditingCategory] = useState(null);
   const [editValue, setEditValue] = useState("");
@@ -1938,32 +2006,107 @@ function AppSettingsModal({ categories, onClose, onAddCategory, onRemoveCategory
     cancelEdit();
   };
 
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0, background: "rgba(10,11,15,0.75)", zIndex: 100,
-        display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="ert-card-raised"
-        style={{ padding: 22, width: "100%", maxWidth: 420, maxHeight: "80vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.55)" }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <SlidersHorizontal size={16} color="var(--brass)" />
-            <div className="ert-display" style={{ fontSize: 16, fontWeight: 700 }}>App settings</div>
-          </div>
-          <button onClick={onClose} className="ert-btn ert-btn-ghost" style={{ padding: "5px 8px" }}>
-            <X size={15} />
-          </button>
-        </div>
+  const flagList = flags && flags.length ? flags : DEFAULT_FLAGS;
+  const [newFlagLabel, setNewFlagLabel] = useState("");
+  const [newFlagIcon, setNewFlagIcon] = useState(FLAG_ICON_CHOICES[0]);
+  const [newFlagColor, setNewFlagColor] = useState(FLAG_COLOR_CHOICES[0].value);
+  const [editingFlagId, setEditingFlagId] = useState(null);
+  const [editFlagLabel, setEditFlagLabel] = useState("");
+  const [editFlagIcon, setEditFlagIcon] = useState("");
+  const [editFlagColor, setEditFlagColor] = useState("");
 
-        <div style={{ marginTop: 14 }}>
-          <div className="ert-display" style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 4 }}>Categories</div>
-          <p style={{ fontSize: 11.5, color: "var(--text-dim)", marginBottom: 10 }}>
+  const submitAddFlag = () => {
+    if (!newFlagLabel.trim()) return;
+    onAddFlag({ label: newFlagLabel, icon: newFlagIcon, color: newFlagColor });
+    setNewFlagLabel("");
+    setNewFlagIcon(FLAG_ICON_CHOICES[0]);
+    setNewFlagColor(FLAG_COLOR_CHOICES[0].value);
+  };
+  const startEditFlag = (f) => {
+    setEditingFlagId(f.id);
+    setEditFlagLabel(f.label);
+    setEditFlagIcon(f.icon);
+    setEditFlagColor(f.color);
+  };
+  const cancelEditFlag = () => setEditingFlagId(null);
+  const submitEditFlag = () => {
+    if (editFlagLabel.trim()) {
+      onUpdateFlag(editingFlagId, { label: editFlagLabel.trim(), icon: editFlagIcon, color: editFlagColor });
+    }
+    cancelEditFlag();
+  };
+
+  const IconPicker = ({ value, onChange }) => (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxWidth: 320 }}>
+      {FLAG_ICON_CHOICES.map((name) => {
+        const Icon = resolveFlagIcon(name);
+        const selected = value === name;
+        return (
+          <button
+            key={name}
+            type="button"
+            onClick={() => onChange(name)}
+            title={name}
+            className="ert-btn ert-btn-ghost"
+            style={{ padding: 6, borderColor: selected ? "var(--brass)" : "var(--border)", background: selected ? "var(--surface-raised)" : "transparent" }}
+          >
+            <Icon size={14} />
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const ColorPicker = ({ value, onChange }) => (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      {FLAG_COLOR_CHOICES.map((c) => (
+        <button
+          key={c.value}
+          type="button"
+          title={c.label}
+          onClick={() => onChange(c.value)}
+          style={{
+            width: 22, height: 22, borderRadius: "50%", background: c.value, cursor: "pointer",
+            border: value === c.value ? "2px solid var(--text)" : "2px solid transparent",
+          }}
+        />
+      ))}
+    </div>
+  );
+
+  const settingsTabs = [
+    { id: "categories", label: "Categories" },
+    { id: "flags", label: "Flags" },
+  ];
+
+  return (
+    <div style={{ maxWidth: 600 }}>
+      <button className="ert-btn ert-btn-ghost" onClick={onBack} style={{ marginBottom: 14 }}>
+        <ChevronLeft size={14} /> Back
+      </button>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
+        <SlidersHorizontal size={18} color="var(--brass)" />
+        <div className="ert-display" style={{ fontSize: 20, fontWeight: 700 }}>App settings</div>
+      </div>
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 20, borderBottom: "1px solid var(--border-soft)" }}>
+        {settingsTabs.map((t) => (
+          <div
+            key={t.id}
+            className={`ert-tab ${tab === t.id ? "ert-tab-active" : ""}`}
+            onClick={() => setTab(t.id)}
+            style={{ marginBottom: -1 }}
+          >
+            {t.label}
+          </div>
+        ))}
+      </div>
+
+      {tab === "categories" && (
+        <div className="ert-card" style={{ padding: 20 }}>
+          <div className="ert-display" style={{ fontSize: 14.5, fontWeight: 700, marginBottom: 4 }}>Categories</div>
+          <p style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 12 }}>
             Shown as genre options when adding or editing a room. Renaming one updates every room already using it.
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
@@ -2013,7 +2156,73 @@ function AppSettingsModal({ categories, onClose, onAddCategory, onRemoveCategory
             </button>
           </div>
         </div>
-      </div>
+      )}
+
+      {tab === "flags" && (
+        <div className="ert-card" style={{ padding: 20 }}>
+          <div className="ert-display" style={{ fontSize: 14.5, fontWeight: 700, marginBottom: 4 }}>Flags</div>
+          <p style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 12 }}>
+            Status pictograms you can set on a room, like "Permanently closed" or "Moved".
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+            {flagList.map((f) => {
+              const Icon = resolveFlagIcon(f.icon);
+              if (editingFlagId === f.id) {
+                return (
+                  <div key={f.id} style={{ background: "var(--surface-raised)", padding: 10, borderRadius: 7, display: "flex", flexDirection: "column", gap: 8 }}>
+                    <input
+                      className="ert-input"
+                      style={{ padding: "5px 8px", fontSize: 13 }}
+                      value={editFlagLabel}
+                      autoFocus
+                      onChange={(e) => setEditFlagLabel(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Escape") cancelEditFlag(); }}
+                    />
+                    <IconPicker value={editFlagIcon} onChange={setEditFlagIcon} />
+                    <ColorPicker value={editFlagColor} onChange={setEditFlagColor} />
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button className="ert-btn ert-btn-brass" style={{ padding: "5px 10px" }} onClick={submitEditFlag}>
+                        <Check size={12} /> Save
+                      </button>
+                      <button className="ert-btn ert-btn-ghost" style={{ padding: "5px 10px" }} onClick={cancelEditFlag}>Cancel</button>
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <div key={f.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-raised)", padding: "7px 10px", borderRadius: 7 }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                    <Icon size={14} color={f.color} /> {f.label}
+                  </span>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <button className="ert-btn ert-btn-ghost" style={{ padding: "3px 7px" }} onClick={() => startEditFlag(f)}>
+                      <Edit2 size={11} />
+                    </button>
+                    <button className="ert-btn ert-btn-ghost" style={{ padding: "3px 7px" }} onClick={() => onRemoveFlag(f.id)}>
+                      <X size={11} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ background: "var(--surface-raised)", padding: 10, borderRadius: 7, display: "flex", flexDirection: "column", gap: 8 }}>
+            <input
+              className="ert-input"
+              placeholder="New flag name"
+              value={newFlagLabel}
+              onChange={(e) => setNewFlagLabel(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") submitAddFlag(); }}
+            />
+            <IconPicker value={newFlagIcon} onChange={setNewFlagIcon} />
+            <ColorPicker value={newFlagColor} onChange={setNewFlagColor} />
+            <button className="ert-btn ert-btn-brass" style={{ alignSelf: "flex-start" }} onClick={submitAddFlag}>
+              <Plus size={14} /> Add flag
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2021,7 +2230,7 @@ function AppSettingsModal({ categories, onClose, onAddCategory, onRemoveCategory
 /* ---------------------------------------------------------------
    ROOM DETAIL
 --------------------------------------------------------------- */
-function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, onUpdate, driveConnected, driveAvailable, onConnectDrive, getDriveAccessToken }) {
+function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, onUpdate, driveConnected, driveAvailable, onConnectDrive, getDriveAccessToken, flags }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [myRating, setMyRating] = useState(room.ratings[currentMember] || 0);
   const [myDifficulty, setMyDifficulty] = useState((room.difficultyRatings && room.difficultyRatings[currentMember]) || 0);
@@ -2174,11 +2383,12 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
           )}
           <span style={{ padding: "2px 8px", borderRadius: 10, background: "var(--surface-raised)" }}>{room.category}</span>
           {(room.flags || []).map((fid) => {
-            const flag = ROOM_FLAGS.find((f) => f.id === fid);
+            const flag = (flags || DEFAULT_FLAGS).find((f) => f.id === fid);
             if (!flag) return null;
+            const Icon = resolveFlagIcon(flag.icon);
             return (
               <span key={fid} style={{ display: "flex", alignItems: "center", gap: 4, color: flag.color }}>
-                <flag.icon size={13} /> {flag.label}
+                <Icon size={13} /> {flag.label}
               </span>
             );
           })}
@@ -2632,7 +2842,7 @@ function PhotoLightbox({ photos, index, onIndexChange, onClose, getDriveAccessTo
 /* ---------------------------------------------------------------
    ADD / EDIT ROOM FORM
 --------------------------------------------------------------- */
-function RoomForm({ room, existingRooms, categories, onCancel, onSave }) {
+function RoomForm({ room, existingRooms, categories, flags, onCancel, onSave }) {
   const [form, setForm] = useState(room);
   const set = (patch) => setForm({ ...form, ...patch });
   const toggleFlag = (id) => {
@@ -2705,12 +2915,15 @@ function RoomForm({ room, existingRooms, categories, onCancel, onSave }) {
       <div style={{ marginTop: 16 }}>
         <div style={{ fontSize: 11.5, color: "var(--text-dim)", marginBottom: 6 }}>Flags</div>
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-          {ROOM_FLAGS.map((f) => (
-            <label key={f.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
-              <input type="checkbox" checked={(form.flags || []).includes(f.id)} onChange={() => toggleFlag(f.id)} />
-              <f.icon size={14} color={f.color} /> {f.label}
-            </label>
-          ))}
+          {(flags && flags.length ? flags : DEFAULT_FLAGS).map((f) => {
+            const Icon = resolveFlagIcon(f.icon);
+            return (
+              <label key={f.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                <input type="checkbox" checked={(form.flags || []).includes(f.id)} onChange={() => toggleFlag(f.id)} />
+                <Icon size={14} color={f.color} /> {f.label}
+              </label>
+            );
+          })}
         </div>
       </div>
 
@@ -3087,7 +3300,7 @@ function TripForm({ trip, rooms, onCancel, onSave }) {
   );
 }
 
-function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUpdate, onOpenRoom }) {
+function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUpdate, onOpenRoom, flags }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [notes, setNotes] = useState(trip.notes || "");
   const [editingNotes, setEditingNotes] = useState(false);
@@ -3298,7 +3511,7 @@ function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUp
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
             {stats.rooms.map((r, i) => (
               <div key={r.id} style={{ position: "relative" }}>
-                <RoomCard room={r} index={i} onOpen={() => onOpenRoom(r.id)} />
+                <RoomCard room={r} index={i} onOpen={() => onOpenRoom(r.id)} flags={flags} />
                 <button
                   onClick={(e) => { e.stopPropagation(); removeRoom(r.id); }}
                   style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.5)", border: "none", borderRadius: 5, padding: 3, cursor: "pointer" }}
