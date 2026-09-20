@@ -1932,57 +1932,89 @@ function RoomCard({ room, index, onOpen, flags }) {
    RANKING
 --------------------------------------------------------------- */
 function RankingView({ rooms, members, currentMember, onOpen }) {
-  const ranked = useMemo(
-    () => [...rooms].map((r) => ({ ...r, _avg: avgRating(r) })).sort((a, b) => (b._avg ?? -1) - (a._avg ?? -1)),
-    [rooms]
-  );
+  const [mode, setMode] = useState("group"); // "group" | "personal"
+  const personal = mode === "personal" && currentMember;
+
+  const ranked = useMemo(() => {
+    const withValues = rooms.map((r) => ({
+      ...r,
+      _avg: avgRating(r),
+      _mine: personal ? (typeof r.ratings[currentMember] === "number" ? r.ratings[currentMember] : null) : null,
+    }));
+    if (personal) {
+      return withValues.sort((a, b) => (b._mine ?? -1) - (a._mine ?? -1));
+    }
+    return withValues.sort((a, b) => (b._avg ?? -1) - (a._avg ?? -1));
+  }, [rooms, mode, currentMember]);
+
   if (!ranked.length) return <EmptyNote text="No completed rooms yet. The ranking fills in once you log one." />;
- 
+
   return (
-    <div className="ert-card" style={{ overflow: "hidden", maxWidth: 600 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "42px 1.6fr 1fr", padding: "10px 16px", borderBottom: "1px solid var(--border-soft)" }}>
-        <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)" }}>#</span>
-        <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)" }}>ROOM</span>
-        <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)", textAlign: "right" }}>AVG</span>
-      </div>
-      {ranked.map((r, i) => (
-        <div
-          key={r.id}
-          onClick={() => onOpen(r.id)}
-          style={{
-            display: "grid", gridTemplateColumns: "42px 1.6fr 1fr", alignItems: "center", padding: "12px 16px",
-            borderBottom: i < ranked.length - 1 ? "1px solid var(--border-soft)" : "none", cursor: "pointer",
-          }}
-        >
-          <span className="ert-display" style={{ fontSize: 16, fontWeight: 700, color: i === 0 ? "var(--brass-bright)" : "var(--text-dim)" }}>{i + 1}</span>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>{r.name}</div>
-            <div style={{ fontSize: 11.5, color: "var(--text-dim)" }}>{r.venue}{r.city ? ` · ${r.city}` : ""}</div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
-            <div style={{ display: "flex", gap: 4 }}>
-              {members.map((m) =>
-                typeof r.ratings[m] === "number" ? (
-                  <span
-                    key={m}
-                    title={m}
-                    className="ert-mono"
-                    style={{
-                      fontSize: 10.5, padding: "2px 5px", borderRadius: 4,
-                      color: m === currentMember ? "#17140c" : "var(--text-dim)",
-                      background: m === currentMember ? "var(--brass)" : "var(--surface-raised)",
-                      fontWeight: m === currentMember ? 700 : 400,
-                    }}
-                  >
-                    {r.ratings[m]}
-                  </span>
-                ) : null
-              )}
-            </div>
-            <span className="ert-mono" style={{ fontSize: 15, fontWeight: 600, color: "var(--brass)", minWidth: 34, textAlign: "right" }}>{fmtRating(r._avg)}</span>
-          </div>
+    <div style={{ maxWidth: 600 }}>
+      {currentMember && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+          <button
+            className="ert-btn ert-btn-ghost"
+            onClick={() => setMode(personal ? "group" : "personal")}
+            style={{
+              borderColor: personal ? "var(--brass)" : "var(--border)",
+              color: personal ? "var(--brass-bright)" : "var(--text)",
+            }}
+          >
+            <Star size={14} /> {personal ? "Group ranking" : "My ranking"}
+          </button>
         </div>
-      ))}
+      )}
+
+      <div className="ert-card" style={{ overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "42px 1.6fr 1fr", padding: "10px 16px", borderBottom: "1px solid var(--border-soft)" }}>
+          <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)" }}>#</span>
+          <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)" }}>ROOM</span>
+          <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)", textAlign: "right" }}>{personal ? "MINE" : "AVG"}</span>
+        </div>
+        {ranked.map((r, i) => (
+          <div
+            key={r.id}
+            onClick={() => onOpen(r.id)}
+            style={{
+              display: "grid", gridTemplateColumns: "42px 1.6fr 1fr", alignItems: "center", padding: "12px 16px",
+              borderBottom: i < ranked.length - 1 ? "1px solid var(--border-soft)" : "none", cursor: "pointer",
+            }}
+          >
+            <span className="ert-display" style={{ fontSize: 16, fontWeight: 700, color: i === 0 ? "var(--brass-bright)" : "var(--text-dim)" }}>{i + 1}</span>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{r.name}</div>
+              <div style={{ fontSize: 11.5, color: "var(--text-dim)" }}>{r.venue}{r.city ? ` \u00b7 ${r.city}` : ""}</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
+              {!personal && (
+                <div style={{ display: "flex", gap: 4 }}>
+                  {members.map((m) =>
+                    typeof r.ratings[m] === "number" ? (
+                      <span
+                        key={m}
+                        title={m}
+                        className="ert-mono"
+                        style={{
+                          fontSize: 10.5, padding: "2px 5px", borderRadius: 4,
+                          color: m === currentMember ? "#17140c" : "var(--text-dim)",
+                          background: m === currentMember ? "var(--brass)" : "var(--surface-raised)",
+                          fontWeight: m === currentMember ? 700 : 400,
+                        }}
+                      >
+                        {r.ratings[m]}
+                      </span>
+                    ) : null
+                  )}
+                </div>
+              )}
+              <span className="ert-mono" style={{ fontSize: 15, fontWeight: 600, color: "var(--brass)", minWidth: 34, textAlign: "right" }}>
+                {personal ? fmtRating(r._mine) : fmtRating(r._avg)}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
