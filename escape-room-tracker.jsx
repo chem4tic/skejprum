@@ -980,6 +980,7 @@ export default function EscapeRoomTracker() {
             rooms={playedRooms}
             onOpen={(id) => { setSelectedRoomId(id); setReturnView("rooms"); setView("room-detail"); }}
             flags={currentFlags()}
+            currentMember={currentMember}
           />
         )}
 
@@ -1800,11 +1801,12 @@ function SortPopover({ options, sortBy, onChange }) {
   );
 }
 
-function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags }) {
+function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags, currentMember }) {
   const [search, setSearch] = useState("");
   const [selectedCities, setSelectedCities] = useState([]);
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [selectedCountries, setSelectedCountries] = useState([]);
+  const [onlyUnrated, setOnlyUnrated] = useState(false);
   const [sortBy, setSortBy] = useState(hideVisitedSort ? "date-desc" : "visited-desc");
   const sortOptions = hideVisitedSort ? SORT_OPTIONS.filter((o) => !o.id.startsWith("visited-")) : SORT_OPTIONS;
 
@@ -1822,6 +1824,7 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags }) {
     if (selectedCountries.length && !selectedCountries.includes(r.country)) return false;
     if (selectedCities.length && !selectedCities.includes(r.city)) return false;
     if (selectedGenres.length && !selectedGenres.includes(r.category)) return false;
+    if (onlyUnrated && currentMember && typeof r.ratings[currentMember] === "number") return false;
     return true;
   });
   const sorted = sortRooms(filtered, sortBy);
@@ -1847,6 +1850,19 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags }) {
           onToggleCountry={toggleCountry}
           onClear={clearFilters}
         />
+        {!hideVisitedSort && currentMember && (
+          <button
+            className="ert-btn ert-btn-ghost"
+            onClick={() => setOnlyUnrated((v) => !v)}
+            style={{
+              flexShrink: 0,
+              borderColor: onlyUnrated ? "var(--brass)" : "var(--border)",
+              color: onlyUnrated ? "var(--brass-bright)" : "var(--text)",
+            }}
+          >
+            <Star size={14} /> My unrated
+          </button>
+        )}
         <SortPopover options={sortOptions} sortBy={sortBy} onChange={setSortBy} />
         <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em", marginLeft: "auto", flexShrink: 0 }}>
           {sorted.length} room{sorted.length === 1 ? "" : "s"} total
