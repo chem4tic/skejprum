@@ -3681,6 +3681,7 @@ function TripDetail({ trip, rooms, currentMember, isGuest, onBack, onEdit, onDel
           <div style={{ display: "flex", gap: 8 }}>
             {!isGuest && (
               <>
+                <button className="ert-btn ert-btn-ghost" onClick={() => setAddingRooms(true)}><Plus size={13} /> Add rooms</button>
                 <button className="ert-btn ert-btn-ghost" onClick={onEdit}><Edit2 size={13} /> Edit</button>
                 {confirmDelete ? (
                   <button className="ert-btn ert-btn-danger" onClick={onDelete}>Confirm delete</button>
@@ -3730,6 +3731,31 @@ function TripDetail({ trip, rooms, currentMember, isGuest, onBack, onEdit, onDel
           </div>
         )}
       </div>
+
+      <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
+        <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Rooms on this trip</div>
+        {stats.rooms.length === 0 ? (
+          <EmptyNote text="No rooms on this trip yet." />
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
+            {stats.rooms.map((r, i) => (
+              <div key={r.id} style={{ position: "relative" }}>
+                <RoomCard room={r} index={i} onOpen={() => onOpenRoom(r.id)} flags={flags} />
+                {!isGuest && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); removeRoom(r.id); }}
+                    style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.5)", border: "none", borderRadius: 5, padding: 3, cursor: "pointer" }}
+                    title="Remove from trip"
+                  >
+                    <X size={12} color="#fff" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
 
       {!isGuest && (
       <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
@@ -3791,31 +3817,39 @@ function TripDetail({ trip, rooms, currentMember, isGuest, onBack, onEdit, onDel
         )}
       </div>
 
-      <div className="ert-card" style={{ padding: 22 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <div className="ert-display" style={{ fontSize: 15, fontWeight: 700 }}>Rooms on this trip</div>
-          {!isGuest && (
-            <button className="ert-btn ert-btn-ghost" onClick={() => setAddingRooms((v) => !v)}>
-              <Plus size={14} /> Add rooms
-            </button>
-          )}
-        </div>
-
-        {addingRooms && !isGuest && (
-          <div style={{ marginBottom: 14, background: "var(--surface-raised)", borderRadius: 8, padding: 12 }}>
+      {addingRooms && !isGuest && (
+        <div
+          onClick={() => setAddingRooms(false)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(10,11,15,0.75)", zIndex: 100,
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="ert-card-raised"
+            style={{ padding: 22, width: "100%", maxWidth: 420, maxHeight: "80vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.55)", display: "flex", flexDirection: "column" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div className="ert-display" style={{ fontSize: 15, fontWeight: 700 }}>Add rooms</div>
+              <button onClick={() => setAddingRooms(false)} className="ert-btn ert-btn-ghost" style={{ padding: "5px 8px" }}>
+                <X size={15} />
+              </button>
+            </div>
             <input
               className="ert-input"
               placeholder="Search completed rooms"
               value={addSearch}
+              autoFocus
               onChange={(e) => setAddSearch(e.target.value)}
-              style={{ marginBottom: 8 }}
+              style={{ marginBottom: 10 }}
             />
             {addableRooms.length === 0 ? (
               <EmptyNote text="No matching completed rooms to add." />
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 220, overflowY: "auto" }} className="ert-scrollbar">
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, overflowY: "auto" }} className="ert-scrollbar">
                 {addableRooms.map((r) => (
-                  <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", fontSize: 13 }}>
+                  <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", fontSize: 13, background: "var(--surface-raised)", borderRadius: 6 }}>
                     <span>{r.name}{r.city ? ` \u00b7 ${r.city}` : ""}</span>
                     <button className="ert-btn ert-btn-ghost" style={{ padding: "3px 9px", fontSize: 11.5 }} onClick={() => addRoom(r.id)}>Add</button>
                   </div>
@@ -3823,29 +3857,8 @@ function TripDetail({ trip, rooms, currentMember, isGuest, onBack, onEdit, onDel
               </div>
             )}
           </div>
-        )}
-
-        {stats.rooms.length === 0 ? (
-          <EmptyNote text="No rooms on this trip yet." />
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
-            {stats.rooms.map((r, i) => (
-              <div key={r.id} style={{ position: "relative" }}>
-                <RoomCard room={r} index={i} onOpen={() => onOpenRoom(r.id)} flags={flags} />
-                {!isGuest && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); removeRoom(r.id); }}
-                    style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.5)", border: "none", borderRadius: 5, padding: 3, cursor: "pointer" }}
-                    title="Remove from trip"
-                  >
-                    <X size={12} color="#fff" />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
