@@ -727,6 +727,8 @@ export default function EscapeRoomTracker() {
   const [wishlistFilters, setWishlistFilters] = useState(() => defaultRoomFilters(true));
   const [tripsFilters, setTripsFilters] = useState(() => defaultTripFilters());
   const [galleryFilters, setGalleryFilters] = useState(() => defaultGalleryFilters());
+  const [rankingMode, setRankingMode] = useState("group"); // "group" | "personal"
+  const [rankingFilters, setRankingFilters] = useState(() => defaultRankingFilters());
 
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [returnView, setReturnView] = useState("rooms");
@@ -1078,7 +1080,7 @@ export default function EscapeRoomTracker() {
           />
         )}
 
-        {view === "ranking" && <RankingView rooms={playedRooms} members={MEMBERS} currentMember={currentMember} onOpen={(id) => { setSelectedRoomId(id); setReturnView("ranking"); setView("room-detail"); }} />}
+        {view === "ranking" && <RankingView rooms={playedRooms} members={MEMBERS} currentMember={currentMember} onOpen={(id) => { setSelectedRoomId(id); setReturnView("ranking"); setView("room-detail"); }} mode={rankingMode} onModeChange={setRankingMode} filters={rankingFilters} onFiltersChange={setRankingFilters} />}
 
         {view === "settings" && (
           <SettingsView members={MEMBERS} currentMember={currentMember} onChangePassword={changePassword} rooms={data.rooms} />
@@ -2053,90 +2055,165 @@ function RoomCard({ room, index, onOpen, flags }) {
 /* ---------------------------------------------------------------
    RANKING
 --------------------------------------------------------------- */
-function RankingView({ rooms, members, currentMember, onOpen }) {
-  const [mode, setMode] = useState("group"); // "group" | "personal"
+function defaultRankingFilters() {
+  return { selectedCities: [], selectedGenres: [], selectedCountries: [], onlyUnrated: false, sortDir: "best" };
+}
+
+function RankingView({ rooms, members, currentMember, onOpen, mode, onModeChange, filters, onFiltersChange }) {
   const personal = mode === "personal" && currentMember;
+  const { selectedCities, selectedGenres, selectedCountries, onlyUnrated, sortDir } = filters;
+  const patch = (p) => onFiltersChange({ ...filters, ...p });
+
+  const cities = useMemo(() => Array.from(new Set(rooms.map((r) => r.city).filter(Boolean))).sort(), [rooms]);
+  const cats = useMemo(() => Array.from(new Set(rooms.map((r) => r.category).filter(Boolean))).sort(), [rooms]);
+  const countries = useMemo(() => Array.from(new Set(rooms.map((r) => r.country).filter(Boolean))).sort(), [rooms]);
+
+  const toggleCity = (c) => patch({ selectedCities: selectedCities.includes(c) ? selectedCities.filter((x) => x !== c) : [...selectedCities, c] });
+  const toggleGenre = (c) => patch({ selectedGenres: selectedGenres.includes(c) ? selectedGenres.filter((x) => x !== c) : [...selectedGenres, c] });
+  const toggleCountry = (c) => patch({ selectedCountries: selectedCountries.includes(c) ? selectedCountries.filter((x) => x !== c) : [...selectedCountries, c] });
+  const clearPopoverFilters = () => patch({ selectedCities: [], selectedGenres: [], selectedCountries: [] });
+  const hasActiveFilters = selectedCities.length > 0 || selectedGenres.length > 0 || selectedCountries.length > 0 || onlyUnrated;
+  const clearAll = () => patch({ selectedCities: [], selectedGenres: [], selectedCountries: [], onlyUnrated: false });
+
+  const filteredRooms = rooms.filter((r) => {
+    if (selectedCountries.length && !selectedCountries.includes(r.country)) return false;
+    if (selectedCities.length && !selectedCities.includes(r.city)) return false;
+    if (selectedGenres.length && !selectedGenres.includes(r.category)) return false;
+    if (onlyUnrated && currentMember && typeof r.ratings[currentMember] === "number") return false;
+    return true;
+  });
 
   const ranked = useMemo(() => {
-    const withValues = rooms.map((r) => ({
+    const withValues = filteredRooms.map((r) => ({
       ...r,
       _avg: avgRating(r),
       _mine: personal ? (typeof r.ratings[currentMember] === "number" ? r.ratings[currentMember] : null) : null,
     }));
     if (personal) {
-      return withValues.sort((a, b) => (b._mine ?? -1) - (a._mine ?? -1));
+      return withValues.sort((a, b) => {
+        const av = a._mine ?? -1;
+        const bv = b._mine ?? -1;
+        return sortDir === "worst" ? av - bv : bv - av;
+      });
     }
-    return withValues.sort((a, b) => (b._avg ?? -1) - (a._avg ?? -1));
-  }, [rooms, mode, currentMember]);
-
-  if (!ranked.length) return <EmptyNote text="No completed rooms yet. The ranking fills in once you log one." />;
+    return withValues.sort((a, b) => {
+      const av = a._avg ?? -1;
+      const bv = b._avg ?? -1;
+      return sortDir === "worst" ? av - bv : bv - av;
+    });
+  }, [filteredRooms, mode, currentMember, sortDir]);
 
   return (
-    <div style={{ maxWidth: 600 }}>
-      {currentMember && (
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+    <div style={{ maxWidth: 700 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+        {currentMember && (
           <button
             className="ert-btn ert-btn-ghost"
-            onClick={() => setMode(personal ? "group" : "personal")}
+            onClick={() => onModeChange(personal ? "group" : "personal")}
             style={{
+              flexShrink: 0,
               borderColor: personal ? "var(--brass)" : "var(--border)",
               color: personal ? "var(--brass-bright)" : "var(--text)",
             }}
           >
             <Star size={14} /> {personal ? "Group ranking" : "My ranking"}
           </button>
-        </div>
-      )}
-
-      <div className="ert-card" style={{ overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "42px 1.6fr 1fr", padding: "10px 16px", borderBottom: "1px solid var(--border-soft)" }}>
-          <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)" }}>#</span>
-          <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)" }}>ROOM</span>
-          <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)", textAlign: "right" }}>{personal ? "MINE" : "AVG"}</span>
-        </div>
-        {ranked.map((r, i) => (
-          <div
-            key={r.id}
-            onClick={() => onOpen(r.id)}
+        )}
+        <button
+          className="ert-btn ert-btn-ghost"
+          onClick={() => patch({ sortDir: sortDir === "worst" ? "best" : "worst" })}
+          style={{ flexShrink: 0 }}
+        >
+          <ArrowUpDown size={14} /> {sortDir === "worst" ? "Worst first" : "Best first"}
+        </button>
+        {currentMember && (
+          <button
+            className="ert-btn ert-btn-ghost"
+            onClick={() => patch({ onlyUnrated: !onlyUnrated })}
             style={{
-              display: "grid", gridTemplateColumns: "42px 1.6fr 1fr", alignItems: "center", padding: "12px 16px",
-              borderBottom: i < ranked.length - 1 ? "1px solid var(--border-soft)" : "none", cursor: "pointer",
+              flexShrink: 0,
+              borderColor: onlyUnrated ? "var(--brass)" : "var(--border)",
+              color: onlyUnrated ? "var(--brass-bright)" : "var(--text)",
             }}
           >
-            <span className="ert-display" style={{ fontSize: 16, fontWeight: 700, color: i === 0 ? "var(--brass-bright)" : "var(--text-dim)" }}>{i + 1}</span>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>{r.name}</div>
-              <div style={{ fontSize: 11.5, color: "var(--text-dim)" }}>{r.venue}{r.city ? ` \u00b7 ${r.city}` : ""}</div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
-              {!personal && (
-                <div style={{ display: "flex", gap: 4 }}>
-                  {members.map((m) =>
-                    typeof r.ratings[m] === "number" ? (
-                      <span
-                        key={m}
-                        title={m}
-                        className="ert-mono"
-                        style={{
-                          fontSize: 10.5, padding: "2px 5px", borderRadius: 4,
-                          color: m === currentMember ? "#17140c" : "var(--text-dim)",
-                          background: m === currentMember ? "var(--brass)" : "var(--surface-raised)",
-                          fontWeight: m === currentMember ? 700 : 400,
-                        }}
-                      >
-                        {r.ratings[m]}
-                      </span>
-                    ) : null
-                  )}
-                </div>
-              )}
-              <span className="ert-mono" style={{ fontSize: 15, fontWeight: 600, color: "var(--brass)", minWidth: 34, textAlign: "right" }}>
-                {personal ? fmtRating(r._mine) : fmtRating(r._avg)}
-              </span>
-            </div>
-          </div>
-        ))}
+            <Star size={14} /> My unrated
+          </button>
+        )}
+        <FilterPopover
+          cities={cities}
+          cats={cats}
+          countries={countries}
+          selectedCities={selectedCities}
+          selectedGenres={selectedGenres}
+          selectedCountries={selectedCountries}
+          onToggleCity={toggleCity}
+          onToggleGenre={toggleGenre}
+          onToggleCountry={toggleCountry}
+          onClear={clearPopoverFilters}
+        />
+        {hasActiveFilters && (
+          <button className="ert-btn ert-btn-ghost" onClick={clearAll} title="Clear filters" style={{ flexShrink: 0, padding: "8px 9px" }}>
+            <FilterX size={14} />
+          </button>
+        )}
+        <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em", marginLeft: "auto", flexShrink: 0 }}>
+          {ranked.length} room{ranked.length === 1 ? "" : "s"} total
+        </span>
       </div>
+
+      {ranked.length === 0 ? (
+        <EmptyNote text={rooms.length === 0 ? "No completed rooms yet. The ranking fills in once you log one." : "No rooms match those filters."} />
+      ) : (
+        <div className="ert-card" style={{ overflow: "hidden" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "42px 1.6fr 1fr", padding: "10px 16px", borderBottom: "1px solid var(--border-soft)" }}>
+            <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)" }}>#</span>
+            <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)" }}>ROOM</span>
+            <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)", textAlign: "right" }}>{personal ? "MINE" : "AVG"}</span>
+          </div>
+          {ranked.map((r, i) => (
+            <div
+              key={r.id}
+              onClick={() => onOpen(r.id)}
+              style={{
+                display: "grid", gridTemplateColumns: "42px 1.6fr 1fr", alignItems: "center", padding: "12px 16px",
+                borderBottom: i < ranked.length - 1 ? "1px solid var(--border-soft)" : "none", cursor: "pointer",
+              }}
+            >
+              <span className="ert-display" style={{ fontSize: 16, fontWeight: 700, color: i === 0 ? "var(--brass-bright)" : "var(--text-dim)" }}>{i + 1}</span>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{r.name}</div>
+                <div style={{ fontSize: 11.5, color: "var(--text-dim)" }}>{r.venue}{r.city ? ` \u00b7 ${r.city}` : ""}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
+                {!personal && (
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {members.map((m) =>
+                      typeof r.ratings[m] === "number" ? (
+                        <span
+                          key={m}
+                          title={m}
+                          className="ert-mono"
+                          style={{
+                            fontSize: 10.5, padding: "2px 5px", borderRadius: 4,
+                            color: m === currentMember ? "#17140c" : "var(--text-dim)",
+                            background: m === currentMember ? "var(--brass)" : "var(--surface-raised)",
+                            fontWeight: m === currentMember ? 700 : 400,
+                          }}
+                        >
+                          {r.ratings[m]}
+                        </span>
+                      ) : null
+                    )}
+                  </div>
+                )}
+                <span className="ert-mono" style={{ fontSize: 15, fontWeight: 600, color: "var(--brass)", minWidth: 34, textAlign: "right" }}>
+                  {personal ? fmtRating(r._mine) : fmtRating(r._avg)}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
