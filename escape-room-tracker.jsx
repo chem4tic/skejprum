@@ -1957,6 +1957,20 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags, currentM
           <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
           <input className="ert-input" style={{ paddingLeft: 30 }} placeholder="Search rooms or venues" value={search} onChange={(e) => patch({ search: e.target.value })} />
         </div>
+        <SortPopover options={sortOptions} sortBy={sortBy} onChange={(v) => patch({ sortBy: v })} />
+        {!hideVisitedSort && currentMember && (
+          <button
+            className="ert-btn ert-btn-ghost"
+            onClick={() => patch({ onlyUnrated: !onlyUnrated })}
+            style={{
+              flexShrink: 0,
+              borderColor: onlyUnrated ? "var(--brass)" : "var(--border)",
+              color: onlyUnrated ? "var(--brass-bright)" : "var(--text)",
+            }}
+          >
+            <Star size={14} /> My unrated
+          </button>
+        )}
         <FilterPopover
           cities={cities}
           cats={cats}
@@ -1974,20 +1988,6 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags, currentM
             <FilterX size={14} />
           </button>
         )}
-        {!hideVisitedSort && currentMember && (
-          <button
-            className="ert-btn ert-btn-ghost"
-            onClick={() => patch({ onlyUnrated: !onlyUnrated })}
-            style={{
-              flexShrink: 0,
-              borderColor: onlyUnrated ? "var(--brass)" : "var(--border)",
-              color: onlyUnrated ? "var(--brass-bright)" : "var(--text)",
-            }}
-          >
-            <Star size={14} /> My unrated
-          </button>
-        )}
-        <SortPopover options={sortOptions} sortBy={sortBy} onChange={(v) => patch({ sortBy: v })} />
         <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em", marginLeft: "auto", flexShrink: 0 }}>
           {sorted.length} room{sorted.length === 1 ? "" : "s"} total
         </span>
@@ -3471,13 +3471,13 @@ function TripsView({ trips, rooms, onOpen, onNew, isGuest, filters, onFiltersCha
           <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
           <input className="ert-input" style={{ paddingLeft: 30 }} placeholder="Search trips" value={search} onChange={(e) => patch({ search: e.target.value })} />
         </div>
+        <SortPopover options={TRIP_SORT_OPTIONS} sortBy={sortBy} onChange={(v) => patch({ sortBy: v })} />
         <TripFilterPopover cities={cities} selectedCities={selectedCities} onToggleCity={toggleCity} onClear={() => patch({ selectedCities: [] })} />
         {hasActiveFilters && (
           <button className="ert-btn ert-btn-ghost" onClick={clearAll} title="Clear filters" style={{ flexShrink: 0, padding: "8px 9px" }}>
             <FilterX size={14} />
           </button>
         )}
-        <SortPopover options={TRIP_SORT_OPTIONS} sortBy={sortBy} onChange={(v) => patch({ sortBy: v })} />
         {!isGuest && (
           <button className="ert-btn ert-btn-brass" onClick={onNew} style={{ flexShrink: 0 }}>
             <Plus size={15} /> New trip
@@ -3947,6 +3947,7 @@ function GalleryView({ rooms, driveConnected, driveAvailable, getDriveAccessToke
           <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
           <input className="ert-input" style={{ paddingLeft: 30 }} placeholder="Search by room name" value={search} onChange={(e) => patch({ search: e.target.value })} />
         </div>
+        <SortPopover options={GALLERY_SORT_OPTIONS} sortBy={sortBy} onChange={(v) => patch({ sortBy: v })} />
         <FilterPopover
           cities={cities}
           cats={cats}
@@ -3964,7 +3965,6 @@ function GalleryView({ rooms, driveConnected, driveAvailable, getDriveAccessToke
             <FilterX size={14} />
           </button>
         )}
-        <SortPopover options={GALLERY_SORT_OPTIONS} sortBy={sortBy} onChange={(v) => patch({ sortBy: v })} />
         <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em", marginLeft: "auto", flexShrink: 0 }}>
           {sorted.length} photo{sorted.length === 1 ? "" : "s"} total
         </span>
