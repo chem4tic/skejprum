@@ -392,6 +392,7 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 const STORAGE_KEY = "escape-room-club-data-v1";
 const MEMBER_KEY = "escape-room-club-current-member";
 const MEMBERS = ["Karol", "Asia", "Jano", "Jaćka"];
+const GUEST_NAME = "Guest"; // read-only visitor: no password, can browse/filter/search/sort but never writes data
  
 const DEFAULT_CATEGORIES = ["Horror", "Thriller", "Adventure", "Mystery/Detective", "Sci-Fi", "Historical", "Fantasy", "Comedy", "Other"];
 const DIFFICULTY_LEVELS = ["Beginner-friendly", "Easy", "Medium", "Hard", "Very hard", "Extreme"];
@@ -649,7 +650,17 @@ export default function EscapeRoomTracker() {
   const [importMessage, setImportMessage] = useState(null);
   const [data, setData] = useState({ rooms: [], auth: {}, driveAuth: null, trips: [], categories: DEFAULT_CATEGORIES, flags: DEFAULT_FLAGS });
   const [currentMember, setCurrentMember] = useState(null);
+  const isGuest = currentMember === GUEST_NAME;
   const [view, setView] = useState("dashboard");
+
+  // Guests can browse/filter everything but never reach a mutation-only
+  // view, even if some other path tried to send them there.
+  useEffect(() => {
+    if (isGuest && (view === "edit-room" || view === "edit-trip" || view === "app-settings")) {
+      setView("dashboard");
+    }
+  }, [isGuest, view]);
+
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [returnView, setReturnView] = useState("rooms");
   const [editingRoom, setEditingRoom] = useState(null); // room object being added/edited, or null
@@ -718,6 +729,7 @@ export default function EscapeRoomTracker() {
   }, []);
  
   const persist = useCallback(async (next) => {
+    if (currentMember === GUEST_NAME) return; // hard backstop: guests never write, no matter what called this
     setData(next);
     try {
       if (hasClaudeStorage) {
@@ -732,7 +744,7 @@ export default function EscapeRoomTracker() {
     } catch (e) {
       setSaveError("Save failed. Your last change may not be stored.");
     }
-  }, []);
+  }, [currentMember]);
  
   const chooseMember = async (name) => {
     setCurrentMember(name);
@@ -920,7 +932,7 @@ export default function EscapeRoomTracker() {
   }
  
   // ---- device hasn't picked "who am I" ----
-  if (!currentMember || !MEMBERS.includes(currentMember)) {
+  if (!currentMember || (!MEMBERS.includes(currentMember) && currentMember !== GUEST_NAME)) {
     return (
       <WhoAmI
         members={MEMBERS}
@@ -938,6 +950,7 @@ export default function EscapeRoomTracker() {
  
       <Header
         currentMember={currentMember}
+        isGuest={isGuest}
         onSwitchMember={() => chooseMember(null)}
         onAdd={() => { setEditingRoom(emptyRoom(currentMember)); setView("edit-room"); }}
         onImportFile={importRoomsFromFile}
@@ -1030,6 +1043,7 @@ export default function EscapeRoomTracker() {
             room={selectedRoom}
             members={MEMBERS}
             currentMember={currentMember}
+            isGuest={isGuest}
             onBack={() => { setView(returnView); setSelectedRoomId(null); }}
             onEdit={() => { setEditingRoom(selectedRoom); setView("edit-room"); }}
             onDelete={() => deleteRoom(selectedRoom.id)}
@@ -1048,6 +1062,7 @@ export default function EscapeRoomTracker() {
             rooms={data.rooms}
             onOpen={(id) => { setSelectedTripId(id); setView("trip-detail"); }}
             onNew={() => { setEditingTrip(emptyTrip(currentMember)); setView("edit-trip"); }}
+            isGuest={isGuest}
           />
         )}
 
@@ -1075,6 +1090,7 @@ export default function EscapeRoomTracker() {
             trip={selectedTrip}
             rooms={data.rooms}
             currentMember={currentMember}
+            isGuest={isGuest}
             onBack={() => { setView("trips"); setSelectedTripId(null); }}
             onEdit={() => { setEditingTrip(selectedTrip); setView("edit-trip"); }}
             onDelete={() => deleteTrip(selectedTrip.id)}
@@ -1220,6 +1236,16 @@ function WhoAmI({ members, authRecords, onChoose, onCreatePassword, onVerifyPass
             </button>
           ))}
         </div>
+
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border-soft)" }}>
+          <button
+            className="ert-btn ert-btn-ghost"
+            style={{ justifyContent: "flex-start", width: "100%", color: "var(--text-dim)" }}
+            onClick={() => onChoose(GUEST_NAME)}
+          >
+            <User size={14} /> Continue as guest (view only, no password)
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1228,7 +1254,7 @@ function WhoAmI({ members, authRecords, onChoose, onCreatePassword, onVerifyPass
 /* ---------------------------------------------------------------
    HEADER / NAV
 --------------------------------------------------------------- */
-function Header({ currentMember, onSwitchMember, onAdd, onImportFile, onOpenAppSettings }) {
+function Header({ currentMember, isGuest, onSwitchMember, onAdd, onImportFile, onOpenAppSettings }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = React.useRef(null);
   const fileInputRef = React.useRef(null);
@@ -1267,10 +1293,13 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile, onOpenAppS
         <button className="ert-btn ert-btn-ghost" onClick={onSwitchMember} style={{ padding: "8px 10px" }}>
           <User size={14} />
         </button>
-        <button className="ert-btn ert-btn-ghost" onClick={onOpenAppSettings} title="App settings" style={{ padding: "8px 10px" }}>
-          <SlidersHorizontal size={14} />
-        </button>
+        {!isGuest && (
+          <button className="ert-btn ert-btn-ghost" onClick={onOpenAppSettings} title="App settings" style={{ padding: "8px 10px" }}>
+            <SlidersHorizontal size={14} />
+          </button>
+        )}
 
+        {!isGuest && (
         <div style={{ display: "flex", position: "relative" }} ref={menuRef}>
           <button
             className="ert-btn ert-btn-brass"
@@ -1303,8 +1332,11 @@ function Header({ currentMember, onSwitchMember, onAdd, onImportFile, onOpenAppS
             </div>
           )}
         </div>
+        )}
 
-        <input ref={fileInputRef} type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={handleFileChange} />
+        {!isGuest && (
+          <input ref={fileInputRef} type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={handleFileChange} />
+        )}
       </div>
     </div>
   );
@@ -2278,7 +2310,7 @@ function AppSettingsView({ categories, onBack, onAddCategory, onRemoveCategory, 
 /* ---------------------------------------------------------------
    ROOM DETAIL
 --------------------------------------------------------------- */
-function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, onUpdate, driveConnected, driveAvailable, onConnectDrive, getDriveAccessToken, flags }) {
+function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onDelete, onUpdate, driveConnected, driveAvailable, onConnectDrive, getDriveAccessToken, flags }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [myRating, setMyRating] = useState(room.ratings[currentMember] || 0);
   const [myDifficulty, setMyDifficulty] = useState((room.difficultyRatings && room.difficultyRatings[currentMember]) || 0);
@@ -2404,11 +2436,15 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
             <div style={{ fontSize: 13.5, color: "var(--text-dim)", marginTop: 3 }}>{room.venue}</div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="ert-btn ert-btn-ghost" onClick={onEdit}><Edit2 size={13} /> Edit</button>
-            {confirmDelete ? (
-              <button className="ert-btn ert-btn-danger" onClick={onDelete}>Confirm delete</button>
-            ) : (
-              <button className="ert-btn ert-btn-danger" onClick={() => setConfirmDelete(true)}><Trash2 size={13} /></button>
+            {!isGuest && (
+              <>
+                <button className="ert-btn ert-btn-ghost" onClick={onEdit}><Edit2 size={13} /> Edit</button>
+                {confirmDelete ? (
+                  <button className="ert-btn ert-btn-danger" onClick={onDelete}>Confirm delete</button>
+                ) : (
+                  <button className="ert-btn ert-btn-danger" onClick={() => setConfirmDelete(true)}><Trash2 size={13} /></button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -2447,7 +2483,7 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
           )}
         </div>
  
-        {room.status === "wishlist" && (
+        {room.status === "wishlist" && !isGuest && (
           <button className="ert-btn ert-btn-brass" style={{ marginTop: 16 }} onClick={markPlayed}>
             <Unlock size={14} /> Mark as played
           </button>
@@ -2467,14 +2503,14 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
           <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
             <span style={{ fontSize: 12, color: "var(--text-dim)" }}>Your rating</span>
             <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-              <StarRow value={myRating} onChange={saveMyRating} size={15} />
+              <StarRow value={myRating} onChange={isGuest ? undefined : saveMyRating} size={15} />
               <span className="ert-mono" style={{ fontSize: 12.5, color: "var(--text-dim)" }}>{myRating || "-"}/10</span>
             </div>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
             <span style={{ fontSize: 12, color: "var(--text-dim)", width: 72 }}>Difficulty</span>
-            <StarRow value={myDifficulty} onChange={saveMyDifficulty} size={15} max={5} allowHalf={false} icon={Dumbbell} color="var(--danger)" />
+            <StarRow value={myDifficulty} onChange={isGuest ? undefined : saveMyDifficulty} size={15} max={5} allowHalf={false} icon={Dumbbell} color="var(--danger)" />
             {(() => {
               const avg = avgOfMap(room.difficultyRatings);
               return avg !== null ? <span className="ert-mono" style={{ fontSize: 11, color: "var(--text-dim)" }}>avg {avg.toFixed(1)}</span> : null;
@@ -2483,7 +2519,7 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
 
           <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
             <span style={{ fontSize: 12, color: "var(--text-dim)", width: 72 }}>Scariness</span>
-            <StarRow value={myScary} onChange={saveMyScary} size={15} max={5} allowHalf={false} icon={Ghost} color="var(--teal)" />
+            <StarRow value={myScary} onChange={isGuest ? undefined : saveMyScary} size={15} max={5} allowHalf={false} icon={Ghost} color="var(--teal)" />
             {(() => {
               const avg = avgOfMap(room.scaryRatings);
               return avg !== null ? <span className="ert-mono" style={{ fontSize: 11, color: "var(--text-dim)" }}>avg {avg.toFixed(1)}</span> : null;
@@ -2598,16 +2634,16 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
             </>
           ) : (
             <div
-              onClick={() => setEditingWalkthrough(true)}
-              title="Click to edit"
+              onClick={isGuest ? undefined : () => setEditingWalkthrough(true)}
+              title={isGuest ? undefined : "Click to edit"}
               style={{
-                fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", cursor: "pointer",
+                fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", cursor: isGuest ? "default" : "pointer",
                 background: "var(--surface-raised)", borderRadius: 8, padding: "12px 14px", minHeight: 60,
                 color: room.walkthrough ? "var(--text)" : "var(--text-dim)",
                 fontStyle: room.walkthrough ? "normal" : "italic",
               }}
             >
-              {room.walkthrough || "No walkthrough yet. Click here to add one."}
+              {room.walkthrough || (isGuest ? "No walkthrough yet." : "No walkthrough yet. Click here to add one.")}
             </div>
           )}
         </div>
@@ -2622,41 +2658,47 @@ function RoomDetail({ room, members, currentMember, onBack, onEdit, onDelete, on
         {!driveAvailable ? (
           <EmptyNote text="Photo upload uses Google Drive and only works on the hosted site, not in this preview." />
         ) : !driveConnected ? (
-          <div>
-            <p style={{ fontSize: 12.5, color: "var(--text-dim)", marginBottom: 10 }}>
-              Photos upload straight to a Google Drive folder, not a public link. One of you needs to connect it once, and after that everyone can upload and view from any device.
-            </p>
-            <button className="ert-btn ert-btn-brass" onClick={onConnectDrive}>
-              <Upload size={14} /> Connect Google Drive
-            </button>
-          </div>
+          isGuest ? (
+            <EmptyNote text="No photos yet." />
+          ) : (
+            <div>
+              <p style={{ fontSize: 12.5, color: "var(--text-dim)", marginBottom: 10 }}>
+                Photos upload straight to a Google Drive folder, not a public link. One of you needs to connect it once, and after that everyone can upload and view from any device.
+              </p>
+              <button className="ert-btn ert-btn-brass" onClick={onConnectDrive}>
+                <Upload size={14} /> Connect Google Drive
+              </button>
+            </div>
+          )
         ) : (
           <>
-            <div style={{ marginBottom: 12 }}>
-              <input
-                id={`photo-input-${room.id}`}
-                type="file"
-                accept="image/*"
-                multiple
-                style={{ display: "none" }}
-                onChange={(e) => { handlePhotosSelected(e.target.files); e.target.value = ""; }}
-              />
-              <label
-                htmlFor={`photo-input-${room.id}`}
-                className="ert-btn ert-btn-ghost"
-                style={{ cursor: "pointer", opacity: uploadingPhoto ? 0.6 : 1, pointerEvents: uploadingPhoto ? "none" : "auto" }}
-              >
-                <Upload size={14} /> {uploadingPhoto ? (uploadProgress ? `Uploading ${uploadProgress.done}/${uploadProgress.total}` : "Uploading") : "Upload photos"}
-              </label>
-              {photoError && <div style={{ color: "var(--danger)", fontSize: 12, marginTop: 6 }}>{photoError}</div>}
-            </div>
+            {!isGuest && (
+              <div style={{ marginBottom: 12 }}>
+                <input
+                  id={`photo-input-${room.id}`}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  style={{ display: "none" }}
+                  onChange={(e) => { handlePhotosSelected(e.target.files); e.target.value = ""; }}
+                />
+                <label
+                  htmlFor={`photo-input-${room.id}`}
+                  className="ert-btn ert-btn-ghost"
+                  style={{ cursor: "pointer", opacity: uploadingPhoto ? 0.6 : 1, pointerEvents: uploadingPhoto ? "none" : "auto" }}
+                >
+                  <Upload size={14} /> {uploadingPhoto ? (uploadProgress ? `Uploading ${uploadProgress.done}/${uploadProgress.total}` : "Uploading") : "Upload photos"}
+                </label>
+                {photoError && <div style={{ color: "var(--danger)", fontSize: 12, marginTop: 6 }}>{photoError}</div>}
+              </div>
+            )}
 
             {(!room.photos || room.photos.length === 0) ? (
-              <EmptyNote text="No photos yet. Upload one from the room." />
+              <EmptyNote text="No photos yet." />
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 8 }}>
                 {room.photos.map((p, i) => (
-                  <DrivePhoto key={p.id} photo={p} getDriveAccessToken={getDriveAccessToken} onRemove={() => removePhoto(p)} onPreview={() => setPreviewIndex(i)} />
+                  <DrivePhoto key={p.id} photo={p} getDriveAccessToken={getDriveAccessToken} onRemove={isGuest ? undefined : () => removePhoto(p)} onPreview={() => setPreviewIndex(i)} />
                 ))}
               </div>
             )}
@@ -3183,7 +3225,7 @@ function TripRow({ trip, rooms, onOpen }) {
   );
 }
 
-function TripsView({ trips, rooms, onOpen, onNew }) {
+function TripsView({ trips, rooms, onOpen, onNew, isGuest }) {
   const [search, setSearch] = useState("");
   const [selectedCities, setSelectedCities] = useState([]);
   const [sortBy, setSortBy] = useState("start-desc");
@@ -3216,9 +3258,11 @@ function TripsView({ trips, rooms, onOpen, onNew }) {
         </div>
         <TripFilterPopover cities={cities} selectedCities={selectedCities} onToggleCity={toggleCity} onClear={clearFilters} />
         <SortPopover options={TRIP_SORT_OPTIONS} sortBy={sortBy} onChange={setSortBy} />
-        <button className="ert-btn ert-btn-brass" onClick={onNew} style={{ flexShrink: 0 }}>
-          <Plus size={15} /> New trip
-        </button>
+        {!isGuest && (
+          <button className="ert-btn ert-btn-brass" onClick={onNew} style={{ flexShrink: 0 }}>
+            <Plus size={15} /> New trip
+          </button>
+        )}
         <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em", marginLeft: "auto", flexShrink: 0 }}>
           {sorted.length} trip{sorted.length === 1 ? "" : "s"} total
         </span>
@@ -3348,7 +3392,7 @@ function TripForm({ trip, rooms, onCancel, onSave }) {
   );
 }
 
-function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUpdate, onOpenRoom, flags }) {
+function TripDetail({ trip, rooms, currentMember, isGuest, onBack, onEdit, onDelete, onUpdate, onOpenRoom, flags }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [notes, setNotes] = useState(trip.notes || "");
   const [editingNotes, setEditingNotes] = useState(false);
@@ -3415,11 +3459,15 @@ function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUp
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="ert-btn ert-btn-ghost" onClick={onEdit}><Edit2 size={13} /> Edit</button>
-            {confirmDelete ? (
-              <button className="ert-btn ert-btn-danger" onClick={onDelete}>Confirm delete</button>
-            ) : (
-              <button className="ert-btn ert-btn-danger" onClick={() => setConfirmDelete(true)}><Trash2 size={13} /></button>
+            {!isGuest && (
+              <>
+                <button className="ert-btn ert-btn-ghost" onClick={onEdit}><Edit2 size={13} /> Edit</button>
+                {confirmDelete ? (
+                  <button className="ert-btn ert-btn-danger" onClick={onDelete}>Confirm delete</button>
+                ) : (
+                  <button className="ert-btn ert-btn-danger" onClick={() => setConfirmDelete(true)}><Trash2 size={13} /></button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -3450,19 +3498,20 @@ function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUp
           </>
         ) : (
           <div
-            onClick={() => setEditingNotes(true)}
-            title="Click to edit"
+            onClick={isGuest ? undefined : () => setEditingNotes(true)}
+            title={isGuest ? undefined : "Click to edit"}
             style={{
-              fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", cursor: "pointer",
+              fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", cursor: isGuest ? "default" : "pointer",
               background: "var(--surface-raised)", borderRadius: 8, padding: "12px 14px", minHeight: 50,
               color: trip.notes ? "var(--text)" : "var(--text-dim)", fontStyle: trip.notes ? "normal" : "italic",
             }}
           >
-            {trip.notes || "No summary yet. Click here to add one."}
+            {trip.notes || (isGuest ? "No summary yet." : "No summary yet. Click here to add one.")}
           </div>
         )}
       </div>
 
+      {!isGuest && (
       <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
         <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Rank your favorites</div>
         <p style={{ fontSize: 11.5, color: "var(--text-dim)", marginBottom: 10 }}>
@@ -3501,6 +3550,7 @@ function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUp
           </div>
         )}
       </div>
+      )}
 
       <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
         <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Group favorites</div>
@@ -3524,12 +3574,14 @@ function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUp
       <div className="ert-card" style={{ padding: 22 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <div className="ert-display" style={{ fontSize: 15, fontWeight: 700 }}>Rooms on this trip</div>
-          <button className="ert-btn ert-btn-ghost" onClick={() => setAddingRooms((v) => !v)}>
-            <Plus size={14} /> Add rooms
-          </button>
+          {!isGuest && (
+            <button className="ert-btn ert-btn-ghost" onClick={() => setAddingRooms((v) => !v)}>
+              <Plus size={14} /> Add rooms
+            </button>
+          )}
         </div>
 
-        {addingRooms && (
+        {addingRooms && !isGuest && (
           <div style={{ marginBottom: 14, background: "var(--surface-raised)", borderRadius: 8, padding: 12 }}>
             <input
               className="ert-input"
@@ -3560,13 +3612,15 @@ function TripDetail({ trip, rooms, currentMember, onBack, onEdit, onDelete, onUp
             {stats.rooms.map((r, i) => (
               <div key={r.id} style={{ position: "relative" }}>
                 <RoomCard room={r} index={i} onOpen={() => onOpenRoom(r.id)} flags={flags} />
-                <button
-                  onClick={(e) => { e.stopPropagation(); removeRoom(r.id); }}
-                  style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.5)", border: "none", borderRadius: 5, padding: 3, cursor: "pointer" }}
-                  title="Remove from trip"
-                >
-                  <X size={12} color="#fff" />
-                </button>
+                {!isGuest && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); removeRoom(r.id); }}
+                    style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.5)", border: "none", borderRadius: 5, padding: 3, cursor: "pointer" }}
+                    title="Remove from trip"
+                  >
+                    <X size={12} color="#fff" />
+                  </button>
+                )}
               </div>
             ))}
           </div>
