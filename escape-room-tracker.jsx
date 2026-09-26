@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Lock, Unlock, MapPin, Star, StarHalf, Plus, Search, X, Edit2, Trash2,
   ExternalLink, Users, User, Trophy, ListChecks, LayoutDashboard,
-  Camera, ChevronLeft, Settings, Check, Clock, Skull, Sparkles, Filter,
+  Camera, ChevronLeft, Settings, Check, Clock, Skull, Sparkles, Filter, FilterX,
   ChevronDown, ChevronUp, ChevronRight, Upload, ArrowUpDown, Plane, Calendar, Image as ImageIcon, Wallet, Ghost, Dumbbell, SlidersHorizontal, Ban, CornerUpRight,
 } from "lucide-react";
 import * as LucideIcons from "lucide-react";
@@ -661,6 +661,14 @@ export default function EscapeRoomTracker() {
     }
   }, [isGuest, view]);
 
+  // Filter/sort state per browsable tab, kept here (not inside the view
+  // components) so it survives navigating into a room/trip and back --
+  // those views unmount and remount, which would otherwise reset it.
+  const [roomsFilters, setRoomsFilters] = useState(() => defaultRoomFilters(false));
+  const [wishlistFilters, setWishlistFilters] = useState(() => defaultRoomFilters(true));
+  const [tripsFilters, setTripsFilters] = useState(() => defaultTripFilters());
+  const [galleryFilters, setGalleryFilters] = useState(() => defaultGalleryFilters());
+
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [returnView, setReturnView] = useState("rooms");
   const [editingRoom, setEditingRoom] = useState(null); // room object being added/edited, or null
@@ -994,6 +1002,8 @@ export default function EscapeRoomTracker() {
             onOpen={(id) => { setSelectedRoomId(id); setReturnView("rooms"); setView("room-detail"); }}
             flags={currentFlags()}
             currentMember={currentMember}
+            filters={roomsFilters}
+            onFiltersChange={setRoomsFilters}
           />
         )}
 
@@ -1004,6 +1014,8 @@ export default function EscapeRoomTracker() {
             onOpen={(id) => { setSelectedRoomId(id); setReturnView("wishlist"); setView("room-detail"); }}
             hideVisitedSort
             flags={currentFlags()}
+            filters={wishlistFilters}
+            onFiltersChange={setWishlistFilters}
           />
         )}
 
@@ -1065,6 +1077,8 @@ export default function EscapeRoomTracker() {
             onOpen={(id) => { setSelectedTripId(id); setView("trip-detail"); }}
             onNew={() => { setEditingTrip(emptyTrip(currentMember)); setView("edit-trip"); }}
             isGuest={isGuest}
+            filters={tripsFilters}
+            onFiltersChange={setTripsFilters}
           />
         )}
 
@@ -1074,6 +1088,8 @@ export default function EscapeRoomTracker() {
             driveConnected={!hasClaudeStorage && !!(data.driveAuth && data.driveAuth.refreshToken)}
             driveAvailable={!hasClaudeStorage && isDriveConfigured()}
             getDriveAccessToken={getRoomsAccessToken}
+            filters={galleryFilters}
+            onFiltersChange={setGalleryFilters}
           />
         )}
 
@@ -1834,23 +1850,32 @@ function SortPopover({ options, sortBy, onChange }) {
   );
 }
 
-function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags, currentMember }) {
-  const [search, setSearch] = useState("");
-  const [selectedCities, setSelectedCities] = useState([]);
-  const [selectedGenres, setSelectedGenres] = useState([]);
-  const [selectedCountries, setSelectedCountries] = useState([]);
-  const [onlyUnrated, setOnlyUnrated] = useState(false);
-  const [sortBy, setSortBy] = useState(hideVisitedSort ? "date-desc" : "visited-desc");
+function defaultRoomFilters(hideVisitedSort) {
+  return {
+    search: "",
+    selectedCities: [],
+    selectedGenres: [],
+    selectedCountries: [],
+    onlyUnrated: false,
+    sortBy: hideVisitedSort ? "date-desc" : "visited-desc",
+  };
+}
+
+function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags, currentMember, filters, onFiltersChange }) {
+  const { search, selectedCities, selectedGenres, selectedCountries, onlyUnrated, sortBy } = filters;
+  const patch = (p) => onFiltersChange({ ...filters, ...p });
   const sortOptions = hideVisitedSort ? SORT_OPTIONS.filter((o) => !o.id.startsWith("visited-")) : SORT_OPTIONS;
 
   const cities = useMemo(() => Array.from(new Set(rooms.map((r) => r.city).filter(Boolean))).sort(), [rooms]);
   const cats = useMemo(() => Array.from(new Set(rooms.map((r) => r.category).filter(Boolean))).sort(), [rooms]);
   const countries = useMemo(() => Array.from(new Set(rooms.map((r) => r.country).filter(Boolean))).sort(), [rooms]);
 
-  const toggleCity = (c) => setSelectedCities((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
-  const toggleGenre = (c) => setSelectedGenres((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
-  const toggleCountry = (c) => setSelectedCountries((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
-  const clearFilters = () => { setSelectedCities([]); setSelectedGenres([]); setSelectedCountries([]); };
+  const toggleCity = (c) => patch({ selectedCities: selectedCities.includes(c) ? selectedCities.filter((x) => x !== c) : [...selectedCities, c] });
+  const toggleGenre = (c) => patch({ selectedGenres: selectedGenres.includes(c) ? selectedGenres.filter((x) => x !== c) : [...selectedGenres, c] });
+  const toggleCountry = (c) => patch({ selectedCountries: selectedCountries.includes(c) ? selectedCountries.filter((x) => x !== c) : [...selectedCountries, c] });
+  const clearPopoverFilters = () => patch({ selectedCities: [], selectedGenres: [], selectedCountries: [] });
+  const hasActiveFilters = !!search || selectedCities.length > 0 || selectedGenres.length > 0 || selectedCountries.length > 0 || onlyUnrated;
+  const clearAll = () => patch({ search: "", selectedCities: [], selectedGenres: [], selectedCountries: [], onlyUnrated: false });
 
   const filtered = rooms.filter((r) => {
     if (search && !`${r.name} ${r.venue}`.toLowerCase().includes(search.toLowerCase())) return false;
@@ -1869,7 +1894,7 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags, currentM
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         <div style={{ position: "relative", flex: "1 1 220px", minWidth: 160, maxWidth: 600 }}>
           <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
-          <input className="ert-input" style={{ paddingLeft: 30 }} placeholder="Search rooms or venues" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input className="ert-input" style={{ paddingLeft: 30 }} placeholder="Search rooms or venues" value={search} onChange={(e) => patch({ search: e.target.value })} />
         </div>
         <FilterPopover
           cities={cities}
@@ -1881,12 +1906,17 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags, currentM
           onToggleCity={toggleCity}
           onToggleGenre={toggleGenre}
           onToggleCountry={toggleCountry}
-          onClear={clearFilters}
+          onClear={clearPopoverFilters}
         />
+        {hasActiveFilters && (
+          <button className="ert-btn ert-btn-ghost" onClick={clearAll} title="Clear filters" style={{ flexShrink: 0, padding: "8px 9px" }}>
+            <FilterX size={14} />
+          </button>
+        )}
         {!hideVisitedSort && currentMember && (
           <button
             className="ert-btn ert-btn-ghost"
-            onClick={() => setOnlyUnrated((v) => !v)}
+            onClick={() => patch({ onlyUnrated: !onlyUnrated })}
             style={{
               flexShrink: 0,
               borderColor: onlyUnrated ? "var(--brass)" : "var(--border)",
@@ -1896,7 +1926,7 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags, currentM
             <Star size={14} /> My unrated
           </button>
         )}
-        <SortPopover options={sortOptions} sortBy={sortBy} onChange={setSortBy} />
+        <SortPopover options={sortOptions} sortBy={sortBy} onChange={(v) => patch({ sortBy: v })} />
         <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em", marginLeft: "auto", flexShrink: 0 }}>
           {sorted.length} room{sorted.length === 1 ? "" : "s"} total
         </span>
@@ -3251,14 +3281,18 @@ function TripRow({ trip, rooms, onOpen }) {
   );
 }
 
-function TripsView({ trips, rooms, onOpen, onNew, isGuest }) {
-  const [search, setSearch] = useState("");
-  const [selectedCities, setSelectedCities] = useState([]);
-  const [sortBy, setSortBy] = useState("start-desc");
+function defaultTripFilters() {
+  return { search: "", selectedCities: [], sortBy: "start-desc" };
+}
+
+function TripsView({ trips, rooms, onOpen, onNew, isGuest, filters, onFiltersChange }) {
+  const { search, selectedCities, sortBy } = filters;
+  const patch = (p) => onFiltersChange({ ...filters, ...p });
 
   const cities = useMemo(() => Array.from(new Set(trips.map((t) => t.city).filter(Boolean))).sort(), [trips]);
-  const toggleCity = (c) => setSelectedCities((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
-  const clearFilters = () => setSelectedCities([]);
+  const toggleCity = (c) => patch({ selectedCities: selectedCities.includes(c) ? selectedCities.filter((x) => x !== c) : [...selectedCities, c] });
+  const hasActiveFilters = !!search || selectedCities.length > 0;
+  const clearAll = () => patch({ search: "", selectedCities: [] });
 
   const filtered = trips.filter((t) => {
     if (search && !t.name.toLowerCase().includes(search.toLowerCase())) return false;
@@ -3280,10 +3314,15 @@ function TripsView({ trips, rooms, onOpen, onNew, isGuest }) {
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         <div style={{ position: "relative", flex: "1 1 220px", minWidth: 160, maxWidth: 600 }}>
           <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
-          <input className="ert-input" style={{ paddingLeft: 30 }} placeholder="Search trips" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input className="ert-input" style={{ paddingLeft: 30 }} placeholder="Search trips" value={search} onChange={(e) => patch({ search: e.target.value })} />
         </div>
-        <TripFilterPopover cities={cities} selectedCities={selectedCities} onToggleCity={toggleCity} onClear={clearFilters} />
-        <SortPopover options={TRIP_SORT_OPTIONS} sortBy={sortBy} onChange={setSortBy} />
+        <TripFilterPopover cities={cities} selectedCities={selectedCities} onToggleCity={toggleCity} onClear={() => patch({ selectedCities: [] })} />
+        {hasActiveFilters && (
+          <button className="ert-btn ert-btn-ghost" onClick={clearAll} title="Clear filters" style={{ flexShrink: 0, padding: "8px 9px" }}>
+            <FilterX size={14} />
+          </button>
+        )}
+        <SortPopover options={TRIP_SORT_OPTIONS} sortBy={sortBy} onChange={(v) => patch({ sortBy: v })} />
         {!isGuest && (
           <button className="ert-btn ert-btn-brass" onClick={onNew} style={{ flexShrink: 0 }}>
             <Plus size={15} /> New trip
@@ -3683,12 +3722,13 @@ function sortGalleryPhotos(items, sortBy) {
   }
 }
 
-function GalleryView({ rooms, driveConnected, driveAvailable, getDriveAccessToken }) {
-  const [search, setSearch] = useState("");
-  const [selectedCities, setSelectedCities] = useState([]);
-  const [selectedGenres, setSelectedGenres] = useState([]);
-  const [selectedCountries, setSelectedCountries] = useState([]);
-  const [sortBy, setSortBy] = useState("visited-desc");
+function defaultGalleryFilters() {
+  return { search: "", selectedCities: [], selectedGenres: [], selectedCountries: [], sortBy: "visited-desc" };
+}
+
+function GalleryView({ rooms, driveConnected, driveAvailable, getDriveAccessToken, filters, onFiltersChange }) {
+  const { search, selectedCities, selectedGenres, selectedCountries, sortBy } = filters;
+  const patch = (p) => onFiltersChange({ ...filters, ...p });
   const [previewIndex, setPreviewIndex] = useState(null);
 
   const allPhotos = useMemo(() => {
@@ -3713,10 +3753,12 @@ function GalleryView({ rooms, driveConnected, driveAvailable, getDriveAccessToke
   const cats = useMemo(() => Array.from(new Set(allPhotos.map((p) => p.category).filter(Boolean))).sort(), [allPhotos]);
   const countries = useMemo(() => Array.from(new Set(allPhotos.map((p) => p.country).filter(Boolean))).sort(), [allPhotos]);
 
-  const toggleCity = (c) => setSelectedCities((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
-  const toggleGenre = (c) => setSelectedGenres((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
-  const toggleCountry = (c) => setSelectedCountries((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
-  const clearFilters = () => { setSelectedCities([]); setSelectedGenres([]); setSelectedCountries([]); };
+  const toggleCity = (c) => patch({ selectedCities: selectedCities.includes(c) ? selectedCities.filter((x) => x !== c) : [...selectedCities, c] });
+  const toggleGenre = (c) => patch({ selectedGenres: selectedGenres.includes(c) ? selectedGenres.filter((x) => x !== c) : [...selectedGenres, c] });
+  const toggleCountry = (c) => patch({ selectedCountries: selectedCountries.includes(c) ? selectedCountries.filter((x) => x !== c) : [...selectedCountries, c] });
+  const clearPopoverFilters = () => patch({ selectedCities: [], selectedGenres: [], selectedCountries: [] });
+  const hasActiveFilters = !!search || selectedCities.length > 0 || selectedGenres.length > 0 || selectedCountries.length > 0;
+  const clearAll = () => patch({ search: "", selectedCities: [], selectedGenres: [], selectedCountries: [] });
 
   const filtered = allPhotos.filter((p) => {
     if (search && !(p.roomName || "").toLowerCase().includes(search.toLowerCase())) return false;
@@ -3748,7 +3790,7 @@ function GalleryView({ rooms, driveConnected, driveAvailable, getDriveAccessToke
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         <div style={{ position: "relative", flex: "1 1 220px", minWidth: 160, maxWidth: 600 }}>
           <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
-          <input className="ert-input" style={{ paddingLeft: 30 }} placeholder="Search by room name" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input className="ert-input" style={{ paddingLeft: 30 }} placeholder="Search by room name" value={search} onChange={(e) => patch({ search: e.target.value })} />
         </div>
         <FilterPopover
           cities={cities}
@@ -3760,9 +3802,14 @@ function GalleryView({ rooms, driveConnected, driveAvailable, getDriveAccessToke
           onToggleCity={toggleCity}
           onToggleGenre={toggleGenre}
           onToggleCountry={toggleCountry}
-          onClear={clearFilters}
+          onClear={clearPopoverFilters}
         />
-        <SortPopover options={GALLERY_SORT_OPTIONS} sortBy={sortBy} onChange={setSortBy} />
+        {hasActiveFilters && (
+          <button className="ert-btn ert-btn-ghost" onClick={clearAll} title="Clear filters" style={{ flexShrink: 0, padding: "8px 9px" }}>
+            <FilterX size={14} />
+          </button>
+        )}
+        <SortPopover options={GALLERY_SORT_OPTIONS} sortBy={sortBy} onChange={(v) => patch({ sortBy: v })} />
         <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em", marginLeft: "auto", flexShrink: 0 }}>
           {sorted.length} photo{sorted.length === 1 ? "" : "s"} total
         </span>
