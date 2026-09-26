@@ -1024,6 +1024,9 @@ export default function EscapeRoomTracker() {
             onAddFlag={addFlag}
             onUpdateFlag={updateFlag}
             onRemoveFlag={removeFlag}
+            driveConnected={!hasClaudeStorage && !!(data.driveAuth && data.driveAuth.refreshToken)}
+            driveAvailable={!hasClaudeStorage && isDriveConfigured()}
+            onConnectDrive={connectGoogleDrive}
           />
         )}
 
@@ -1050,7 +1053,6 @@ export default function EscapeRoomTracker() {
             onUpdate={(patch) => updateRoomField(selectedRoom.id, patch)}
             driveConnected={!hasClaudeStorage && !!(data.driveAuth && data.driveAuth.refreshToken)}
             driveAvailable={!hasClaudeStorage && isDriveConfigured()}
-            onConnectDrive={connectGoogleDrive}
             getDriveAccessToken={getRoomsAccessToken}
             flags={currentFlags()}
           />
@@ -1071,7 +1073,6 @@ export default function EscapeRoomTracker() {
             rooms={data.rooms}
             driveConnected={!hasClaudeStorage && !!(data.driveAuth && data.driveAuth.refreshToken)}
             driveAvailable={!hasClaudeStorage && isDriveConfigured()}
-            onConnectDrive={connectGoogleDrive}
             getDriveAccessToken={getRoomsAccessToken}
           />
         )}
@@ -2058,7 +2059,7 @@ function RankingView({ rooms, members, currentMember, onOpen }) {
    categories offered when adding a room. More settings can live
    here later without cluttering the main nav.
 --------------------------------------------------------------- */
-function AppSettingsView({ categories, onBack, onAddCategory, onRemoveCategory, onRenameCategory, flags, onAddFlag, onUpdateFlag, onRemoveFlag }) {
+function AppSettingsView({ categories, onBack, onAddCategory, onRemoveCategory, onRenameCategory, flags, onAddFlag, onUpdateFlag, onRemoveFlag, driveAvailable, driveConnected, onConnectDrive }) {
   const [tab, setTab] = useState("categories");
 
   const [newCategory, setNewCategory] = useState("");
@@ -2157,6 +2158,7 @@ function AppSettingsView({ categories, onBack, onAddCategory, onRemoveCategory, 
   const settingsTabs = [
     { id: "categories", label: "Categories" },
     { id: "flags", label: "Flags" },
+    { id: "drive", label: "Google Drive" },
   ];
 
   return (
@@ -2303,6 +2305,37 @@ function AppSettingsView({ categories, onBack, onAddCategory, onRemoveCategory, 
           </div>
         </div>
       )}
+
+      {tab === "drive" && (
+        <div className="ert-card" style={{ padding: 20 }}>
+          <div className="ert-display" style={{ fontSize: 14.5, fontWeight: 700, marginBottom: 4 }}>Google Drive</div>
+          {!driveAvailable ? (
+            <p style={{ fontSize: 12, color: "var(--text-dim)" }}>
+              Photo storage uses Google Drive and only works on the hosted site, not in this preview.
+            </p>
+          ) : (
+            <>
+              <p style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 4 }}>
+                Photos upload straight to a Google Drive folder, not a public link. This is what any of you use to connect it, or to reconnect if uploads or photos ever start failing (Google's access tokens can expire after a while, and there's no way to tell from here whether the current one has, other than trying it). Reconnecting is always safe and just replaces the old connection.
+              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "12px 0" }}>
+                <span
+                  style={{
+                    width: 8, height: 8, borderRadius: "50%",
+                    background: driveConnected ? "var(--success)" : "var(--text-dim)",
+                  }}
+                />
+                <span style={{ fontSize: 12.5, color: "var(--text-dim)" }}>
+                  {driveConnected ? "A connection is on file" : "Not connected yet"}
+                </span>
+              </div>
+              <button className="ert-btn ert-btn-brass" onClick={onConnectDrive}>
+                <Upload size={14} /> {driveConnected ? "Reconnect Google Drive" : "Connect Google Drive"}
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -2310,7 +2343,7 @@ function AppSettingsView({ categories, onBack, onAddCategory, onRemoveCategory, 
 /* ---------------------------------------------------------------
    ROOM DETAIL
 --------------------------------------------------------------- */
-function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onDelete, onUpdate, driveConnected, driveAvailable, onConnectDrive, getDriveAccessToken, flags }) {
+function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onDelete, onUpdate, driveConnected, driveAvailable, getDriveAccessToken, flags }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [myRating, setMyRating] = useState(room.ratings[currentMember] || 0);
   const [myDifficulty, setMyDifficulty] = useState((room.difficultyRatings && room.difficultyRatings[currentMember]) || 0);
@@ -2661,14 +2694,7 @@ function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onD
           isGuest ? (
             <EmptyNote text="No photos yet." />
           ) : (
-            <div>
-              <p style={{ fontSize: 12.5, color: "var(--text-dim)", marginBottom: 10 }}>
-                Photos upload straight to a Google Drive folder, not a public link. One of you needs to connect it once, and after that everyone can upload and view from any device.
-              </p>
-              <button className="ert-btn ert-btn-brass" onClick={onConnectDrive}>
-                <Upload size={14} /> Connect Google Drive
-              </button>
-            </div>
+            <EmptyNote text="Google Drive isn't connected yet. Connect it from App settings (Google Drive tab) to enable photo uploads." />
           )
         ) : (
           <>
@@ -3657,7 +3683,7 @@ function sortGalleryPhotos(items, sortBy) {
   }
 }
 
-function GalleryView({ rooms, driveConnected, driveAvailable, onConnectDrive, getDriveAccessToken }) {
+function GalleryView({ rooms, driveConnected, driveAvailable, getDriveAccessToken }) {
   const [search, setSearch] = useState("");
   const [selectedCities, setSelectedCities] = useState([]);
   const [selectedGenres, setSelectedGenres] = useState([]);
@@ -3710,12 +3736,9 @@ function GalleryView({ rooms, driveConnected, driveAvailable, onConnectDrive, ge
     return (
       <div className="ert-card" style={{ padding: 22, maxWidth: 480 }}>
         <div className="ert-display" style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>Gallery</div>
-        <p style={{ fontSize: 12.5, color: "var(--text-dim)", marginBottom: 12 }}>
-          Connect Google Drive from any room's Photos section to start building a shared gallery.
+        <p style={{ fontSize: 12.5, color: "var(--text-dim)" }}>
+          Google Drive isn't connected yet. Connect it from App settings (Google Drive tab) to start building a shared gallery.
         </p>
-        <button className="ert-btn ert-btn-brass" onClick={onConnectDrive}>
-          <Upload size={14} /> Connect Google Drive
-        </button>
       </div>
     );
   }
