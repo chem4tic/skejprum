@@ -234,17 +234,76 @@ async function deletePhotoFromDrive(fileId, accessToken) {
   }).catch(() => {}); // best-effort: a failed remote delete shouldn't block removing it from the room
 }
 
-const driveBlobCache = new Map(); // fileId -> object URL, so re-opening a room doesn't re-fetch
+// Two caches, both bounded with LRU eviction so a growing gallery can't
+// grow memory use without limit:
+//  - driveThumbCache: small, canvas-compressed previews, used for every
+//    grid thumbnail. Cheap enough to keep a lot of.
+//  - driveBlobCache: full-resolution originals, used only by the lightbox
+//    when a photo is actually opened full-size. Kept smaller since each
+//    one is much heavier.
+const THUMB_CACHE_LIMIT = 300;
+const FULL_CACHE_LIMIT = 20;
+const driveThumbCache = new Map(); // fileId -> object URL (compressed)
+const driveBlobCache = new Map(); // fileId -> object URL (original), so re-opening a room doesn't re-fetch
 
-async function fetchDrivePhotoUrl(fileId, accessToken) {
-  if (driveBlobCache.has(fileId)) return driveBlobCache.get(fileId);
+function touchCache(cache, key) {
+  // Re-inserting moves the key to the end, which is what makes "delete the
+  // first entries" below equivalent to "evict the least recently used".
+  const value = cache.get(key);
+  cache.delete(key);
+  cache.set(key, value);
+}
+function evictIfNeeded(cache, limit) {
+  while (cache.size > limit) {
+    const oldestKey = cache.keys().next().value;
+    const oldestUrl = cache.get(oldestKey);
+    URL.revokeObjectURL(oldestUrl);
+    cache.delete(oldestKey);
+  }
+}
+
+async function fetchDriveBytes(fileId, accessToken) {
   const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!res.ok) throw new Error("Couldn't load that photo from Google Drive.");
-  const blob = await res.blob();
+  return res.blob();
+}
+
+async function fetchDrivePhotoUrl(fileId, accessToken) {
+  if (driveBlobCache.has(fileId)) {
+    touchCache(driveBlobCache, fileId);
+    return driveBlobCache.get(fileId);
+  }
+  const blob = await fetchDriveBytes(fileId, accessToken);
   const url = URL.createObjectURL(blob);
   driveBlobCache.set(fileId, url);
+  evictIfNeeded(driveBlobCache, FULL_CACHE_LIMIT);
+  return url;
+}
+
+// A small, compressed preview for grid thumbnails -- downloads the same
+// original (there's no separate small file on Drive's side to ask for) but
+// only keeps a shrunk, recompressed copy in memory afterward.
+async function fetchDriveThumbnailUrl(fileId, accessToken, maxDim = 240) {
+  if (driveThumbCache.has(fileId)) {
+    touchCache(driveThumbCache, fileId);
+    return driveThumbCache.get(fileId);
+  }
+  const blob = await fetchDriveBytes(fileId, accessToken);
+  const bitmap = await createImageBitmap(blob);
+  const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+  const w = Math.max(1, Math.round(bitmap.width * scale));
+  const h = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  canvas.getContext("2d").drawImage(bitmap, 0, 0, w, h);
+  bitmap.close();
+  const thumbBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.72));
+  const url = URL.createObjectURL(thumbBlob || blob);
+  driveThumbCache.set(fileId, url);
+  evictIfNeeded(driveThumbCache, THUMB_CACHE_LIMIT);
   return url;
 }
 
@@ -2778,29 +2837,48 @@ function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onD
 function DrivePhoto({ photo, getDriveAccessToken, onRemove, onPreview }) {
   const [src, setSrc] = useState(null);
   const [failed, setFailed] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = React.useRef(null);
+
+  // Only start fetching once this thumbnail actually scrolls near the
+  // viewport, rather than every photo in the grid firing a request at once.
+  useEffect(() => {
+    if (isVisible) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) setIsVisible(true);
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isVisible]);
 
   useEffect(() => {
+    if (!isVisible) return;
     let cancelled = false;
     setSrc(null);
     setFailed(false);
     (async () => {
       try {
         const token = await getDriveAccessToken();
-        const url = await fetchDrivePhotoUrl(photo.driveFileId, token);
+        const url = await fetchDriveThumbnailUrl(photo.driveFileId, token);
         if (!cancelled) setSrc(url);
       } catch (e) {
         if (!cancelled) setFailed(true);
       }
     })();
     return () => { cancelled = true; };
-  }, [photo.driveFileId]);
+  }, [photo.driveFileId, isVisible]);
 
   return (
-    <div style={{ position: "relative", borderRadius: 8, overflow: "hidden", aspectRatio: "1", background: "var(--surface-raised)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div ref={containerRef} style={{ position: "relative", borderRadius: 8, overflow: "hidden", aspectRatio: "1", background: "var(--surface-raised)", display: "flex", alignItems: "center", justifyContent: "center" }}>
       {failed ? (
         <span style={{ fontSize: 11, color: "var(--text-dim)", padding: 8, textAlign: "center" }}>Couldn't load</span>
       ) : !src ? (
-        <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)" }}>loading…</span>
+        <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)" }}>{isVisible ? "loading…" : ""}</span>
       ) : (
         <img
           src={src}
