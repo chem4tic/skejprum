@@ -502,6 +502,7 @@ function emptyRoom(addedBy) {
     lockmeUrl: "",
     status: "wishlist", // 'wishlist' | 'played'
     flags: [], // e.g. "closed", "moved" -- see DEFAULT_FLAGS
+    participants: [...MEMBERS], // who actually played this room -- defaults to everyone
     datePlayed: "",
     result: "escaped", // 'escaped' | 'not-escaped'
     timeNote: "",
@@ -694,6 +695,12 @@ function avgOfMap(map) {
   const vals = Object.values(map || {}).filter((v) => typeof v === "number");
   if (!vals.length) return null;
   return vals.reduce((a, b) => a + b, 0) / vals.length;
+}
+
+// Rooms saved before "who played" existed have no participants field --
+// treat those as "everyone played" rather than "no one played".
+function roomParticipants(room) {
+  return room.participants && room.participants.length ? room.participants : MEMBERS;
 }
  
 function fmtRating(n) {
@@ -2132,6 +2139,7 @@ function RankingView({ rooms, members, currentMember, onOpen, mode, onModeChange
     if (selectedGenres.length && !selectedGenres.includes(r.category)) return false;
     if (selectedFlags.length && !(r.flags || []).some((f) => selectedFlags.includes(f))) return false;
     if (onlyUnrated && currentMember && typeof r.ratings[currentMember] === "number") return false;
+    if (personal && currentMember && !roomParticipants(r).includes(currentMember)) return false;
     return true;
   });
 
@@ -3244,6 +3252,10 @@ function RoomForm({ room, existingRooms, categories, flags, onCancel, onSave }) 
     const current = form.flags || [];
     set({ flags: current.includes(id) ? current.filter((f) => f !== id) : [...current, id] });
   };
+  const participants = form.participants && form.participants.length ? form.participants : MEMBERS;
+  const toggleParticipant = (name) => {
+    set({ participants: participants.includes(name) ? participants.filter((p) => p !== name) : [...participants, name] });
+  };
 
   const cityOptions = useMemo(
     () => Array.from(new Set((existingRooms || []).map((r) => r.city).filter(Boolean))).sort(),
@@ -3303,6 +3315,34 @@ function RoomForm({ room, existingRooms, categories, flags, onCancel, onSave }) 
             <Field label="Currency">
               <input className="ert-input" value={form.currency || "PLN"} onChange={(e) => set({ currency: e.target.value })} />
             </Field>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <div style={{ fontSize: 11.5, color: "var(--text-dim)", marginBottom: 6 }}>Who played</div>
+              <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                {MEMBERS.map((m) => {
+                  const checked = participants.includes(m);
+                  return (
+                    <div
+                      key={m}
+                      onClick={() => toggleParticipant(m)}
+                      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, cursor: "pointer", width: 58 }}
+                    >
+                      <div
+                        style={{
+                          width: 36, height: 36, borderRadius: "50%",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          background: checked ? "var(--brass)" : "var(--surface-raised)",
+                          border: `1px solid ${checked ? "var(--brass)" : "var(--border)"}`,
+                          transition: "background 0.15s, border-color 0.15s",
+                        }}
+                      >
+                        <User size={17} color={checked ? "#17140c" : "var(--text-dim)"} />
+                      </div>
+                      <span style={{ fontSize: 11, color: checked ? "var(--text)" : "var(--text-dim)", textAlign: "center" }}>{m}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </>
         )}
       </div>
@@ -3312,11 +3352,26 @@ function RoomForm({ room, existingRooms, categories, flags, onCancel, onSave }) 
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
           {(flags && flags.length ? flags : DEFAULT_FLAGS).map((f) => {
             const Icon = resolveFlagIcon(f.icon);
+            const checked = (form.flags || []).includes(f.id);
             return (
-              <label key={f.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
-                <input type="checkbox" checked={(form.flags || []).includes(f.id)} onChange={() => toggleFlag(f.id)} />
-                <Icon size={14} color={f.color} /> {f.label}
-              </label>
+              <div
+                key={f.id}
+                onClick={() => toggleFlag(f.id)}
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, cursor: "pointer", width: 68 }}
+              >
+                <div
+                  style={{
+                    width: 36, height: 36, borderRadius: "50%",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    background: checked ? f.color : "var(--surface-raised)",
+                    border: `1px solid ${checked ? f.color : "var(--border)"}`,
+                    transition: "background 0.15s, border-color 0.15s",
+                  }}
+                >
+                  <Icon size={17} color={checked ? "#17140c" : "var(--text-dim)"} />
+                </div>
+                <span style={{ fontSize: 11, color: checked ? "var(--text)" : "var(--text-dim)", textAlign: "center" }}>{f.label}</span>
+              </div>
             );
           })}
         </div>
