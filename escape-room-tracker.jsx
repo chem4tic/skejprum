@@ -2081,11 +2081,9 @@ function RoomCard({ room, index, onOpen, flags }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <span className="ert-plaque-num">No. {String(index + 1).padStart(3, "0")}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          {(room.flags || []).map((fid) => {
-            const flag = (flags || DEFAULT_FLAGS).find((f) => f.id === fid);
-            if (!flag) return null;
+          {(flags || DEFAULT_FLAGS).filter((f) => (room.flags || []).includes(f.id)).map((flag) => {
             const Icon = resolveFlagIcon(flag.icon);
-            return <Icon key={fid} size={13} color={flag.color} />;
+            return <Icon key={flag.id} size={13} color={flag.color} />;
           })}
           {room.photos && room.photos.length > 0 && <Camera size={13} color="var(--text-dim)" />}
           {room.status === "played" ? <Unlock size={15} color="var(--success)" /> : <Lock size={15} color="var(--text-dim)" />}
@@ -2728,12 +2726,10 @@ function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onD
             </span>
           )}
           <span style={{ padding: "2px 8px", borderRadius: 10, background: "var(--surface-raised)" }}>{room.category}</span>
-          {(room.flags || []).map((fid) => {
-            const flag = (flags || DEFAULT_FLAGS).find((f) => f.id === fid);
-            if (!flag) return null;
+          {(flags || DEFAULT_FLAGS).filter((f) => (room.flags || []).includes(f.id)).map((flag) => {
             const Icon = resolveFlagIcon(flag.icon);
             return (
-              <span key={fid} style={{ display: "flex", alignItems: "center", gap: 4, color: flag.color }}>
+              <span key={flag.id} style={{ display: "flex", alignItems: "center", gap: 4, color: flag.color }}>
                 <Icon size={13} /> {flag.label}
               </span>
             );
@@ -2752,9 +2748,31 @@ function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onD
         )}
  
         {room.status === "played" && (
-          <div style={{ marginTop: 16, display: "flex", alignItems: "baseline", gap: 8 }}>
-            <span className="ert-mono" style={{ fontSize: 26, fontWeight: 600, color: "var(--brass)" }}>{fmtRating(avg)}</span>
-            <span style={{ fontSize: 12, color: "var(--text-dim)" }}>group average out of 10</span>
+          <div style={{ marginTop: 16 }}>
+            <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+              {MEMBERS.map((m) => {
+                const played = roomParticipants(room).includes(m);
+                return (
+                  <div key={m} title={m} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, width: 48 }}>
+                    <div
+                      style={{
+                        width: 28, height: 28, borderRadius: "50%",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        background: played ? "var(--brass)" : "var(--surface-raised)",
+                        border: `1px solid ${played ? "var(--brass)" : "var(--border)"}`,
+                      }}
+                    >
+                      <User size={13} color={played ? "#17140c" : "var(--text-dim)"} />
+                    </div>
+                    <span style={{ fontSize: 9.5, color: played ? "var(--text-dim)" : "var(--border)", textAlign: "center" }}>{m}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <span className="ert-mono" style={{ fontSize: 26, fontWeight: 600, color: "var(--brass)" }}>{fmtRating(avg)}</span>
+              <span style={{ fontSize: 12, color: "var(--text-dim)" }}>group average out of 10</span>
+            </div>
           </div>
         )}
       </div>
