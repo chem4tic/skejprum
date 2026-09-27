@@ -880,8 +880,15 @@ export default function EscapeRoomTracker() {
   const getRoomsAccessToken = () => getDriveAccessToken(data.driveAuth && data.driveAuth.refreshToken);
  
   const saveRoom = (room) => {
-    const exists = data.rooms.some((r) => r.id === room.id);
-    const rooms = exists ? data.rooms.map((r) => (r.id === room.id ? room : r)) : [room, ...data.rooms];
+    const existing = data.rooms.find((r) => r.id === room.id);
+    const exists = !!existing;
+    // Moving a room back to the wishlist clears the played-specific data
+    // that no longer applies once it's not "done" anymore.
+    const movedToWishlist = existing && existing.status === "played" && room.status === "wishlist";
+    const roomToSave = movedToWishlist
+      ? { ...room, datePlayed: "", result: "escaped", timeNote: "", price: "", currency: "PLN", ratings: {}, flags: [] }
+      : room;
+    const rooms = exists ? data.rooms.map((r) => (r.id === room.id ? roomToSave : r)) : [roomToSave, ...data.rooms];
     persist({ ...data, rooms });
     setEditingRoom(null);
     setView("room-detail");
@@ -2965,6 +2972,23 @@ function DrivePhoto({ photo, getDriveAccessToken, onRemove, onPreview }) {
   const [isVisible, setIsVisible] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const containerRef = React.useRef(null);
+
+  // Un-arm the delete confirmation automatically: after a few seconds of no
+  // second click, or as soon as the user clicks anywhere outside this photo.
+  useEffect(() => {
+    if (!confirmDelete) return;
+    const timer = setTimeout(() => setConfirmDelete(false), 3000);
+    const handleClickAway = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setConfirmDelete(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickAway);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("mousedown", handleClickAway);
+    };
+  }, [confirmDelete]);
 
   // Only start fetching once this thumbnail actually scrolls near the
   // viewport, rather than every photo in the grid firing a request at once.
