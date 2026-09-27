@@ -4208,10 +4208,12 @@ function SettingsView({ members, currentMember, onChangePassword, rooms }) {
  
   const stats = useMemo(() => {
     const byMember = {};
-    members.forEach((m) => { byMember[m] = { added: 0, rated: 0, noted: 0 }; });
+    members.forEach((m) => { byMember[m] = { added: 0, played: 0, rated: 0, noted: 0 }; });
     (rooms || []).forEach((r) => {
       if (r.addedBy && byMember[r.addedBy]) byMember[r.addedBy].added += 1;
+      const playedThis = r.status === "played" ? roomParticipants(r) : [];
       members.forEach((m) => {
+        if (playedThis.includes(m)) byMember[m].played += 1;
         if (typeof r.ratings?.[m] === "number") byMember[m].rated += 1;
         if (r.notes?.[m] && r.notes[m].trim().length > 0) byMember[m].noted += 1;
       });
@@ -4259,15 +4261,17 @@ function SettingsView({ members, currentMember, onChangePassword, rooms }) {
  
       <div style={{ marginTop: 18 }}>
         <div className="ert-display" style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 10 }}>Crew stats</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr repeat(3, 56px)", gap: "6px 4px", alignItems: "center" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr repeat(4, 56px)", gap: "6px 4px", alignItems: "center" }}>
           <span></span>
           <span className="ert-mono" style={{ fontSize: 10, color: "var(--text-dim)", textAlign: "center" }}>ADDED</span>
+          <span className="ert-mono" style={{ fontSize: 10, color: "var(--text-dim)", textAlign: "center" }}>PLAYED</span>
           <span className="ert-mono" style={{ fontSize: 10, color: "var(--text-dim)", textAlign: "center" }}>RATED</span>
           <span className="ert-mono" style={{ fontSize: 10, color: "var(--text-dim)", textAlign: "center" }}>NOTED</span>
           {members.map((m) => (
             <React.Fragment key={m}>
               <span style={{ fontSize: 13 }}>{m}</span>
               <span className="ert-mono" style={{ fontSize: 13, textAlign: "center", color: "var(--brass)" }}>{stats[m].added}</span>
+              <span className="ert-mono" style={{ fontSize: 13, textAlign: "center", color: "var(--brass)" }}>{stats[m].played}</span>
               <span className="ert-mono" style={{ fontSize: 13, textAlign: "center", color: "var(--brass)" }}>{stats[m].rated}</span>
               <span className="ert-mono" style={{ fontSize: 13, textAlign: "center", color: "var(--brass)" }}>{stats[m].noted}</span>
             </React.Fragment>
