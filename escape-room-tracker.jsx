@@ -496,7 +496,7 @@ function emptyRoom(addedBy) {
     name: "",
     venue: "",
     city: "",
-    country: "Poland",
+    country: "Polska",
     category: "Adventure",
     difficulty: "Medium",
     lockmeUrl: "",
@@ -583,7 +583,7 @@ function roomsFromCSV(text, addedBy, categories) {
       room.name = name;
       room.venue = get(row, "venue");
       room.city = get(row, "city");
-      room.country = get(row, "country") || "Poland";
+      room.country = get(row, "country") || "Polska";
       const category = get(row, "category");
       room.category = validCategories.includes(category) ? category : "Other";
       const difficulty = get(row, "difficulty");
@@ -1050,7 +1050,25 @@ export default function EscapeRoomTracker() {
         </div>
       )}
  
-      <Nav view={view} setView={(v) => { setView(v); setSelectedRoomId(null); setEditingRoom(null); setSelectedTripId(null); setEditingTrip(null); }} />
+      <Nav
+        view={view}
+        setView={(v) => {
+          setView(v);
+          setSelectedRoomId(null);
+          setEditingRoom(null);
+          setSelectedTripId(null);
+          setEditingTrip(null);
+          // Deliberately switching tabs (as opposed to opening a room/trip
+          // and hitting Back) starts each tab fresh rather than carrying
+          // over whatever was filtered/sorted last time.
+          setRoomsFilters(defaultRoomFilters(false));
+          setWishlistFilters(defaultRoomFilters(true));
+          setTripsFilters(defaultTripFilters());
+          setGalleryFilters(defaultGalleryFilters());
+          setRankingFilters(defaultRankingFilters());
+          setRankingMode("group");
+        }}
+      />
  
       <div style={{ padding: "20px 24px 32px" }} className="ert-fade-in">
         {view === "dashboard" && (
@@ -1080,7 +1098,7 @@ export default function EscapeRoomTracker() {
           />
         )}
 
-        {view === "ranking" && <RankingView rooms={playedRooms} members={MEMBERS} currentMember={currentMember} onOpen={(id) => { setSelectedRoomId(id); setReturnView("ranking"); setView("room-detail"); }} mode={rankingMode} onModeChange={setRankingMode} filters={rankingFilters} onFiltersChange={setRankingFilters} />}
+        {view === "ranking" && <RankingView rooms={playedRooms} members={MEMBERS} currentMember={currentMember} onOpen={(id) => { setSelectedRoomId(id); setReturnView("ranking"); setView("room-detail"); }} mode={rankingMode} onModeChange={setRankingMode} filters={rankingFilters} onFiltersChange={setRankingFilters} flags={currentFlags()} />}
 
         {view === "settings" && (
           <SettingsView members={MEMBERS} currentMember={currentMember} onChangePassword={changePassword} rooms={data.rooms} />
@@ -1151,6 +1169,7 @@ export default function EscapeRoomTracker() {
             getDriveAccessToken={getRoomsAccessToken}
             filters={galleryFilters}
             onFiltersChange={setGalleryFilters}
+            flags={currentFlags()}
           />
         )}
 
@@ -1644,7 +1663,7 @@ function StarRow({ value, onChange, size, max, allowHalf, icon, halfIcon, color 
 /* ---------------------------------------------------------------
    ROOMS LIST (played or wishlist)
 --------------------------------------------------------------- */
-function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres, selectedCountries, onToggleCity, onToggleGenre, onToggleCountry, onClear }) {
+function FilterPopover({ cities, cats, countries, flagOptions, selectedCities, selectedGenres, selectedCountries, selectedFlags, onToggleCity, onToggleGenre, onToggleCountry, onToggleFlag, onClear }) {
   const [open, setOpen] = useState(false);
   const [panelStyle, setPanelStyle] = useState(null);
   const ref = React.useRef(null);
@@ -1682,7 +1701,8 @@ function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres
     };
   }, [open, recomputePosition]);
 
-  const activeCount = selectedCities.length + selectedGenres.length + selectedCountries.length;
+  const flagList = flagOptions || [];
+  const activeCount = selectedCities.length + selectedGenres.length + selectedCountries.length + (selectedFlags ? selectedFlags.length : 0);
 
   return (
     <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
@@ -1739,7 +1759,7 @@ function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres
           )}
  
           {cats.length > 0 && (
-            <div>
+            <div style={{ marginBottom: 10 }}>
               <div className="ert-mono" style={{ fontSize: 10, color: "var(--text-dim)", marginBottom: 5 }}>GENRE</div>
               {cats.map((c) => (
                 <label key={c} style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 0", fontSize: 13, cursor: "pointer" }}>
@@ -1749,8 +1769,23 @@ function FilterPopover({ cities, cats, countries, selectedCities, selectedGenres
               ))}
             </div>
           )}
- 
-          {cities.length === 0 && cats.length === 0 && countries.length === 0 && <EmptyNote text="Nothing to filter yet." />}
+
+          {flagList.length > 0 && (
+            <div>
+              <div className="ert-mono" style={{ fontSize: 10, color: "var(--text-dim)", marginBottom: 5 }}>FLAGS</div>
+              {flagList.map((f) => {
+                const Icon = resolveFlagIcon(f.icon);
+                return (
+                  <label key={f.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 0", fontSize: 13, cursor: "pointer" }}>
+                    <input type="checkbox" checked={(selectedFlags || []).includes(f.id)} onChange={() => onToggleFlag(f.id)} />
+                    <Icon size={13} color={f.color} /> {f.label}
+                  </label>
+                );
+              })}
+            </div>
+          )}
+
+          {cities.length === 0 && cats.length === 0 && countries.length === 0 && flagList.length === 0 && <EmptyNote text="Nothing to filter yet." />}
         </div>
       )}
     </div>
@@ -1917,15 +1952,17 @@ function defaultRoomFilters(hideVisitedSort) {
     selectedCities: [],
     selectedGenres: [],
     selectedCountries: [],
+    selectedFlags: [],
     onlyUnrated: false,
     sortBy: hideVisitedSort ? "date-desc" : "visited-desc",
   };
 }
 
 function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags, currentMember, filters, onFiltersChange }) {
-  const { search, selectedCities, selectedGenres, selectedCountries, onlyUnrated, sortBy } = filters;
+  const { search, selectedCities, selectedGenres, selectedCountries, selectedFlags, onlyUnrated, sortBy } = filters;
   const patch = (p) => onFiltersChange({ ...filters, ...p });
   const sortOptions = hideVisitedSort ? SORT_OPTIONS.filter((o) => !o.id.startsWith("visited-")) : SORT_OPTIONS;
+  const flagOptions = flags && flags.length ? flags : DEFAULT_FLAGS;
 
   const cities = useMemo(() => Array.from(new Set(rooms.map((r) => r.city).filter(Boolean))).sort(), [rooms]);
   const cats = useMemo(() => Array.from(new Set(rooms.map((r) => r.category).filter(Boolean))).sort(), [rooms]);
@@ -1934,15 +1971,17 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags, currentM
   const toggleCity = (c) => patch({ selectedCities: selectedCities.includes(c) ? selectedCities.filter((x) => x !== c) : [...selectedCities, c] });
   const toggleGenre = (c) => patch({ selectedGenres: selectedGenres.includes(c) ? selectedGenres.filter((x) => x !== c) : [...selectedGenres, c] });
   const toggleCountry = (c) => patch({ selectedCountries: selectedCountries.includes(c) ? selectedCountries.filter((x) => x !== c) : [...selectedCountries, c] });
-  const clearPopoverFilters = () => patch({ selectedCities: [], selectedGenres: [], selectedCountries: [] });
-  const hasActiveFilters = !!search || selectedCities.length > 0 || selectedGenres.length > 0 || selectedCountries.length > 0 || onlyUnrated;
-  const clearAll = () => patch({ search: "", selectedCities: [], selectedGenres: [], selectedCountries: [], onlyUnrated: false });
+  const toggleFlagFilter = (id) => patch({ selectedFlags: selectedFlags.includes(id) ? selectedFlags.filter((x) => x !== id) : [...selectedFlags, id] });
+  const clearPopoverFilters = () => patch({ selectedCities: [], selectedGenres: [], selectedCountries: [], selectedFlags: [] });
+  const hasActiveFilters = !!search || selectedCities.length > 0 || selectedGenres.length > 0 || selectedCountries.length > 0 || selectedFlags.length > 0 || onlyUnrated;
+  const clearAll = () => patch({ search: "", selectedCities: [], selectedGenres: [], selectedCountries: [], selectedFlags: [], onlyUnrated: false });
 
   const filtered = rooms.filter((r) => {
     if (search && !`${r.name} ${r.venue}`.toLowerCase().includes(search.toLowerCase())) return false;
     if (selectedCountries.length && !selectedCountries.includes(r.country)) return false;
     if (selectedCities.length && !selectedCities.includes(r.city)) return false;
     if (selectedGenres.length && !selectedGenres.includes(r.category)) return false;
+    if (selectedFlags.length && !(r.flags || []).some((f) => selectedFlags.includes(f))) return false;
     if (onlyUnrated && currentMember && typeof r.ratings[currentMember] === "number") return false;
     return true;
   });
@@ -1975,12 +2014,15 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags, currentM
           cities={cities}
           cats={cats}
           countries={countries}
+          flagOptions={flagOptions}
           selectedCities={selectedCities}
           selectedGenres={selectedGenres}
           selectedCountries={selectedCountries}
+          selectedFlags={selectedFlags}
           onToggleCity={toggleCity}
           onToggleGenre={toggleGenre}
           onToggleCountry={toggleCountry}
+          onToggleFlag={toggleFlagFilter}
           onClear={clearPopoverFilters}
         />
         {hasActiveFilters && (
@@ -2056,12 +2098,13 @@ function RoomCard({ room, index, onOpen, flags }) {
    RANKING
 --------------------------------------------------------------- */
 function defaultRankingFilters() {
-  return { selectedCities: [], selectedGenres: [], selectedCountries: [], onlyUnrated: false, sortDir: "best" };
+  return { selectedCities: [], selectedGenres: [], selectedCountries: [], selectedFlags: [], onlyUnrated: false, sortDir: "best" };
 }
 
-function RankingView({ rooms, members, currentMember, onOpen, mode, onModeChange, filters, onFiltersChange }) {
+function RankingView({ rooms, members, currentMember, onOpen, mode, onModeChange, filters, onFiltersChange, flags }) {
   const personal = mode === "personal" && currentMember;
-  const { selectedCities, selectedGenres, selectedCountries, onlyUnrated, sortDir } = filters;
+  const { selectedCities, selectedGenres, selectedCountries, selectedFlags, onlyUnrated, sortDir } = filters;
+  const flagOptions = flags && flags.length ? flags : DEFAULT_FLAGS;
   const patch = (p) => onFiltersChange({ ...filters, ...p });
 
   const cities = useMemo(() => Array.from(new Set(rooms.map((r) => r.city).filter(Boolean))).sort(), [rooms]);
@@ -2071,14 +2114,16 @@ function RankingView({ rooms, members, currentMember, onOpen, mode, onModeChange
   const toggleCity = (c) => patch({ selectedCities: selectedCities.includes(c) ? selectedCities.filter((x) => x !== c) : [...selectedCities, c] });
   const toggleGenre = (c) => patch({ selectedGenres: selectedGenres.includes(c) ? selectedGenres.filter((x) => x !== c) : [...selectedGenres, c] });
   const toggleCountry = (c) => patch({ selectedCountries: selectedCountries.includes(c) ? selectedCountries.filter((x) => x !== c) : [...selectedCountries, c] });
-  const clearPopoverFilters = () => patch({ selectedCities: [], selectedGenres: [], selectedCountries: [] });
-  const hasActiveFilters = selectedCities.length > 0 || selectedGenres.length > 0 || selectedCountries.length > 0 || onlyUnrated;
-  const clearAll = () => patch({ selectedCities: [], selectedGenres: [], selectedCountries: [], onlyUnrated: false });
+  const toggleFlagFilter = (id) => patch({ selectedFlags: selectedFlags.includes(id) ? selectedFlags.filter((x) => x !== id) : [...selectedFlags, id] });
+  const clearPopoverFilters = () => patch({ selectedCities: [], selectedGenres: [], selectedCountries: [], selectedFlags: [] });
+  const hasActiveFilters = selectedCities.length > 0 || selectedGenres.length > 0 || selectedCountries.length > 0 || selectedFlags.length > 0 || onlyUnrated;
+  const clearAll = () => patch({ selectedCities: [], selectedGenres: [], selectedCountries: [], selectedFlags: [], onlyUnrated: false });
 
   const filteredRooms = rooms.filter((r) => {
     if (selectedCountries.length && !selectedCountries.includes(r.country)) return false;
     if (selectedCities.length && !selectedCities.includes(r.city)) return false;
     if (selectedGenres.length && !selectedGenres.includes(r.category)) return false;
+    if (selectedFlags.length && !(r.flags || []).some((f) => selectedFlags.includes(f))) return false;
     if (onlyUnrated && currentMember && typeof r.ratings[currentMember] === "number") return false;
     return true;
   });
@@ -2143,12 +2188,15 @@ function RankingView({ rooms, members, currentMember, onOpen, mode, onModeChange
           cities={cities}
           cats={cats}
           countries={countries}
+          flagOptions={flagOptions}
           selectedCities={selectedCities}
           selectedGenres={selectedGenres}
           selectedCountries={selectedCountries}
+          selectedFlags={selectedFlags}
           onToggleCity={toggleCity}
           onToggleGenre={toggleGenre}
           onToggleCountry={toggleCountry}
+          onToggleFlag={toggleFlagFilter}
           onClear={clearPopoverFilters}
         />
         {hasActiveFilters && (
@@ -2915,6 +2963,7 @@ function DrivePhoto({ photo, getDriveAccessToken, onRemove, onPreview }) {
   const [src, setSrc] = useState(null);
   const [failed, setFailed] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const containerRef = React.useRef(null);
 
   // Only start fetching once this thumbnail actually scrolls near the
@@ -2950,6 +2999,14 @@ function DrivePhoto({ photo, getDriveAccessToken, onRemove, onPreview }) {
     return () => { cancelled = true; };
   }, [photo.driveFileId, isVisible]);
 
+  // Auto-revert the confirm state if the second click never comes, so a
+  // stray tap days later doesn't suddenly delete something.
+  useEffect(() => {
+    if (!confirmDelete) return;
+    const timer = setTimeout(() => setConfirmDelete(false), 3000);
+    return () => clearTimeout(timer);
+  }, [confirmDelete]);
+
   return (
     <div ref={containerRef} style={{ position: "relative", borderRadius: 8, overflow: "hidden", aspectRatio: "1", background: "var(--surface-raised)", display: "flex", alignItems: "center", justifyContent: "center" }}>
       {failed ? (
@@ -2966,10 +3023,23 @@ function DrivePhoto({ photo, getDriveAccessToken, onRemove, onPreview }) {
       )}
       {onRemove && (
         <button
-          onClick={onRemove}
-          style={{ position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.6)", border: "none", borderRadius: 5, padding: 3, cursor: "pointer" }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (confirmDelete) {
+              onRemove();
+            } else {
+              setConfirmDelete(true);
+            }
+          }}
+          title={confirmDelete ? "Click again to delete" : "Remove photo"}
+          style={{
+            position: "absolute", top: 4, right: 4, border: "none", borderRadius: 5, padding: confirmDelete ? "3px 6px" : 3, cursor: "pointer",
+            background: confirmDelete ? "var(--danger)" : "rgba(0,0,0,0.6)",
+            display: "flex", alignItems: "center", gap: 4,
+          }}
         >
           <X size={12} color="#fff" />
+          {confirmDelete && <span className="ert-mono" style={{ fontSize: 10, color: "#fff" }}>Confirm</span>}
         </button>
       )}
     </div>
@@ -3891,12 +3961,13 @@ function sortGalleryPhotos(items, sortBy) {
 }
 
 function defaultGalleryFilters() {
-  return { search: "", selectedCities: [], selectedGenres: [], selectedCountries: [], sortBy: "visited-desc" };
+  return { search: "", selectedCities: [], selectedGenres: [], selectedCountries: [], selectedFlags: [], sortBy: "visited-desc" };
 }
 
-function GalleryView({ rooms, driveConnected, driveAvailable, getDriveAccessToken, filters, onFiltersChange }) {
-  const { search, selectedCities, selectedGenres, selectedCountries, sortBy } = filters;
+function GalleryView({ rooms, driveConnected, driveAvailable, getDriveAccessToken, filters, onFiltersChange, flags }) {
+  const { search, selectedCities, selectedGenres, selectedCountries, selectedFlags, sortBy } = filters;
   const patch = (p) => onFiltersChange({ ...filters, ...p });
+  const flagOptions = flags && flags.length ? flags : DEFAULT_FLAGS;
   const [previewIndex, setPreviewIndex] = useState(null);
 
   const allPhotos = useMemo(() => {
@@ -3911,6 +3982,7 @@ function GalleryView({ rooms, driveConnected, driveAvailable, getDriveAccessToke
           country: r.country,
           category: r.category,
           datePlayed: r.datePlayed,
+          roomFlags: r.flags || [],
         });
       });
     });
@@ -3924,15 +3996,17 @@ function GalleryView({ rooms, driveConnected, driveAvailable, getDriveAccessToke
   const toggleCity = (c) => patch({ selectedCities: selectedCities.includes(c) ? selectedCities.filter((x) => x !== c) : [...selectedCities, c] });
   const toggleGenre = (c) => patch({ selectedGenres: selectedGenres.includes(c) ? selectedGenres.filter((x) => x !== c) : [...selectedGenres, c] });
   const toggleCountry = (c) => patch({ selectedCountries: selectedCountries.includes(c) ? selectedCountries.filter((x) => x !== c) : [...selectedCountries, c] });
-  const clearPopoverFilters = () => patch({ selectedCities: [], selectedGenres: [], selectedCountries: [] });
-  const hasActiveFilters = !!search || selectedCities.length > 0 || selectedGenres.length > 0 || selectedCountries.length > 0;
-  const clearAll = () => patch({ search: "", selectedCities: [], selectedGenres: [], selectedCountries: [] });
+  const toggleFlagFilter = (id) => patch({ selectedFlags: selectedFlags.includes(id) ? selectedFlags.filter((x) => x !== id) : [...selectedFlags, id] });
+  const clearPopoverFilters = () => patch({ selectedCities: [], selectedGenres: [], selectedCountries: [], selectedFlags: [] });
+  const hasActiveFilters = !!search || selectedCities.length > 0 || selectedGenres.length > 0 || selectedCountries.length > 0 || selectedFlags.length > 0;
+  const clearAll = () => patch({ search: "", selectedCities: [], selectedGenres: [], selectedCountries: [], selectedFlags: [] });
 
   const filtered = allPhotos.filter((p) => {
     if (search && !(p.roomName || "").toLowerCase().includes(search.toLowerCase())) return false;
     if (selectedCountries.length && !selectedCountries.includes(p.country)) return false;
     if (selectedCities.length && !selectedCities.includes(p.city)) return false;
     if (selectedGenres.length && !selectedGenres.includes(p.category)) return false;
+    if (selectedFlags.length && !p.roomFlags.some((f) => selectedFlags.includes(f))) return false;
     return true;
   });
   const sorted = sortGalleryPhotos(filtered, sortBy);
@@ -3965,12 +4039,15 @@ function GalleryView({ rooms, driveConnected, driveAvailable, getDriveAccessToke
           cities={cities}
           cats={cats}
           countries={countries}
+          flagOptions={flagOptions}
           selectedCities={selectedCities}
           selectedGenres={selectedGenres}
           selectedCountries={selectedCountries}
+          selectedFlags={selectedFlags}
           onToggleCity={toggleCity}
           onToggleGenre={toggleGenre}
           onToggleCountry={toggleCountry}
+          onToggleFlag={toggleFlagFilter}
           onClear={clearPopoverFilters}
         />
         {hasActiveFilters && (
