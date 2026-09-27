@@ -2601,13 +2601,31 @@ function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onD
     setMyRating(val);
     onUpdate({ ratings: { ...room.ratings, [currentMember]: val } });
   };
+  const clearMyRating = () => {
+    setMyRating(0);
+    const next = { ...room.ratings };
+    delete next[currentMember];
+    onUpdate({ ratings: next });
+  };
   const saveMyDifficulty = (val) => {
     setMyDifficulty(val);
     onUpdate({ difficultyRatings: { ...(room.difficultyRatings || {}), [currentMember]: val } });
   };
+  const clearMyDifficulty = () => {
+    setMyDifficulty(0);
+    const next = { ...(room.difficultyRatings || {}) };
+    delete next[currentMember];
+    onUpdate({ difficultyRatings: next });
+  };
   const saveMyScary = (val) => {
     setMyScary(val);
     onUpdate({ scaryRatings: { ...(room.scaryRatings || {}), [currentMember]: val } });
+  };
+  const clearMyScary = () => {
+    setMyScary(0);
+    const next = { ...(room.scaryRatings || {}) };
+    delete next[currentMember];
+    onUpdate({ scaryRatings: next });
   };
   const noteDirty = myNote !== (room.notes[currentMember] || "");
   const saveMyNote = () => {
@@ -2769,9 +2787,31 @@ function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onD
                 );
               })}
             </div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-              <span className="ert-mono" style={{ fontSize: 26, fontWeight: 600, color: "var(--brass)" }}>{fmtRating(avg)}</span>
-              <span style={{ fontSize: 12, color: "var(--text-dim)" }}>group average out of 10</span>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 20, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                <span className="ert-mono" style={{ fontSize: 26, fontWeight: 600, color: "var(--brass)" }}>{fmtRating(avg)}</span>
+                <span style={{ fontSize: 12, color: "var(--text-dim)" }}>group average out of 10</span>
+              </div>
+              {(() => {
+                const diffAvg = avgOfMap(room.difficultyRatings);
+                return diffAvg !== null ? (
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                    <Dumbbell size={14} color="var(--danger)" style={{ position: "relative", top: 2 }} />
+                    <span className="ert-mono" style={{ fontSize: 15, fontWeight: 600, color: "var(--danger)" }}>{diffAvg.toFixed(1)}</span>
+                    <span style={{ fontSize: 11.5, color: "var(--text-dim)" }}>difficulty</span>
+                  </div>
+                ) : null;
+              })()}
+              {(() => {
+                const scaryAvg = avgOfMap(room.scaryRatings);
+                return scaryAvg !== null ? (
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                    <Ghost size={14} color="var(--teal)" style={{ position: "relative", top: 2 }} />
+                    <span className="ert-mono" style={{ fontSize: 15, fontWeight: 600, color: "var(--teal)" }}>{scaryAvg.toFixed(1)}</span>
+                    <span style={{ fontSize: 11.5, color: "var(--text-dim)" }}>scariness</span>
+                  </div>
+                ) : null;
+              })()}
             </div>
           </div>
         )}
@@ -2785,25 +2825,34 @@ function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onD
             <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
               <StarRow value={myRating} onChange={isGuest ? undefined : saveMyRating} size={15} />
               <span className="ert-mono" style={{ fontSize: 12.5, color: "var(--text-dim)" }}>{myRating || "-"}/10</span>
+              {!isGuest && myRating > 0 && (
+                <button onClick={clearMyRating} title="Clear rating" style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: "var(--text-dim)", display: "flex" }}>
+                  <X size={12} />
+                </button>
+              )}
             </div>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
             <span style={{ fontSize: 12, color: "var(--text-dim)", width: 72 }}>Difficulty</span>
-            <StarRow value={myDifficulty} onChange={isGuest ? undefined : saveMyDifficulty} size={15} max={5} allowHalf={false} icon={Dumbbell} color="var(--danger)" />
-            {(() => {
-              const avg = avgOfMap(room.difficultyRatings);
-              return avg !== null ? <span className="ert-mono" style={{ fontSize: 11, color: "var(--text-dim)" }}>avg {avg.toFixed(1)}</span> : null;
-            })()}
+            <StarRow value={myDifficulty} onChange={isGuest ? undefined : saveMyDifficulty} size={15} max={6} allowHalf={false} icon={Dumbbell} color="var(--danger)" />
+            <span className="ert-mono" style={{ fontSize: 12.5, color: "var(--text-dim)" }}>{myDifficulty || "-"}/6</span>
+            {!isGuest && myDifficulty > 0 && (
+              <button onClick={clearMyDifficulty} title="Clear rating" style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: "var(--text-dim)", display: "flex" }}>
+                <X size={12} />
+              </button>
+            )}
           </div>
 
           <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
             <span style={{ fontSize: 12, color: "var(--text-dim)", width: 72 }}>Scariness</span>
-            <StarRow value={myScary} onChange={isGuest ? undefined : saveMyScary} size={15} max={5} allowHalf={false} icon={Ghost} color="var(--teal)" />
-            {(() => {
-              const avg = avgOfMap(room.scaryRatings);
-              return avg !== null ? <span className="ert-mono" style={{ fontSize: 11, color: "var(--text-dim)" }}>avg {avg.toFixed(1)}</span> : null;
-            })()}
+            <StarRow value={myScary} onChange={isGuest ? undefined : saveMyScary} size={15} max={6} allowHalf={false} icon={Ghost} color="var(--teal)" />
+            <span className="ert-mono" style={{ fontSize: 12.5, color: "var(--text-dim)" }}>{myScary || "-"}/6</span>
+            {!isGuest && myScary > 0 && (
+              <button onClick={clearMyScary} title="Clear rating" style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: "var(--text-dim)", display: "flex" }}>
+                <X size={12} />
+              </button>
+            )}
           </div>
  
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
