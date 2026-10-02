@@ -960,6 +960,16 @@ export default function EscapeRoomTracker() {
 
   const getRoomsAccessToken = () => getDriveAccessToken(data.driveAuth && data.driveAuth.refreshToken);
  
+  const searchByVenue = (venue, status) => {
+    if (status === "played") {
+      setRoomsFilters({ ...defaultRoomFilters(false), search: venue });
+      setView("rooms");
+    } else {
+      setWishlistFilters({ ...defaultRoomFilters(true), search: venue });
+      setView("wishlist");
+    }
+    setSelectedRoomId(null);
+  };
   const saveRoom = (room) => {
     const existing = data.rooms.find((r) => r.id === room.id);
     const exists = !!existing;
@@ -1234,6 +1244,7 @@ export default function EscapeRoomTracker() {
             driveAvailable={!hasClaudeStorage && isDriveConfigured()}
             getDriveAccessToken={getRoomsAccessToken}
             flags={currentFlags()}
+            onSearchVenue={searchByVenue}
           />
         )}
 
@@ -2644,7 +2655,7 @@ function AppSettingsView({ categories, onBack, onAddCategory, onRemoveCategory, 
 /* ---------------------------------------------------------------
    ROOM DETAIL
 --------------------------------------------------------------- */
-function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onDelete, onUpdate, driveConnected, driveAvailable, getDriveAccessToken, flags }) {
+function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onDelete, onUpdate, driveConnected, driveAvailable, getDriveAccessToken, flags, onSearchVenue }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [myRating, setMyRating] = useState(room.ratings[currentMember] || 0);
   const [myDifficulty, setMyDifficulty] = useState((room.difficultyRatings && room.difficultyRatings[currentMember]) || 0);
@@ -2788,7 +2799,17 @@ function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onD
               <span className="ert-mono" style={{ fontSize: 11, color: "var(--text-dim)", textTransform: "uppercase" }}>{room.status === "played" ? "Completed" : "Wishlist"}</span>
             </div>
             <div className="ert-display" style={{ fontSize: 24, fontWeight: 700, marginTop: 6 }}>{room.name}</div>
-            <div style={{ fontSize: 13.5, color: "var(--text-dim)", marginTop: 3 }}>{room.venue}</div>
+            {room.venue && (
+              <div
+                onClick={() => onSearchVenue(room.venue, room.status)}
+                title={`See other rooms at ${room.venue}`}
+                style={{ fontSize: 13.5, color: "var(--text-dim)", marginTop: 3, cursor: "pointer", width: "fit-content" }}
+                onMouseEnter={(e) => { e.currentTarget.style.textDecoration = "underline"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.textDecoration = "none"; }}
+              >
+                {room.venue}
+              </div>
+            )}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             {!isGuest && (
