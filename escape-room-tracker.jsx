@@ -2714,6 +2714,7 @@ function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onD
     setTimeout(() => setWalkthroughSaved(false), 1500);
   };
   const [uploadProgress, setUploadProgress] = useState(null); // { done, total } while uploading
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const handlePhotosSelected = async (fileList) => {
     const files = Array.from(fileList || []);
     if (!files.length) return;
@@ -3071,7 +3072,21 @@ function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onD
         ) : (
           <>
             {!isGuest && (
-              <div style={{ marginBottom: 12 }}>
+              <div
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingOver(true); }}
+                onDragLeave={(e) => { e.preventDefault(); setIsDraggingOver(false); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDraggingOver(false);
+                  if (e.dataTransfer.files && e.dataTransfer.files.length) handlePhotosSelected(e.dataTransfer.files);
+                }}
+                style={{
+                  marginBottom: 12, padding: 14, borderRadius: 8,
+                  border: `1.5px dashed ${isDraggingOver ? "var(--brass)" : "var(--border)"}`,
+                  background: isDraggingOver ? "var(--surface-raised)" : "transparent",
+                  transition: "border-color 0.15s, background 0.15s",
+                }}
+              >
                 <input
                   id={`photo-input-${room.id}`}
                   type="file"
@@ -3087,6 +3102,7 @@ function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onD
                 >
                   <Upload size={14} /> {uploadingPhoto ? (uploadProgress ? `Uploading ${uploadProgress.done}/${uploadProgress.total}` : "Uploading") : "Upload photos"}
                 </label>
+                <span style={{ fontSize: 11.5, color: "var(--text-dim)", marginLeft: 10 }}>or drag photos here</span>
                 {photoError && <div style={{ color: "var(--danger)", fontSize: 12, marginTop: 6 }}>{photoError}</div>}
               </div>
             )}
