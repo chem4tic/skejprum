@@ -2850,29 +2850,31 @@ function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onD
         <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 16, fontSize: 12.5, color: "var(--text-dim)" }}>
           <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <MapPin size={13} />
-            {room.city && (
-              <span
-                onClick={() => onFilterCity(room.city, room.status)}
-                title={`See other rooms in ${room.city}`}
-                style={{ cursor: "pointer" }}
-                onMouseEnter={(e) => { e.currentTarget.style.textDecoration = "underline"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.textDecoration = "none"; }}
-              >
-                {room.city}
-              </span>
-            )}
-            {room.city && room.country ? ", " : ""}
-            {room.country && (
-              <span
-                onClick={() => onFilterCountry(room.country, room.status)}
-                title={`See other rooms in ${room.country}`}
-                style={{ cursor: "pointer" }}
-                onMouseEnter={(e) => { e.currentTarget.style.textDecoration = "underline"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.textDecoration = "none"; }}
-              >
-                {room.country}
-              </span>
-            )}
+            <span>
+              {room.city && (
+                <span
+                  onClick={() => onFilterCity(room.city, room.status)}
+                  title={`See other rooms in ${room.city}`}
+                  style={{ cursor: "pointer" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.textDecoration = "underline"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.textDecoration = "none"; }}
+                >
+                  {room.city}
+                </span>
+              )}
+              {room.city && room.country ? ", " : ""}
+              {room.country && (
+                <span
+                  onClick={() => onFilterCountry(room.country, room.status)}
+                  title={`See other rooms in ${room.country}`}
+                  style={{ cursor: "pointer" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.textDecoration = "underline"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.textDecoration = "none"; }}
+                >
+                  {room.country}
+                </span>
+              )}
+            </span>
           </span>
           <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Skull size={13} /> {room.difficulty}</span>
           {room.status === "played" && room.datePlayed && (
