@@ -206,14 +206,14 @@ async function getDriveAccessToken(refreshToken) {
   return json.access_token;
 }
 
-async function uploadPhotoToDrive(file, accessToken) {
-  const metadata = { name: file.name, parents: [GOOGLE_DRIVE_CONFIG.folderId] };
+async function uploadBlobToDrive(blob, name, mimeType, accessToken, parentId) {
+  const metadata = { name, parents: [parentId || GOOGLE_DRIVE_CONFIG.folderId] };
   const boundary = "escapelog" + Math.random().toString(36).slice(2);
-  const fileBytes = new Uint8Array(await file.arrayBuffer());
+  const fileBytes = new Uint8Array(await blob.arrayBuffer());
   const encoder = new TextEncoder();
   const pre = encoder.encode(
     `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
-    `--${boundary}\r\nContent-Type: ${file.type || "application/octet-stream"}\r\n\r\n`
+    `--${boundary}\r\nContent-Type: ${mimeType || "application/octet-stream"}\r\n\r\n`
   );
   const post = encoder.encode(`\r\n--${boundary}--`);
   const body = new Blob([pre, fileBytes, post]);
@@ -225,6 +225,60 @@ async function uploadPhotoToDrive(file, accessToken) {
   });
   if (!res.ok) throw new Error("Photo upload to Google Drive failed.");
   return res.json(); // { id, name, mimeType }
+}
+
+// Finds (or creates, the first time) a "thumbnails" subfolder inside the
+// main photo folder, so thumbnail files don't clutter the same listing as
+// the originals if someone browses the Drive folder directly. Cached for
+// the session so repeat uploads don't re-query Drive every time.
+let thumbFolderIdPromise = null;
+async function getThumbnailFolderId(accessToken) {
+  if (thumbFolderIdPromise) return thumbFolderIdPromise;
+  thumbFolderIdPromise = (async () => {
+    const parentId = GOOGLE_DRIVE_CONFIG.folderId;
+    const q = encodeURIComponent(`name='thumbnails' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`);
+    const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (listRes.ok) {
+      const data = await listRes.json();
+      if (data.files && data.files.length) return data.files[0].id;
+    }
+    const createRes = await fetch("https://www.googleapis.com/drive/v3/files?fields=id", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "thumbnails", mimeType: "application/vnd.google-apps.folder", parents: [parentId] }),
+    });
+    if (!createRes.ok) throw new Error("Couldn't create the thumbnails folder.");
+    const created = await createRes.json();
+    return created.id;
+  })();
+  try {
+    return await thumbFolderIdPromise;
+  } catch (e) {
+    thumbFolderIdPromise = null; // let the next upload retry instead of staying stuck on a failed attempt
+    throw e;
+  }
+}
+
+async function uploadPhotoToDrive(file, accessToken) {
+  const uploaded = await uploadBlobToDrive(file, file.name, file.type, accessToken);
+  // Also generate and upload a small thumbnail so future grid views never
+  // need to download the full original just to show a preview. Resizing
+  // happens on the file already sitting in memory here, so this adds no
+  // extra download, only a small extra upload.
+  let thumbId = null;
+  try {
+    const thumbBlob = await resizeImageBlob(file, 240);
+    const thumbName = "thumb_" + file.name.replace(/\.[^.]+$/, "") + ".jpg";
+    const thumbFolderId = await getThumbnailFolderId(accessToken);
+    const thumbUploaded = await uploadBlobToDrive(thumbBlob, thumbName, "image/jpeg", accessToken, thumbFolderId);
+    thumbId = thumbUploaded.id;
+  } catch (e) {
+    // A failed thumbnail upload shouldn't block the photo itself -- the
+    // thumbnail fetch path falls back to the full original when absent.
+  }
+  return { ...uploaded, thumbId };
 }
 
 async function deletePhotoFromDrive(fileId, accessToken) {
@@ -285,12 +339,10 @@ async function fetchDrivePhotoUrl(fileId, accessToken) {
 // A small, compressed preview for grid thumbnails -- downloads the same
 // original (there's no separate small file on Drive's side to ask for) but
 // only keeps a shrunk, recompressed copy in memory afterward.
-async function fetchDriveThumbnailUrl(fileId, accessToken, maxDim = 240) {
-  if (driveThumbCache.has(fileId)) {
-    touchCache(driveThumbCache, fileId);
-    return driveThumbCache.get(fileId);
-  }
-  const blob = await fetchDriveBytes(fileId, accessToken);
+// Shrinks any image Blob/File to a compressed JPEG no larger than maxDim on
+// its longest side. Used both to make upload-time thumbnail files and, for
+// photos uploaded before that existed, as the on-demand fallback below.
+async function resizeImageBlob(blob, maxDim, quality = 0.72) {
   const bitmap = await createImageBitmap(blob);
   const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
   const w = Math.max(1, Math.round(bitmap.width * scale));
@@ -300,9 +352,31 @@ async function fetchDriveThumbnailUrl(fileId, accessToken, maxDim = 240) {
   canvas.height = h;
   canvas.getContext("2d").drawImage(bitmap, 0, 0, w, h);
   bitmap.close();
-  const thumbBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.72));
-  const url = URL.createObjectURL(thumbBlob || blob);
-  driveThumbCache.set(fileId, url);
+  const resized = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+  return resized || blob;
+}
+
+// Loads a photo's grid thumbnail. Photos uploaded after thumbnail files
+// were introduced carry their own small `thumbFileId` on Drive -- fetching
+// that is a tiny download with no client-side work needed. Older photos
+// have no such file, so this falls back to downloading the full original
+// once and shrinking it locally, same as before.
+async function fetchDriveThumbnailUrl(photo, accessToken, maxDim = 240) {
+  const cacheKey = photo.thumbFileId || photo.driveFileId;
+  if (driveThumbCache.has(cacheKey)) {
+    touchCache(driveThumbCache, cacheKey);
+    return driveThumbCache.get(cacheKey);
+  }
+  let url;
+  if (photo.thumbFileId) {
+    const blob = await fetchDriveBytes(photo.thumbFileId, accessToken);
+    url = URL.createObjectURL(blob);
+  } else {
+    const blob = await fetchDriveBytes(photo.driveFileId, accessToken);
+    const thumbBlob = await resizeImageBlob(blob, maxDim);
+    url = URL.createObjectURL(thumbBlob);
+  }
+  driveThumbCache.set(cacheKey, url);
   evictIfNeeded(driveThumbCache, THUMB_CACHE_LIMIT);
   return url;
 }
@@ -2656,6 +2730,7 @@ function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onD
           uploadedPhotos.push({
             id: uid(),
             driveFileId: uploaded.id,
+            thumbFileId: uploaded.thumbId || null,
             name: uploaded.name,
             mimeType: uploaded.mimeType,
             addedBy: currentMember,
@@ -2683,6 +2758,7 @@ function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onD
     try {
       const token = await getDriveAccessToken();
       await deletePhotoFromDrive(photo.driveFileId, token);
+      if (photo.thumbFileId) await deletePhotoFromDrive(photo.thumbFileId, token);
     } catch (e) {
       /* the room's photo list is already updated; a failed remote delete just leaves an orphaned Drive file */
     }
@@ -3089,7 +3165,7 @@ function DrivePhoto({ photo, getDriveAccessToken, onRemove, onPreview }) {
     (async () => {
       try {
         const token = await getDriveAccessToken();
-        const url = await fetchDriveThumbnailUrl(photo.driveFileId, token);
+        const url = await fetchDriveThumbnailUrl(photo, token);
         if (!cancelled) setSrc(url);
       } catch (e) {
         if (!cancelled) setFailed(true);
