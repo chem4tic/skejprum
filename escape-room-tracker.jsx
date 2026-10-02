@@ -970,6 +970,26 @@ export default function EscapeRoomTracker() {
     }
     setSelectedRoomId(null);
   };
+  const filterByCity = (city, status) => {
+    if (status === "played") {
+      setRoomsFilters({ ...defaultRoomFilters(false), selectedCities: [city] });
+      setView("rooms");
+    } else {
+      setWishlistFilters({ ...defaultRoomFilters(true), selectedCities: [city] });
+      setView("wishlist");
+    }
+    setSelectedRoomId(null);
+  };
+  const filterByCountry = (country, status) => {
+    if (status === "played") {
+      setRoomsFilters({ ...defaultRoomFilters(false), selectedCountries: [country] });
+      setView("rooms");
+    } else {
+      setWishlistFilters({ ...defaultRoomFilters(true), selectedCountries: [country] });
+      setView("wishlist");
+    }
+    setSelectedRoomId(null);
+  };
   const saveRoom = (room) => {
     const existing = data.rooms.find((r) => r.id === room.id);
     const exists = !!existing;
@@ -1245,6 +1265,8 @@ export default function EscapeRoomTracker() {
             getDriveAccessToken={getRoomsAccessToken}
             flags={currentFlags()}
             onSearchVenue={searchByVenue}
+            onFilterCity={filterByCity}
+            onFilterCountry={filterByCountry}
           />
         )}
 
@@ -2655,7 +2677,7 @@ function AppSettingsView({ categories, onBack, onAddCategory, onRemoveCategory, 
 /* ---------------------------------------------------------------
    ROOM DETAIL
 --------------------------------------------------------------- */
-function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onDelete, onUpdate, driveConnected, driveAvailable, getDriveAccessToken, flags, onSearchVenue }) {
+function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onDelete, onUpdate, driveConnected, driveAvailable, getDriveAccessToken, flags, onSearchVenue, onFilterCity, onFilterCountry }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [myRating, setMyRating] = useState(room.ratings[currentMember] || 0);
   const [myDifficulty, setMyDifficulty] = useState((room.difficultyRatings && room.difficultyRatings[currentMember]) || 0);
@@ -2826,7 +2848,32 @@ function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onD
         </div>
  
         <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 16, fontSize: 12.5, color: "var(--text-dim)" }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={13} /> {room.city}{room.country ? `, ${room.country}` : ""}</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <MapPin size={13} />
+            {room.city && (
+              <span
+                onClick={() => onFilterCity(room.city, room.status)}
+                title={`See other rooms in ${room.city}`}
+                style={{ cursor: "pointer" }}
+                onMouseEnter={(e) => { e.currentTarget.style.textDecoration = "underline"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.textDecoration = "none"; }}
+              >
+                {room.city}
+              </span>
+            )}
+            {room.city && room.country ? ", " : ""}
+            {room.country && (
+              <span
+                onClick={() => onFilterCountry(room.country, room.status)}
+                title={`See other rooms in ${room.country}`}
+                style={{ cursor: "pointer" }}
+                onMouseEnter={(e) => { e.currentTarget.style.textDecoration = "underline"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.textDecoration = "none"; }}
+              >
+                {room.country}
+              </span>
+            )}
+          </span>
           <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Skull size={13} /> {room.difficulty}</span>
           {room.status === "played" && room.datePlayed && (
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Clock size={13} /> {room.datePlayed}</span>
