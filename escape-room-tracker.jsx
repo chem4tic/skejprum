@@ -684,7 +684,7 @@ function normalizeData(raw) {
     auth: safe.auth && typeof safe.auth === "object" ? safe.auth : {},
     driveAuth: safe.driveAuth || null,
     trips: Array.isArray(safe.trips) ? safe.trips : [],
-    categories: Array.isArray(safe.categories) && safe.categories.length ? [...safe.categories].sort((a, b) => a.localeCompare(b)) : [...DEFAULT_CATEGORIES].sort((a, b) => a.localeCompare(b)),
+    categories: Array.isArray(safe.categories) && safe.categories.length ? [...safe.categories].sort((a, b) => a.localeCompare(b, "pl")) : [...DEFAULT_CATEGORIES].sort((a, b) => a.localeCompare(b, "pl")),
     flags: Array.isArray(safe.flags) && safe.flags.length ? safe.flags : DEFAULT_FLAGS,
   };
 }
@@ -1018,7 +1018,7 @@ export default function EscapeRoomTracker() {
     if (!trimmed) return;
     const current = data.categories && data.categories.length ? data.categories : DEFAULT_CATEGORIES;
     if (current.some((c) => c.toLowerCase() === trimmed.toLowerCase())) return;
-    const categories = [...current, trimmed].sort((a, b) => a.localeCompare(b));
+    const categories = [...current, trimmed].sort((a, b) => a.localeCompare(b, "pl"));
     persist({ ...data, categories });
   };
   const removeCategory = (name) => {
@@ -1030,7 +1030,7 @@ export default function EscapeRoomTracker() {
     if (!trimmed || trimmed === oldName) return;
     const current = data.categories && data.categories.length ? data.categories : DEFAULT_CATEGORIES;
     if (current.some((c) => c !== oldName && c.toLowerCase() === trimmed.toLowerCase())) return;
-    const categories = current.map((c) => (c === oldName ? trimmed : c)).sort((a, b) => a.localeCompare(b));
+    const categories = current.map((c) => (c === oldName ? trimmed : c)).sort((a, b) => a.localeCompare(b, "pl"));
     const rooms = data.rooms.map((r) => (r.category === oldName ? { ...r, category: trimmed } : r));
     persist({ ...data, categories, rooms });
   };
@@ -1926,7 +1926,7 @@ function sortRooms(rooms, sortBy) {
         return bv - av;
       });
     case "alpha":
-      return arr.sort((a, b) => a.name.localeCompare(b.name));
+      return arr.sort((a, b) => a.name.localeCompare(b.name, "pl"));
     case "visited-desc":
     default:
       return arr.sort((a, b) => {
@@ -2063,9 +2063,9 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags, currentM
   const sortOptions = hideVisitedSort ? SORT_OPTIONS.filter((o) => !o.id.startsWith("visited-")) : SORT_OPTIONS;
   const flagOptions = flags && flags.length ? flags : DEFAULT_FLAGS;
 
-  const cities = useMemo(() => Array.from(new Set(rooms.map((r) => r.city).filter(Boolean))).sort(), [rooms]);
-  const cats = useMemo(() => Array.from(new Set(rooms.map((r) => r.category).filter(Boolean))).sort(), [rooms]);
-  const countries = useMemo(() => Array.from(new Set(rooms.map((r) => r.country).filter(Boolean))).sort(), [rooms]);
+  const cities = useMemo(() => Array.from(new Set(rooms.map((r) => r.city).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pl")), [rooms]);
+  const cats = useMemo(() => Array.from(new Set(rooms.map((r) => r.category).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pl")), [rooms]);
+  const countries = useMemo(() => Array.from(new Set(rooms.map((r) => r.country).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pl")), [rooms]);
 
   const toggleCity = (c) => patch({ selectedCities: selectedCities.includes(c) ? selectedCities.filter((x) => x !== c) : [...selectedCities, c] });
   const toggleGenre = (c) => patch({ selectedGenres: selectedGenres.includes(c) ? selectedGenres.filter((x) => x !== c) : [...selectedGenres, c] });
@@ -2204,9 +2204,9 @@ function RankingView({ rooms, members, currentMember, onOpen, mode, onModeChange
   const flagOptions = flags && flags.length ? flags : DEFAULT_FLAGS;
   const patch = (p) => onFiltersChange({ ...filters, ...p });
 
-  const cities = useMemo(() => Array.from(new Set(rooms.map((r) => r.city).filter(Boolean))).sort(), [rooms]);
-  const cats = useMemo(() => Array.from(new Set(rooms.map((r) => r.category).filter(Boolean))).sort(), [rooms]);
-  const countries = useMemo(() => Array.from(new Set(rooms.map((r) => r.country).filter(Boolean))).sort(), [rooms]);
+  const cities = useMemo(() => Array.from(new Set(rooms.map((r) => r.city).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pl")), [rooms]);
+  const cats = useMemo(() => Array.from(new Set(rooms.map((r) => r.category).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pl")), [rooms]);
+  const countries = useMemo(() => Array.from(new Set(rooms.map((r) => r.country).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pl")), [rooms]);
 
   const toggleCity = (c) => patch({ selectedCities: selectedCities.includes(c) ? selectedCities.filter((x) => x !== c) : [...selectedCities, c] });
   const toggleGenre = (c) => patch({ selectedGenres: selectedGenres.includes(c) ? selectedGenres.filter((x) => x !== c) : [...selectedGenres, c] });
@@ -3438,7 +3438,7 @@ function RoomForm({ room, existingRooms, categories, flags, onCancel, onSave }) 
   };
 
   const cityOptions = useMemo(
-    () => Array.from(new Set((existingRooms || []).map((r) => r.city).filter(Boolean))).sort(),
+    () => Array.from(new Set((existingRooms || []).map((r) => r.city).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pl")),
     [existingRooms]
   );
 
@@ -3721,7 +3721,7 @@ function sortTrips(trips, sortBy) {
     case "date-asc":
       return arr.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
     case "alpha":
-      return arr.sort((a, b) => a.name.localeCompare(b.name));
+      return arr.sort((a, b) => a.name.localeCompare(b.name, "pl"));
     case "start-desc":
     default:
       return arr.sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""));
@@ -3773,7 +3773,7 @@ function TripsView({ trips, rooms, onOpen, onNew, isGuest, filters, onFiltersCha
   const { search, selectedCities, sortBy } = filters;
   const patch = (p) => onFiltersChange({ ...filters, ...p });
 
-  const cities = useMemo(() => Array.from(new Set(trips.map((t) => t.city).filter(Boolean))).sort(), [trips]);
+  const cities = useMemo(() => Array.from(new Set(trips.map((t) => t.city).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pl")), [trips]);
   const toggleCity = (c) => patch({ selectedCities: selectedCities.includes(c) ? selectedCities.filter((x) => x !== c) : [...selectedCities, c] });
   const hasActiveFilters = !!search || selectedCities.length > 0;
   const clearAll = () => patch({ search: "", selectedCities: [] });
@@ -4212,7 +4212,7 @@ function sortGalleryPhotos(items, sortBy) {
     case "visited-asc":
       return arr.sort((a, b) => (a.datePlayed || "").localeCompare(b.datePlayed || ""));
     case "alpha":
-      return arr.sort((a, b) => (a.roomName || "").localeCompare(b.roomName || ""));
+      return arr.sort((a, b) => (a.roomName || "").localeCompare(b.roomName || "", "pl"));
     case "visited-desc":
     default:
       return arr.sort((a, b) => (b.datePlayed || "").localeCompare(a.datePlayed || ""));
@@ -4248,9 +4248,9 @@ function GalleryView({ rooms, driveConnected, driveAvailable, getDriveAccessToke
     return items;
   }, [rooms]);
 
-  const cities = useMemo(() => Array.from(new Set(allPhotos.map((p) => p.city).filter(Boolean))).sort(), [allPhotos]);
-  const cats = useMemo(() => Array.from(new Set(allPhotos.map((p) => p.category).filter(Boolean))).sort(), [allPhotos]);
-  const countries = useMemo(() => Array.from(new Set(allPhotos.map((p) => p.country).filter(Boolean))).sort(), [allPhotos]);
+  const cities = useMemo(() => Array.from(new Set(allPhotos.map((p) => p.city).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pl")), [allPhotos]);
+  const cats = useMemo(() => Array.from(new Set(allPhotos.map((p) => p.category).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pl")), [allPhotos]);
+  const countries = useMemo(() => Array.from(new Set(allPhotos.map((p) => p.country).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pl")), [allPhotos]);
 
   const toggleCity = (c) => patch({ selectedCities: selectedCities.includes(c) ? selectedCities.filter((x) => x !== c) : [...selectedCities, c] });
   const toggleGenre = (c) => patch({ selectedGenres: selectedGenres.includes(c) ? selectedGenres.filter((x) => x !== c) : [...selectedGenres, c] });
