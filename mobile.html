@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8" />
+<!-- viewport-fit=cover lets the app draw under the notch and home indicator;
+     the app pads itself with the safe-area insets. Zoom is left enabled. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>The Escape Log</title>
+<meta name="description" content="Wspólny dziennik pokoi escape room dla ekipy. Wersja na telefon." />
+<meta name="theme-color" content="#14161c" />
+<meta name="color-scheme" content="dark" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Escape Log" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<style>
+  html, body { margin: 0; padding: 0; background: #14161c; }
+  #escape-log-root { min-height: 100vh; min-height: 100dvh; }
+  .boot-loader {
+    min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+    color: #9aa0b1; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 15px; text-align: center; padding: 0 24px;
+  }
+</style>
+
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.383.0?external=react"
+  }
+}
+</script>
+</head>
+<body>
+<div id="escape-log-root"><div class="boot-loader">opening the door…</div></div>
+
+<!-- Loads the phone interface (escape-room-tracker-mobile.jsx) the same way
+     index.html loads the desktop one: fetch, transform with Babel, import,
+     mount. config.js is shared with the desktop site, so the Firebase and
+     Google Drive settings only ever live in one place. -->
+<script type="module">
+  import React from "react";
+  import { createRoot } from "react-dom/client";
+
+  const mount = document.getElementById("escape-log-root");
+
+  function showError(label, err) {
+    console.error(label, err);
+    mount.innerHTML = '<div class="boot-loader">' + label + '. Check your connection and reload.</div>';
+  }
+
+  try {
+    const configRes = await fetch(`./config.js?v=${Date.now()}`, { cache: "no-store" });
+    if (configRes.ok) {
+      const script = document.createElement("script");
+      script.textContent = await configRes.text();
+      document.head.appendChild(script);
+    } else {
+      console.warn("[EscapeLog] config.js not found (HTTP " + configRes.status + "), using placeholder config.");
+    }
+  } catch (err) {
+    console.warn("[EscapeLog] couldn't load config.js, using placeholder config.", err);
+  }
+
+  try {
+    const res = await fetch(`./escape-room-tracker-mobile.jsx?v=${Date.now()}`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status} fetching escape-room-tracker-mobile.jsx`);
+    const raw = await res.text();
+    const { code } = Babel.transform(raw, {
+      presets: [["react", { runtime: "classic" }]],
+      sourceType: "module",
+      filename: "escape-room-tracker-mobile.jsx",
+    });
+    const url = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
+    const mod = await import(/* @vite-ignore */ url);
+    URL.revokeObjectURL(url);
+    if (typeof mod.default !== "function") throw new Error("escape-room-tracker-mobile.jsx has no default export component");
+    createRoot(mount).render(React.createElement(mod.default));
+  } catch (err) {
+    showError("Couldn't open The Escape Log", err);
+  }
+</script>
+</body>
+</html>
