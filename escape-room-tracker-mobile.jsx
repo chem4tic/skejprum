@@ -691,7 +691,7 @@ const SORT_OPTIONS = [
   { id: "date-desc", label: "Date added (newest)" },
   { id: "date-asc", label: "Date added (oldest)" },
   { id: "rating-desc", label: "Rating (high to low)" },
-  { id: "alpha", label: "Alphabetical (A\u2013Z)" },
+  { id: "alpha", label: "Alphabetical (AtoZ)" },
 ];
 
 function sortRooms(rooms, sortBy) {
@@ -761,7 +761,7 @@ const TRIP_SORT_OPTIONS = [
   { id: "start-asc", label: "Trip date (oldest)" },
   { id: "date-desc", label: "Date added (newest)" },
   { id: "date-asc", label: "Date added (oldest)" },
-  { id: "alpha", label: "Alphabetical (A\u2013Z)" },
+  { id: "alpha", label: "Alphabetical (AtoZ)" },
 ];
 
 
@@ -786,7 +786,7 @@ function sortTrips(trips, sortBy) {
 const GALLERY_SORT_OPTIONS = [
   { id: "visited-desc", label: "Date visited (newest)" },
   { id: "visited-asc", label: "Date visited (oldest)" },
-  { id: "alpha", label: "Room (A\u2013Z)" },
+  { id: "alpha", label: "Room (AtoZ)" },
 ];
 
 function sortGalleryPhotos(items, sortBy) {
@@ -1168,6 +1168,26 @@ function useLayer(active, onClose) {
 const AppCtx = createContext(null);
 const useApp = () => useContext(AppCtx);
 
+/* Page scroll is locked while any sheet is on screen. It is a shared, counted lock: sheets can
+   overlap for a moment (one sliding away as the next opens), and each one restoring "what the
+   page had before it" used to leave the page locked for good. */
+let scrollLockCount = 0;
+let scrollLockPrev = "";
+function lockBodyScroll() {
+  if (scrollLockCount === 0) {
+    scrollLockPrev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+  }
+  scrollLockCount += 1;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    scrollLockCount = Math.max(0, scrollLockCount - 1);
+    if (scrollLockCount === 0) document.body.style.overflow = scrollLockPrev;
+  };
+}
+
 /* ---- primitives ---- */
 function Sheet({ open, onClose, title, children, footer }) {
   useLayer(open, onClose);
@@ -1187,12 +1207,7 @@ function Sheet({ open, onClose, title, children, footer }) {
     const t = setTimeout(() => setMounted(false), 260);
     return () => clearTimeout(t);
   }, [open]);
-  useEffect(() => {
-    if (!mounted) return undefined;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, [mounted]);
+  useEffect(() => (mounted ? lockBodyScroll() : undefined), [mounted]);
   if (!mounted) return null;
   const ts = (e) => { startY.current = e.touches[0].clientY; };
   const tm = (e) => { if (startY.current != null) setDy(Math.max(0, e.touches[0].clientY - startY.current)); };
@@ -3352,4 +3367,3 @@ export default function EscapeLogMobile() {
     </LayerCtx.Provider>
   );
 }
-
