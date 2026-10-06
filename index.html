@@ -5,6 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>The Escape Log: nasz dziennik pokoi</title>
 <meta name="description" content="Wspólny dziennik pokoi escape room dla ekipy Karola, Asi, Jano i Jaćki." />
+<script>
+  // Phones open the phone edition (mobile.html). The "Open the desktop version"
+  // link there adds ?desktop=1, which is remembered for this tab. The query
+  // string is passed along so a Google Drive sign-in return still lands intact.
+  (function () {
+    try {
+      var qs = new URLSearchParams(location.search);
+      if (qs.get("desktop") === "1") sessionStorage.setItem("escape-log-desktop", "1");
+      var phone = window.matchMedia && window.matchMedia("(max-width: 700px) and (pointer: coarse)").matches;
+      if (phone && sessionStorage.getItem("escape-log-desktop") !== "1") {
+        location.replace("mobile.html" + location.search + location.hash);
+      }
+    } catch (e) { /* stay on the desktop page */ }
+  })();
+</script>
 <style>
   html, body { margin: 0; padding: 0; background: #14161c; }
   #escape-log-root { min-height: 100vh; }
