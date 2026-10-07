@@ -6,14 +6,46 @@
 <title>The Escape Log: nasz dziennik pokoi</title>
 <meta name="description" content="Wspólny dziennik pokoi escape room dla ekipy Karola, Asi, Jano i Jaćki." />
 <script>
-  // Phones open the phone edition (mobile.html). The "Open the desktop version"
-  // link there adds ?desktop=1, which is remembered for this tab. The query
-  // string is passed along so a Google Drive sign-in return still lands intact.
+  // Which version opens. "Legacy mode" (App settings > General) is remembered per device and
+  // loads the previous version of the app. ?legacy=1 and ?legacy=0 switch it by link, which is
+  // also the way out if you ever need one besides the button shown in legacy mode.
+  // Otherwise phones open the phone edition (mobile.html); the "Open the desktop version" link
+  // there adds ?desktop=1, remembered for this tab. The query string is passed along so a
+  // Google Drive sign-in return still lands intact.
   (function () {
+    var KEY = "escape-room-club-legacy-mode";
+    var legacy = false;
     try {
       var qs = new URLSearchParams(location.search);
-      if (qs.get("desktop") === "1") sessionStorage.setItem("escape-log-desktop", "1");
+      if (qs.get("legacy") === "1") localStorage.setItem(KEY, "1");
+      if (qs.get("legacy") === "0") localStorage.removeItem(KEY);
+      legacy = localStorage.getItem(KEY) === "1";
+      if (qs.has("legacy")) {
+        qs.delete("legacy");
+        var rest = qs.toString();
+        history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "") + location.hash);
+      }
+    } catch (e) { /* no storage: always the current version */ }
+    window.__escapeLogLegacy = legacy;
+    window.__escapeLogEntry = legacy ? "escape-room-tracker.before-redesign.jsx" : "escape-room-tracker.jsx";
+
+    if (legacy) {
+      document.addEventListener("DOMContentLoaded", function () {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.textContent = "Legacy mode \u00b7 switch to the new version";
+        b.style.cssText = "position:fixed;left:12px;bottom:12px;z-index:2147483000;padding:10px 15px;border-radius:999px;border:1px solid #3a4152;background:#252a35;color:#ece8dd;font:600 13px/1 system-ui,-apple-system,'Segoe UI',sans-serif;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.45)";
+        b.onclick = function () {
+          try { localStorage.removeItem(KEY); } catch (e) {}
+          location.replace("index.html");
+        };
+        document.body.appendChild(b);
+      });
+      return;
+    }
+    try {
       var phone = window.matchMedia && window.matchMedia("(max-width: 700px) and (pointer: coarse)").matches;
+      if (new URLSearchParams(location.search).get("desktop") === "1") sessionStorage.setItem("escape-log-desktop", "1");
       if (phone && sessionStorage.getItem("escape-log-desktop") !== "1") {
         location.replace("mobile.html" + location.search + location.hash);
       }
@@ -29,7 +61,7 @@
   }
 </style>
 
-<!-- Gives us Babel.transform() to strip JSX from escape-room-tracker.jsx at
+<!-- Gives us Babel.transform() to strip JSX from the app file at
      runtime. -->
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
@@ -88,16 +120,17 @@
   }
 
   try {
-    console.log("[EscapeLog] fetching escape-room-tracker.jsx");
-    const res = await fetch(`./escape-room-tracker.jsx?v=${Date.now()}`, { cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status} fetching escape-room-tracker.jsx`);
+    const entry = window.__escapeLogEntry || "escape-room-tracker.jsx";
+    console.log("[EscapeLog] fetching " + entry + (window.__escapeLogLegacy ? " (legacy mode)" : ""));
+    const res = await fetch(`./${entry}?v=${Date.now()}`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${entry}`);
     const raw = await res.text();
     console.log("[EscapeLog] fetched, length:", raw.length);
 
     const { code } = Babel.transform(raw, {
       presets: [["react", { runtime: "classic" }]],
       sourceType: "module",
-      filename: "escape-room-tracker.jsx",
+      filename: entry,
     });
     console.log("[EscapeLog] Babel transform complete, length:", code.length);
 
@@ -110,7 +143,7 @@
 
     const App = mod.default;
     if (typeof App !== "function") {
-      throw new Error("escape-room-tracker.jsx has no default export component");
+      throw new Error(entry + " has no default export component");
     }
 
     createRoot(mount).render(React.createElement(App));
