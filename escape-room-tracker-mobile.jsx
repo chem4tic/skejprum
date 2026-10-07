@@ -484,6 +484,7 @@ const DIFFICULTY_LEVELS = ["Beginner-friendly", "Easy", "Medium", "Hard", "Very 
 const DEFAULT_FLAGS = [
   { id: "closed", label: "Permanently closed", icon: "Ban", color: "var(--danger)" },
   { id: "moved", label: "Moved", icon: "CornerUpRight", color: "var(--teal)" },
+  { id: "separately", label: "Visited separately", icon: "Split", color: "var(--brass)" },
 ];
 
 // A curated set of icons offered in the Settings picker -- broad enough to
@@ -493,6 +494,7 @@ const FLAG_ICON_CHOICES = [
   "ThumbsDown", "Flame", "Snowflake", "Sun", "Moon", "Clock", "Wrench",
   "Construction", "PartyPopper", "Sparkles", "Zap", "Trophy", "Building2",
   "MapPin", "Lock", "Unlock", "Check", "X", "Info", "Users", "Drama",
+  "Split", "GitFork", "Shuffle", "Waypoints",
 ];
 const FLAG_COLOR_CHOICES = [
   { label: "Red", value: "var(--danger)" },
@@ -722,6 +724,21 @@ function avgOfMap(map) {
 // treat those as "everyone played" rather than "no one played".
 function roomParticipants(room) {
   return room.participants && room.participants.length ? room.participants : MEMBERS;
+}
+
+// Orange pictogram shown on a room's row/card when not everyone in the crew
+// played it. Derived from the "who played" list, so there is nothing to flag by hand.
+const PARTIAL_GROUP_COLOR = "#fb923c";
+function missingPlayers(room) {
+  if (!room || room.status !== "played" || !room.participants || !room.participants.length) return [];
+  return MEMBERS.filter((m) => !room.participants.includes(m));
+}
+function PartialGroupIcon({ room, size = 16 }) {
+  const missing = missingPlayers(room);
+  if (!missing.length) return null;
+  const Icon = LucideIcons.UserMinus || LucideIcons.Users;
+  const label = `Not everyone played (missing: ${missing.join(", ")})`;
+  return <span role="img" aria-label={label} title={label} style={{ display: "inline-flex" }}><Icon size={size} color={PARTIAL_GROUP_COLOR} /></span>;
 }
  
 function fmtRating(n) {
@@ -1653,9 +1670,10 @@ function RoomRow({ room, flagDefs, onOpen, rank, score, minis, meta = true, plai
       </span>
       <span className="rr-side">
         {score != null ? <span className="rr-score">{score}</span> : null}
-        {flagIcons.length || hasPhotos ? (
+        {flagIcons.length || hasPhotos || missingPlayers(room).length ? (
           <span className="rr-icons">
             {flagIcons.map((f) => { const Ic = resolveFlagIcon(f.icon); return <Ic key={f.id} size={16} color={f.color} aria-label={f.label} />; })}
+            <PartialGroupIcon room={room} />
             {hasPhotos ? <Ico.camera size={16} aria-label="Has photos" /> : null}
           </span>
         ) : null}
@@ -2216,6 +2234,7 @@ function RoomView({ room }) {
             </div>
           ) : null}
           {played && room.price !== "" && room.price != null ? <div><Ico.wallet size={17} />{`${room.price} ${room.currency || "PLN"}`}</div> : null}
+          {played && missingPlayers(room).length ? <div style={{ color: PARTIAL_GROUP_COLOR }}><PartialGroupIcon room={room} size={17} />Not everyone played</div> : null}
           {roomFlags.map((f) => { const Ic = resolveFlagIcon(f.icon); return <div key={f.id} style={{ color: f.color }}><Ic size={17} />{f.label}</div>; })}
           {room.lockmeUrl ? <div><Ico.link size={17} /><a className="linkish" style={{ color: "var(--brass-hi)" }} href={room.lockmeUrl} target="_blank" rel="noreferrer">Open on lock.me</a></div> : null}
         </div>
