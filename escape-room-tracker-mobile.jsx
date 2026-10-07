@@ -518,7 +518,7 @@ const FLAG_ICON_CHOICES = [
   "ThumbsDown", "Flame", "Snowflake", "Sun", "Moon", "Clock", "Wrench",
   "Construction", "PartyPopper", "Sparkles", "Zap", "Trophy", "Building2",
   "MapPin", "Lock", "Unlock", "Check", "X", "Info", "Users", "Drama",
-  "Split", "GitFork", "Shuffle", "Waypoints",
+  "Split", "Divide", "Shuffle", "Waypoints",
 ];
 const FLAG_COLOR_CHOICES = [
   { label: "Red", value: "var(--danger)" },
