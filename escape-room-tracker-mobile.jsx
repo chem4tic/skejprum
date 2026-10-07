@@ -1491,7 +1491,6 @@ function RatingControl({ label, value, max, step, icon, color, onChange, onClear
       </div>
       <div
         className="stars"
-        style={{ maxWidth: max * (max > 8 ? 46 : 64) }} // the row never grows wider than its cells, so clicks line up with the icons
         ref={ref}
         role="slider"
         tabIndex={readOnly ? -1 : 0}
@@ -1508,7 +1507,7 @@ function RatingControl({ label, value, max, step, icon, color, onChange, onClear
         {Array.from({ length: max }).map((_, i) => {
           const f = Math.max(0, Math.min(1, shown - i));
           return (
-            <div className="star" key={i}>
+            <div className="star" key={i} style={{ maxWidth: max > 8 ? 46 : 64 }}>
               <Icon className="base" size={max > 8 ? 27 : 32} strokeWidth={1.6} />
               {f > 0 ? (
                 <div className="fillclip" style={{ clipPath: `inset(0 ${(1 - f) * 100}% 0 0)` }}>
