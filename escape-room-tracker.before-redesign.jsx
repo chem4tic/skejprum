@@ -686,6 +686,7 @@ function normalizeData(raw) {
     trips: Array.isArray(safe.trips) ? safe.trips : [],
     categories: Array.isArray(safe.categories) && safe.categories.length ? [...safe.categories].sort((a, b) => a.localeCompare(b, "pl")) : [...DEFAULT_CATEGORIES].sort((a, b) => a.localeCompare(b, "pl")),
     flags: Array.isArray(safe.flags) && safe.flags.length ? safe.flags : DEFAULT_FLAGS,
+    crewName: typeof safe.crewName === "string" ? safe.crewName : "", // kept so saving here never wipes the crew name
   };
 }
 
@@ -2393,8 +2394,26 @@ function RankingView({ rooms, members, currentMember, onOpen, mode, onModeChange
    categories offered when adding a room. More settings can live
    here later without cluttering the main nav.
 --------------------------------------------------------------- */
+// Opens the current version of the app. index.html reads this per-device setting when it loads.
+function openNewVersion() {
+  try { window.localStorage.removeItem("escape-room-club-legacy-mode"); } catch (e) { /* storage blocked */ }
+  try { window.location.replace("index.html"); } catch (e) { /* nothing to open in a preview */ }
+}
+
+function GeneralSettings() {
+  return (
+    <div className="ert-card" style={{ padding: 20 }}>
+      <div className="ert-display" style={{ fontSize: 14.5, fontWeight: 700, marginBottom: 4 }}>Legacy mode</div>
+      <p style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 14 }}>
+        You are using the previous version of the app. Both versions share the same data, so nothing is lost or duplicated.
+      </p>
+      <button className="ert-btn ert-btn-brass" onClick={openNewVersion}>Open the new version</button>
+    </div>
+  );
+}
+
 function AppSettingsView({ categories, onBack, onAddCategory, onRemoveCategory, onRenameCategory, flags, onAddFlag, onUpdateFlag, onRemoveFlag, driveAvailable, driveConnected, onConnectDrive }) {
-  const [tab, setTab] = useState("categories");
+  const [tab, setTab] = useState("general");
 
   const [newCategory, setNewCategory] = useState("");
   const [editingCategory, setEditingCategory] = useState(null);
@@ -2490,6 +2509,7 @@ function AppSettingsView({ categories, onBack, onAddCategory, onRemoveCategory, 
   );
 
   const settingsTabs = [
+    { id: "general", label: "General" },
     { id: "categories", label: "Categories" },
     { id: "flags", label: "Flags" },
     { id: "drive", label: "Google Drive" },
@@ -2518,6 +2538,8 @@ function AppSettingsView({ categories, onBack, onAddCategory, onRemoveCategory, 
           </div>
         ))}
       </div>
+
+      {tab === "general" && <GeneralSettings />}
 
       {tab === "categories" && (
         <div className="ert-card" style={{ padding: 20 }}>
