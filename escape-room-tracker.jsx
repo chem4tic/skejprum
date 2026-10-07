@@ -2669,7 +2669,7 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags, currentM
               color: onlyUnrated ? "var(--brass-bright)" : "var(--text)", fontWeight: 500,
             }}
           >
-            <Star size={16} /> Not rated by me
+            <Star size={16} /> Not rated yet
           </button>
         )}
         <FilterPopover
@@ -2831,7 +2831,7 @@ function RankingView({ rooms, members, currentMember, onOpen, mode, onModeChange
               color: onlyUnrated ? "var(--brass-bright)" : "var(--text)",
             }}
           >
-            <Star size={16} /> Not rated by me
+            <Star size={16} /> Not rated yet
           </button>
         )}
         <FilterPopover
@@ -2935,16 +2935,13 @@ function RankingView({ rooms, members, currentMember, onOpen, mode, onModeChange
    here later without cluttering the main nav.
 --------------------------------------------------------------- */
 function GeneralSettings({ crewName, onChangeCrewName, dateFormat, onChangeDateFormat, theme, onChangeTheme }) {
-  const [legacy, setLegacy] = useState(() => readLegacyMode());
   const [nameDraft, setNameDraft] = useState(crewName);
   useEffect(() => { setNameDraft(crewName); }, [crewName]);
   const commitName = () => onChangeCrewName(nameDraft);
   const sample = new Date(2026, 9, 7, 12);
-  const toggle = () => {
-    const next = !legacy;
-    setLegacy(next);
-    writeLegacyMode(next);
-    // The page chooses which version to load when it opens, so reload to switch.
+  // The page chooses which version to load when it opens, so remember the choice and reload.
+  const openLegacy = () => {
+    writeLegacyMode(true);
     try { window.location.reload(); } catch (e) { /* nothing to reload in a preview */ }
   };
   return (
@@ -2990,13 +2987,13 @@ function GeneralSettings({ crewName, onChangeCrewName, dateFormat, onChangeDateF
         </div>
       </div>
 
-      <button className="ert-swrow" role="switch" aria-checked={legacy} onClick={toggle}>
-        <span>
+      <div className="ert-gsrow">
+        <div>
           <b>Legacy mode</b>
           <small>Open the previous version of the app on this device. Both versions share the same data, so nothing is lost or duplicated. A button in the corner brings you back to the new version.</small>
-        </span>
-        <span className="ert-sw"><i /></span>
-      </button>
+        </div>
+        <button className="ert-btn ert-btn-ghost" onClick={openLegacy}>Open previous version</button>
+      </div>
     </div>
   );
 }
