@@ -1752,7 +1752,7 @@ function RoomsScreen() {
     ...f.countries.map((c) => ({ key: `n${c}`, label: c, onRemove: () => toggle("countries")(c) })),
     ...f.genres.map((c) => ({ key: `g${c}`, label: c, onRemove: () => toggle("genres")(c) })),
     ...f.flags.map((id) => { const d = flags.find((x) => x.id === id); return { key: `f${id}`, label: d ? d.label : id, onRemove: () => toggle("flags")(id) }; }),
-    ...(f.onlyUnrated ? [{ key: "unrated", label: "Not rated by me", onRemove: () => patch({ onlyUnrated: false }) }] : []),
+    ...(f.onlyUnrated ? [{ key: "unrated", label: "Not rated yet", onRemove: () => patch({ onlyUnrated: false }) }] : []),
   ];
   const clearAll = () => patch({ search: "", cities: [], genres: [], countries: [], flags: [], onlyUnrated: false });
 
@@ -1804,7 +1804,7 @@ function RoomsScreen() {
         count={list.length}
         noun="room"
         onClear={clearAll}
-        extras={!wish && !isGuest ? <SwitchRow label="Not rated by me" checked={f.onlyUnrated} onChange={(v) => patch({ onlyUnrated: v })} /> : null}
+        extras={!wish && !isGuest ? <SwitchRow label="Not rated yet" checked={f.onlyUnrated} onChange={(v) => patch({ onlyUnrated: v })} /> : null}
         groups={[
           { key: "city", label: "City", options: cities.map((c) => ({ id: c, label: c })), selected: f.cities, onToggle: toggle("cities") },
           { key: "category", label: "Category", options: genres.map((c) => ({ id: c, label: c })), selected: f.genres, onToggle: toggle("genres") },
@@ -1844,7 +1844,7 @@ function RankingScreen() {
     ...f.countries.map((c) => ({ key: `n${c}`, label: c, onRemove: () => toggle("countries")(c) })),
     ...f.genres.map((c) => ({ key: `g${c}`, label: c, onRemove: () => toggle("genres")(c) })),
     ...f.flags.map((id) => { const d = flags.find((x) => x.id === id); return { key: `f${id}`, label: d ? d.label : id, onRemove: () => toggle("flags")(id) }; }),
-    ...(f.onlyUnrated ? [{ key: "unrated", label: "Not rated by me", onRemove: () => patch({ onlyUnrated: false }) }] : []),
+    ...(f.onlyUnrated ? [{ key: "unrated", label: "Not rated yet", onRemove: () => patch({ onlyUnrated: false }) }] : []),
   ];
 
   return (
@@ -1895,7 +1895,7 @@ function RankingScreen() {
         count={ranked.length}
         noun="room"
         onClear={clearAll}
-        extras={!isGuest ? <SwitchRow label="Not rated by me" checked={f.onlyUnrated} onChange={(v) => patch({ onlyUnrated: v })} /> : null}
+        extras={!isGuest ? <SwitchRow label="Not rated yet" checked={f.onlyUnrated} onChange={(v) => patch({ onlyUnrated: v })} /> : null}
         groups={[
           { key: "city", label: "City", options: cities.map((c) => ({ id: c, label: c })), selected: f.cities, onToggle: toggle("cities") },
           { key: "category", label: "Category", options: genres.map((c) => ({ id: c, label: c })), selected: f.genres, onToggle: toggle("genres") },
@@ -2907,14 +2907,12 @@ function SettingsScreen() {
 
 function GeneralScreen() {
   const { data, act, settings } = useApp();
-  const [legacy, setLegacy] = useState(() => readLegacyMode());
   const [nameDraft, setNameDraft] = useState(data.crewName || "");
   useEffect(() => { setNameDraft(data.crewName || ""); }, [data.crewName]);
   const sample = new Date(2026, 9, 7, 12);
-  const change = (next) => {
-    setLegacy(next);
-    writeLegacyMode(next);
-    // index.html reads the switch when it opens; it skips the phone redirect while legacy is on.
+  const openLegacy = () => {
+    writeLegacyMode(true);
+    // index.html reads the choice when it opens; it skips the phone redirect while legacy is on.
     try { window.location.assign("index.html"); } catch (e) { /* nothing to open in a preview */ }
   };
   return (
@@ -2949,13 +2947,10 @@ function GeneralScreen() {
           <button aria-pressed={settings.theme === "light"} onClick={() => settings.setTheme("light")}>Light</button>
         </div>
       </div>
-      <div className="pad">
-        <SwitchRow
-          label="Legacy mode"
-          hint="Open the previous version of the app on this device. It was designed for larger screens, so it may feel cramped on a phone. Both versions share the same data. A button in the corner brings you back."
-          checked={legacy}
-          onChange={change}
-        />
+      <div className="gset">
+        <b>Legacy mode</b>
+        <small>Open the previous version of the app on this device. It was designed for larger screens, so it may feel cramped on a phone. Both versions share the same data. A button in the corner brings you back.</small>
+        <button className="btn btn-quiet" style={{ width: "100%" }} onClick={openLegacy}>Open previous version</button>
       </div>
     </Screen>
   );
