@@ -427,6 +427,49 @@ async function hashPassword(password, salt) {
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const STORAGE_KEY = "escape-room-club-data-v1";
 const MEMBER_KEY = "escape-room-club-current-member";
+// Per-device switch read by index.html / mobile.html to open the previous version of the app.
+const LEGACY_MODE_KEY = "escape-room-club-legacy-mode";
+function readLegacyMode() {
+  try { return window.localStorage.getItem(LEGACY_MODE_KEY) === "1"; } catch (e) { return false; }
+}
+function writeLegacyMode(on) {
+  try {
+    if (on) window.localStorage.setItem(LEGACY_MODE_KEY, "1");
+    else window.localStorage.removeItem(LEGACY_MODE_KEY);
+  } catch (e) { /* storage blocked: the switch simply won't stick */ }
+}
+// Per-device appearance and date settings (App settings > General).
+const THEME_KEY = "escape-room-club-theme";
+const DATE_FORMAT_KEY = "escape-room-club-date-format";
+const DEFAULT_CREW_NAME = "The Escape Log";
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const DATE_FORMATS = [
+  { id: "auto", label: "Automatic (browser setting)" },
+  { id: "mdy-text", label: "Oct 7, 2026" },
+  { id: "dmy-text", label: "7 Oct 2026" },
+  { id: "dmy-dots", label: "07.10.2026" },
+  { id: "dmy-slash", label: "07/10/2026" },
+  { id: "mdy-slash", label: "10/07/2026" },
+  { id: "iso", label: "2026-10-07" },
+];
+// fmtDate and the app title are read from plain helpers all over the app, so the chosen values
+// live here and the root component re-renders everything when they change.
+let activeDateFormat = "auto";
+let activeCrewName = DEFAULT_CREW_NAME;
+function formatDateAs(d, fmt) {
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  switch (fmt) {
+    case "mdy-text": return `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}, ${yyyy}`;
+    case "dmy-text": return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${yyyy}`;
+    case "dmy-dots": return `${dd}.${mm}.${yyyy}`;
+    case "dmy-slash": return `${dd}/${mm}/${yyyy}`;
+    case "mdy-slash": return `${mm}/${dd}/${yyyy}`;
+    case "iso": return `${yyyy}-${mm}-${dd}`;
+    default: return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  }
+}
 const MEMBERS = ["Karol", "Asia", "Jano", "Jaćka"];
 const GUEST_NAME = "Guest"; // read-only visitor: no password, can browse/filter/search/sort but never writes data
  
@@ -589,6 +632,7 @@ function normalizeData(raw) {
     trips: Array.isArray(safe.trips) ? safe.trips : [],
     categories: Array.isArray(safe.categories) && safe.categories.length ? [...safe.categories].sort((a, b) => a.localeCompare(b, "pl")) : [...DEFAULT_CATEGORIES].sort((a, b) => a.localeCompare(b, "pl")),
     flags: Array.isArray(safe.flags) && safe.flags.length ? safe.flags : DEFAULT_FLAGS,
+    crewName: typeof safe.crewName === "string" ? safe.crewName.trim().slice(0, 40) : "",
   };
 }
 
@@ -691,7 +735,7 @@ const SORT_OPTIONS = [
   { id: "date-desc", label: "Date added (newest)" },
   { id: "date-asc", label: "Date added (oldest)" },
   { id: "rating-desc", label: "Rating (high to low)" },
-  { id: "alpha", label: "Alphabetical (AtoZ)" },
+  { id: "alpha", label: "Alphabetical (A to Z)" },
 ];
 
 function sortRooms(rooms, sortBy) {
@@ -761,7 +805,7 @@ const TRIP_SORT_OPTIONS = [
   { id: "start-asc", label: "Trip date (oldest)" },
   { id: "date-desc", label: "Date added (newest)" },
   { id: "date-asc", label: "Date added (oldest)" },
-  { id: "alpha", label: "Alphabetical (AtoZ)" },
+  { id: "alpha", label: "Alphabetical (A to Z)" },
 ];
 
 
@@ -786,7 +830,7 @@ function sortTrips(trips, sortBy) {
 const GALLERY_SORT_OPTIONS = [
   { id: "visited-desc", label: "Date visited (newest)" },
   { id: "visited-asc", label: "Date visited (oldest)" },
-  { id: "alpha", label: "Room (AtoZ)" },
+  { id: "alpha", label: "Room (A to Z)" },
 ];
 
 function sortGalleryPhotos(items, sortBy) {
@@ -819,7 +863,7 @@ const Ico = {
   user: pick("User"), trophy: pick("Trophy"), plane: pick("Plane"), image: pick("Image", "ImageIcon"),
   home: pick("Home", "House"), door: pick("DoorOpen", "DoorClosed"), filter: pick("SlidersHorizontal", "Filter"),
   sort: pick("ArrowUpDown"), cal: pick("Calendar"), wallet: pick("Wallet"), dumbbell: pick("Dumbbell"),
-  ghost: pick("Ghost"), minus: pick("Minus"), trash: pick("Trash2", "Trash"), edit: pick("Pencil", "Edit2", "Edit"),
+  ghost: pick("Ghost"), ordered: pick("ListOrdered"), minus: pick("Minus"), trash: pick("Trash2", "Trash"), edit: pick("Pencil", "Edit2", "Edit"),
   upload: pick("Upload"), settings: pick("Settings"), users: pick("Users"), flag: pick("Flag"),
   link: pick("ExternalLink"), key: pick("KeyRound", "Key"), monitor: pick("Monitor"), palette: pick("Tag", "Tags"),
   cloud: pick("Cloud"), clock: pick("Clock"), logout: pick("LogOut"), drive: pick("HardDrive", "Cloud"),
@@ -831,7 +875,7 @@ const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 const fmtDate = (iso) => {
   if (!iso) return "";
   const d = new Date(iso + "T12:00:00");
-  return isNaN(d.getTime()) ? iso : d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  return isNaN(d.getTime()) ? iso : formatDateAs(d, activeDateFormat);
 };
 const distinct = (list) => Array.from(new Set(list.filter(Boolean))).sort((a, b) => a.localeCompare(b, "pl"));
 // Search ignores case and Polish diacritics, so "lodz" finds "Łódź" on any phone keyboard.
@@ -884,7 +928,19 @@ function crewStats(rooms) {
 const MOBILE_CSS = `
 :root{--bg:#14161c;--surface:#1b1e27;--raised:#252a35;--hair:#2a2f3b;--line:#3a4152;--text:#ece8dd;--dim:#9aa0b1;
 --brass:#c89b4a;--brass-hi:#e3bd72;--teal:#48a99e;--danger:#d0675a;--success:#6a9d74;
+--on-brass:#17140c;--hdr-bg:rgba(20,22,28,.94);--tabbar-bg:rgba(27,30,39,.97);--press:#2d3340;--step-press:#2f3542;--toast-bg:#2c313e;
+--brass-wash:rgba(200,155,74,.16);--brass-ring:rgba(200,155,74,.28);--scrim:rgba(6,7,10,.64);
+--err-bg:#3a1f1c;--err-fg:#f0b8b0;--ok-bg:#1d2e24;--ok-fg:#b4d8bf;
 --safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px);--hdr:52px;--tabbar:58px;color-scheme:dark}
+/* Light theme: warm paper rather than white. Cards sit a step lighter than the page so they still lift. */
+:root[data-theme=light]{color-scheme:light;--bg:#e4dfd3;--surface:#efebe1;--raised:#f6f3eb;--hair:#d3cdbd;--line:#bfb8a6;--text:#25272e;--dim:#5d6272;
+--brass:#b4832b;--brass-hi:#7d5614;--teal:#2f857b;--danger:#b94a3d;--success:#4d8559;
+--hdr-bg:rgba(228,223,211,.94);--tabbar-bg:rgba(239,235,225,.97);--press:#ddd7c7;--step-press:#e2ddcf;--toast-bg:#2c313e;
+--brass-wash:rgba(180,131,43,.17);--brass-ring:rgba(180,131,43,.32);--scrim:rgba(40,34,22,.42);
+--err-bg:#f3d9d3;--err-fg:#8a2f25;--ok-bg:#d9e8dc;--ok-fg:#2f5d3b}
+:root[data-theme=light] select.inp{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235d6272' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
+:root[data-theme=light] .sw i{box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.dial{--brass-hi:#e3bd72;--text:#ece8dd}
 html{-webkit-text-size-adjust:100%;background:var(--bg)}
 body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none}
 .m-app,.m-app *,.m-app *::before,.m-app *::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -892,14 +948,14 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',system-
 :where(.m-app) button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;touch-action:manipulation;text-align:inherit}
 :where(.m-app) input,:where(.m-app) select,:where(.m-app) textarea{font:inherit;font-size:16px;color:var(--text);margin:0}
 .m-app :focus-visible{outline:2px solid var(--brass-hi);outline-offset:2px}
-.m-app ::selection{background:var(--brass);color:#14161c}
+.m-app ::selection{background:var(--brass);color:var(--on-brass)}
 .disp{font-family:'Space Grotesk','Inter',system-ui,sans-serif}
 .num{font-family:'Space Grotesk','Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums}
 .dim{color:var(--dim)}.brass{color:var(--brass-hi)}.danger{color:var(--danger)}.grow{flex:1}
 .sm{font-size:14px}.xs{font-size:13px}
 
 /* header + tabs */
-.hdr{position:sticky;top:0;z-index:30;padding-top:var(--safe-t);background:rgba(20,22,28,.94);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid var(--hair)}
+.hdr{position:sticky;top:0;z-index:30;padding-top:var(--safe-t);background:var(--hdr-bg);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid var(--hair)}
 .hdr-in{height:var(--hdr);display:flex;align-items:center;gap:2px;padding:0 6px 0 6px}
 .hdr-title{flex:1;min-width:0;font-weight:600;font-size:18px;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .brand{flex:1;display:flex;align-items:center;gap:9px;padding-left:10px;font-size:19px;font-weight:700;letter-spacing:-.01em}
@@ -908,7 +964,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',system-
 .hbtn{height:44px;padding:0 14px;border-radius:22px;font-weight:600;color:var(--brass-hi)}
 .hbtn:active{background:var(--raised)}
 .avatar{width:34px;height:34px;border-radius:50%;background:var(--raised);border:1.5px solid var(--brass);color:var(--brass-hi);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px}
-.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;background:rgba(27,30,39,.97);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid var(--hair);padding-bottom:var(--safe-b)}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;background:var(--tabbar-bg);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid var(--hair);padding-bottom:var(--safe-b)}
 .tab{flex:1;height:var(--tabbar);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11.5px;font-weight:500;color:var(--dim);position:relative}
 .tab[aria-current=page]{color:var(--brass-hi)}
 .tab[aria-current=page]::before{content:"";position:absolute;top:0;width:26px;height:2px;border-radius:2px;background:var(--brass)}
@@ -918,11 +974,13 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',system-
 .main.bare{padding-bottom:calc(var(--safe-b) + 40px)}
 .pad{padding-left:16px;padding-right:16px}
 .banner{padding:9px 16px;font-size:14px;background:var(--raised);border-bottom:1px solid var(--hair)}
-.banner.err{background:#3a1f1c;color:#f0b8b0}.banner.ok{background:#1d2e24;color:#b4d8bf}
+.banner.err{background:var(--err-bg);color:var(--err-fg)}.banner.ok{background:var(--ok-bg);color:var(--ok-fg)}
 
 /* titles + rows */
 .pg-h{font-family:'Space Grotesk',sans-serif;font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:20px 0 6px}
 .sec-h{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:600;margin:30px 16px 4px;display:flex;align-items:baseline;justify-content:space-between}
+.chip[disabled]{opacity:.45}
+.sec-h .chip{min-height:36px;padding:0 14px;font-size:14px;font-family:'Inter',sans-serif;font-weight:500}
 .sec-h small{font-family:'Inter',sans-serif;font-size:13px;font-weight:400;color:var(--dim)}
 .row{display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;border-bottom:1px solid var(--hair);min-height:64px;text-align:left}
 button.row:active,a.row:active{background:var(--surface)}
@@ -978,7 +1036,7 @@ button.row:active,a.row:active{background:var(--surface)}
 .btn-primary{background:var(--brass);color:#17140c}
 .btn-primary:active{background:var(--brass-hi)}
 .btn-quiet{background:var(--raised)}
-.btn-quiet:active{background:#2d3340}
+.btn-quiet:active{background:var(--press)}
 .btn-danger{color:var(--danger);border:1px solid rgba(208,103,90,.5)}
 .btn-block{width:100%}
 .btn[disabled]{opacity:.45}
@@ -988,11 +1046,11 @@ button.row:active,a.row:active{background:var(--surface)}
 textarea.inp{padding:13px 14px;min-height:110px;resize:vertical;line-height:1.5}
 select.inp{padding-right:40px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239aa0b1' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
 .inp[type=date]{text-align:left;min-width:0}
-.inp:focus{border-color:var(--brass);outline:none;box-shadow:0 0 0 3px rgba(200,155,74,.28)}
+.inp:focus{border-color:var(--brass);outline:none;box-shadow:0 0 0 3px var(--brass-ring)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .chips{display:flex;flex-wrap:wrap;gap:9px}
 .chip{min-height:42px;padding:0 16px;border-radius:21px;background:var(--surface);border:1px solid var(--line);font-size:15px;display:inline-flex;align-items:center;gap:7px}
-.chip[aria-pressed=true]{background:rgba(200,155,74,.16);border-color:var(--brass);color:var(--brass-hi)}
+.chip[aria-pressed=true]{background:var(--brass-wash);border-color:var(--brass);color:var(--brass-hi)}
 .suggest{display:flex;gap:8px;overflow-x:auto;padding:9px 0 0;scrollbar-width:none}
 .suggest::-webkit-scrollbar{display:none}
 .suggest button{flex:none;height:42px;padding:0 14px;border-radius:18px;background:var(--raised);font-size:14.5px}
@@ -1002,6 +1060,8 @@ select.inp{padding-right:40px;background-image:url("data:image/svg+xml,%3Csvg xm
 .pchip[aria-pressed=true]{color:var(--text)}
 .pchip.on-brass[aria-pressed=true] .c{background:var(--brass);border-color:var(--brass);color:#17140c}
 .swrow{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;padding:14px 0;border-bottom:1px solid var(--hair);text-align:left}
+.gset{padding:14px 16px;border-bottom:1px solid var(--hair)}
+.gset b{display:block;font-weight:500}.gset small{display:block;color:var(--dim);font-size:13.5px;margin:2px 0 10px}
 .swrow b{display:block;font-weight:500}.swrow small{display:block;color:var(--dim);font-size:13.5px;margin-top:2px}
 .sw{width:48px;height:30px;border-radius:15px;background:var(--line);position:relative;flex:none;transition:background .15s}
 .sw i{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .15s}
@@ -1010,7 +1070,7 @@ select.inp{padding-right:40px;background-image:url("data:image/svg+xml,%3Csvg xm
 .fgroup{margin:6px 0 22px}.fgroup-l{font-weight:600;margin:12px 0 10px}
 
 /* sheets */
-.sheet-bg{position:fixed;inset:0;z-index:60;background:rgba(6,7,10,.64);opacity:0;transition:opacity .2s}
+.sheet-bg{position:fixed;inset:0;z-index:60;background:var(--scrim);opacity:0;transition:opacity .2s}
 .sheet-bg.vis{opacity:1}
 .sheet{position:fixed;left:0;right:0;bottom:0;z-index:61;max-height:90vh;max-height:90dvh;display:flex;flex-direction:column;background:var(--surface);border-radius:20px 20px 0 0;border-top:1px solid var(--line);transform:translateY(100%);transition:transform .26s cubic-bezier(.2,.8,.2,1);padding-bottom:var(--safe-b)}
 .sheet.vis{transform:translateY(0)}
@@ -1043,7 +1103,7 @@ select.inp{padding-right:40px;background-image:url("data:image/svg+xml,%3Csvg xm
 .rate-val{font-family:'Space Grotesk',sans-serif;font-size:30px;font-weight:700;color:var(--brass-hi);font-variant-numeric:tabular-nums;line-height:1;min-width:76px;text-align:center}
 .rate-val small{font-size:15px;color:var(--dim);font-weight:500}
 .step{width:44px;height:44px;border-radius:50%;background:var(--raised);display:flex;align-items:center;justify-content:center;flex:none}
-.step:active{background:#2f3542}
+.step:active{background:var(--step-press)}
 .stars{display:flex;align-items:center;min-height:48px;touch-action:pan-y;margin-top:6px;user-select:none;-webkit-user-select:none;cursor:pointer}
 .star{flex:1;aspect-ratio:1;position:relative;display:flex;align-items:center;justify-content:center}
 .star .base{color:var(--line)}
@@ -1068,8 +1128,8 @@ select.inp{padding-right:40px;background-image:url("data:image/svg+xml,%3Csvg xm
 .hero-cap{margin-top:16px;font-size:17px}
 .hero-sub{color:var(--dim);font-size:14.5px;margin-top:3px}
 .strip3{display:grid;grid-template-columns:repeat(3,1fr);margin:22px 16px 0;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
-.strip3>div{padding:14px 4px;text-align:center}
-.strip3>div+div{border-left:1px solid var(--hair)}
+.strip3>*{padding:14px 4px;text-align:center}
+.strip3>*+*{border-left:1px solid var(--hair)}
 .strip3 b{display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
 .strip3 span{font-size:13.5px;color:var(--dim)}
 
@@ -1081,7 +1141,7 @@ select.inp{padding-right:40px;background-image:url("data:image/svg+xml,%3Csvg xm
 .who:active{border-color:var(--brass)}
 .who .avatar{width:40px;height:40px;font-size:17px}
 .fine{color:var(--dim);font-size:14px;margin:10px 0 0}
-.err-t{color:#f0b8b0;font-size:14.5px;margin:10px 0 0}
+.err-t{color:var(--err-fg);font-size:14.5px;margin:10px 0 0}
 
 /* lightbox */
 .lb{position:fixed;inset:0;z-index:80;background:#050608;display:flex;flex-direction:column;touch-action:none}
@@ -1296,7 +1356,7 @@ function Header({ title, back, actions, brand }) {
       <div className="hdr-in">
         {back ? <button className="ibtn" aria-label="Back" onClick={nav.back}><Ico.back size={28} /></button> : null}
         {brand ? (
-          <div className="brand disp"><Ico.lock size={20} color="var(--brass)" />The Escape Log</div>
+          <div className="brand disp"><Ico.lock size={20} color="var(--brass)" />{activeCrewName}</div>
         ) : (
           <div className="hdr-title disp">{title}</div>
         )}
@@ -1463,12 +1523,12 @@ function RatingControl({ label, value, max, step, icon, color, onChange, onClear
   );
 }
 
-function Dial({ value, digits = 3 }) {
+function Dial({ value, digits = 3, label = "rooms played" }) {
   const str = String(Math.min(value, Math.pow(10, digits) - 1)).padStart(digits, "0");
   const [rolled, setRolled] = useState(false);
   useEffect(() => { const t = setTimeout(() => setRolled(true), 140); return () => clearTimeout(t); }, []);
   return (
-    <div className="dial" role="img" aria-label={`${value} rooms escaped`}>
+    <div className="dial" role="img" aria-label={`${value} ${label}`}>
       {str.split("").map((d, i) => (
         <div className="wheel" key={i}>
           <div className="strip" style={{ transform: `translateY(${rolled ? -Number(d) * 10 : 0}%)`, transitionDelay: `${i * 110}ms` }}>
@@ -1497,7 +1557,7 @@ function WhoAmI({ authRecords, onChoose, onCreatePassword, onVerifyPassword }) {
     setErr("");
     if (isNew) {
       if (pw.length < 4) { setErr("Use at least 4 characters."); return; }
-      if (pw !== pw2) { setErr("The two passwords don't match."); return; }
+      if (pw !== pw2) { setErr("Passwords don't match."); return; }
     }
     setBusy(true);
     try {
@@ -1507,10 +1567,10 @@ function WhoAmI({ authRecords, onChoose, onCreatePassword, onVerifyPassword }) {
       } else if (await onVerifyPassword(selected, pw)) {
         onChoose(selected);
       } else {
-        setErr("That password doesn't match. Try again.");
+        setErr("Wrong password.");
       }
     } catch (ex) {
-      setErr("Couldn't reach the shared data. Check your connection and try again.");
+      setErr(isNew ? "Couldn't set the password. Try again." : "Couldn't check the password. Try again.");
     } finally {
       setBusy(false);
     }
@@ -1521,13 +1581,13 @@ function WhoAmI({ authRecords, onChoose, onCreatePassword, onVerifyPassword }) {
       <div className="login">
         <span className="avatar" style={{ width: 52, height: 52, fontSize: 22 }}>{initialOf(selected)}</span>
         <h1>{isNew ? `Set a password, ${selected}` : `Welcome back, ${selected}`}</h1>
-        <p>{isNew ? "First time on this crew. Pick a password you'll use on every device." : "Enter your password to continue."}</p>
+        <p>{isNew ? "First time logging in as you. Pick a password you'll use each time." : "Enter your password to continue."}</p>
         <form onSubmit={submit}>
           <input type="text" name="username" autoComplete="username" value={selected} readOnly tabIndex={-1} aria-hidden="true" style={{ position: "absolute", opacity: 0, height: 0, width: 0 }} />
           <input className="inp" type="password" name="password" placeholder="Password" autoComplete={isNew ? "new-password" : "current-password"} enterKeyHint={isNew ? "next" : "go"} value={pw} onChange={(e) => setPw(e.target.value)} autoFocus />
           {isNew ? <input className="inp" style={{ marginTop: 10 }} type="password" name="confirm" placeholder="Repeat password" autoComplete="new-password" enterKeyHint="go" value={pw2} onChange={(e) => setPw2(e.target.value)} /> : null}
           {err ? <p className="err-t" role="alert">{err}</p> : null}
-          <button className="btn btn-primary btn-block" style={{ marginTop: 18 }} type="submit" disabled={busy || !pw}>{busy ? "Checking" : isNew ? "Set password and sign in" : "Sign in"}</button>
+          <button className="btn btn-primary btn-block" style={{ marginTop: 18 }} type="submit" disabled={busy || !pw}>{busy ? "Checking" : isNew ? "Set password" : "Unlock"}</button>
           <button className="btn btn-block" style={{ marginTop: 8, color: "var(--dim)" }} type="button" onClick={() => { setSelected(null); setPw(""); setPw2(""); setErr(""); }}>{`Not ${selected}?`}</button>
         </form>
       </div>
@@ -1537,7 +1597,7 @@ function WhoAmI({ authRecords, onChoose, onCreatePassword, onVerifyPassword }) {
   return (
     <div className="login">
       <Ico.lock size={34} color="var(--brass)" />
-      <h1 className="disp">The Escape Log</h1>
+      <h1 className="disp">{activeCrewName}</h1>
       <p>Who's playing?</p>
       {MEMBERS.map((m) => (
         <button key={m} className="who" onClick={() => { tick(); setSelected(m); }}>
@@ -1546,9 +1606,9 @@ function WhoAmI({ authRecords, onChoose, onCreatePassword, onVerifyPassword }) {
         </button>
       ))}
       <button className="btn btn-block btn-quiet" style={{ marginTop: 14 }} onClick={() => onChoose(GUEST_NAME)}>
-        <Ico.user size={18} /> Look around as a guest
+        <Ico.user size={18} /> Continue as guest
       </button>
-      <p className="fine">Guests can browse everything but can't change anything.</p>
+      <p className="fine">View only, no password.</p>
     </div>
   );
 }
@@ -1603,6 +1663,7 @@ function HomeScreen() {
   const top = played.map((r) => ({ r, a: avgRating(r) })).filter((x) => x.a !== null).sort((a, b) => b.a - a.a).slice(0, 5);
   const recent = [...played].sort((a, b) => (b.datePlayed || "").localeCompare(a.datePlayed || "")).slice(0, 5);
   const cities = countBy(played, "city").slice(0, 6);
+  const cityCount = new Set(played.map((r) => (r.city || "").trim().toLowerCase()).filter(Boolean)).size;
   const genres = countBy(played, "category").slice(0, 6);
 
   if (!data.rooms.length) {
@@ -1611,8 +1672,8 @@ function HomeScreen() {
         <div className="hero"><Dial value={0} /></div>
         <EmptyState
           title="Nothing logged yet"
-          text={isGuest ? "Once the crew adds rooms, they'll show up here." : "Add the first room you've played, or one you want to try."}
-          action={isGuest ? null : <button className="btn btn-primary" onClick={() => nav.push({ type: "roomForm", room: emptyRoom(null) })}><Ico.plus size={20} /> Add a room</button>}
+          text={isGuest ? "Once the crew adds rooms, they'll show up here." : "Add your first room."}
+          action={isGuest ? null : <button className="btn btn-primary" onClick={() => nav.push({ type: "roomForm", room: emptyRoom(null) })}><Ico.plus size={20} /> Add room</button>}
         />
       </Screen>
     );
@@ -1621,14 +1682,14 @@ function HomeScreen() {
   return (
     <Screen brand>
       <section className="hero">
-        <Dial value={escaped} />
-        <div className="hero-cap disp">{escaped === 1 ? "room escaped" : "rooms escaped"}</div>
-        <div className="hero-sub">{`${plural(played.length, "room")} played together`}</div>
+        <Dial value={played.length} label="rooms played" />
+        <div className="hero-cap disp">{played.length === 1 ? "room played" : "rooms played"}</div>
+        {cityCount > 0 ? <div className="hero-sub">{`in ${cityCount === 1 ? "1 city" : `${cityCount} cities`}`}</div> : null}
       </section>
       <div className="strip3">
         <div><b>{groupAvg !== null ? groupAvg.toFixed(1) : "-"}</b><span>Group average</span></div>
         <div><b>{rate !== null ? `${rate}%` : "-"}</b><span>Escape rate</span></div>
-        <button style={{ padding: 0, textAlign: "center" }} onClick={() => nav.goList("wishlist")}><b style={{ display: "block", fontFamily: "'Space Grotesk',sans-serif", fontSize: 26, fontWeight: 700 }}>{wish.length}</b><span style={{ fontSize: 13.5, color: "var(--dim)" }}>On the wishlist</span></button>
+        <button onClick={() => nav.goList("wishlist")}><b>{wish.length}</b><span>On the wishlist</span></button>
       </div>
 
       {top.length ? (
@@ -1655,7 +1716,7 @@ function HomeScreen() {
       ) : null}
       {genres.length ? (
         <>
-          <h2 className="sec-h">Genres</h2>
+          <h2 className="sec-h">Categories</h2>
           <BarList items={genres} />
         </>
       ) : null}
@@ -1717,12 +1778,12 @@ function RoomsScreen() {
         </div>
       </div>
       <AppliedPills items={pills} />
-      <div className="count-line">{`${plural(list.length, "room")}, ${sortLabel.toLowerCase()}`}</div>
+      <div className="count-line">{`${list.length === base.length ? `${plural(base.length, "room")} total` : `${list.length} of ${plural(base.length, "room")}`}, ${sortLabel.toLowerCase()}`}</div>
 
       {!list.length ? (
         <EmptyState
-          title={base.length ? "No rooms match" : wish ? "The wishlist is empty" : "No completed rooms yet"}
-          text={base.length ? "Try removing a filter or clearing the search." : wish ? "Rooms you want to try will collect here." : "Rooms you've played will show up here."}
+          title={base.length ? "No rooms match those filters" : wish ? "No rooms on the wishlist yet" : "No completed rooms yet"}
+          text={base.length ? "Try removing a filter or clearing the search." : wish ? "Add one and mark it 'wishlist'." : "Rooms you've played will show up here."}
           action={base.length && (active > 0 || f.search) ? <button className="btn btn-quiet" onClick={clearAll}>Clear filters</button> : null}
         />
       ) : grouped ? (
@@ -1743,10 +1804,10 @@ function RoomsScreen() {
         count={list.length}
         noun="room"
         onClear={clearAll}
-        extras={!wish && !isGuest ? <SwitchRow label="Only rooms I haven't rated" checked={f.onlyUnrated} onChange={(v) => patch({ onlyUnrated: v })} /> : null}
+        extras={!wish && !isGuest ? <SwitchRow label="Not rated by me" checked={f.onlyUnrated} onChange={(v) => patch({ onlyUnrated: v })} /> : null}
         groups={[
           { key: "city", label: "City", options: cities.map((c) => ({ id: c, label: c })), selected: f.cities, onToggle: toggle("cities") },
-          { key: "genre", label: "Genre", options: genres.map((c) => ({ id: c, label: c })), selected: f.genres, onToggle: toggle("genres") },
+          { key: "category", label: "Category", options: genres.map((c) => ({ id: c, label: c })), selected: f.genres, onToggle: toggle("genres") },
           { key: "country", label: "Country", options: countries.map((c) => ({ id: c, label: c })), selected: f.countries, onToggle: toggle("countries") },
           { key: "flags", label: "Flags", options: flags.map((d) => ({ id: d.id, label: d.label, icon: resolveFlagIcon(d.icon), color: d.color })), selected: f.flags, onToggle: toggle("flags") },
         ]}
@@ -1805,9 +1866,9 @@ function RankingScreen() {
         </div>
       </div>
       <AppliedPills items={pills} />
-      <div className="count-line">{personal ? `${plural(ranked.length, "room")} you played` : plural(ranked.length, "room")}</div>
+      <div className="count-line">{(() => { const total = personal ? played.filter((r) => roomParticipants(r).includes(me)).length : played.length; return ranked.length === total ? `${plural(total, "room")} total` : `${ranked.length} of ${plural(total, "room")}`; })()}</div>
       {!ranked.length ? (
-        <EmptyState title={played.length ? "No rooms match" : "Nothing to rank yet"} text={played.length ? "Try removing a filter." : "The ranking fills in once rooms are played and rated."} action={active > 0 ? <button className="btn btn-quiet" onClick={clearAll}>Clear filters</button> : null} />
+        <EmptyState title={played.length ? "No rooms match those filters" : "No completed rooms yet"} text={played.length ? "Try removing a filter." : "The ranking fills in once you log one."} action={active > 0 ? <button className="btn btn-quiet" onClick={clearAll}>Clear filters</button> : null} />
       ) : (
         ranked.map((x, i) => (
           <RoomRow
@@ -1834,10 +1895,10 @@ function RankingScreen() {
         count={ranked.length}
         noun="room"
         onClear={clearAll}
-        extras={!isGuest ? <SwitchRow label="Only rooms I haven't rated" checked={f.onlyUnrated} onChange={(v) => patch({ onlyUnrated: v })} /> : null}
+        extras={!isGuest ? <SwitchRow label="Not rated by me" checked={f.onlyUnrated} onChange={(v) => patch({ onlyUnrated: v })} /> : null}
         groups={[
           { key: "city", label: "City", options: cities.map((c) => ({ id: c, label: c })), selected: f.cities, onToggle: toggle("cities") },
-          { key: "genre", label: "Genre", options: genres.map((c) => ({ id: c, label: c })), selected: f.genres, onToggle: toggle("genres") },
+          { key: "category", label: "Category", options: genres.map((c) => ({ id: c, label: c })), selected: f.genres, onToggle: toggle("genres") },
           { key: "country", label: "Country", options: countries.map((c) => ({ id: c, label: c })), selected: f.countries, onToggle: toggle("countries") },
           { key: "flags", label: "Flags", options: flags.map((d) => ({ id: d.id, label: d.label, icon: resolveFlagIcon(d.icon), color: d.color })), selected: f.flags, onToggle: toggle("flags") },
         ]}
@@ -2076,9 +2137,9 @@ function RoomView({ room }) {
       }
       if (added.length) act.updateRoom(room.id, (r) => ({ photos: [...(r.photos || []), ...added] }));
       if (added.length) toast(`${plural(added.length, "photo")} added`);
-      if (failed) toast(`${failed} of ${files.length} didn't upload. Try those again.`, "err");
+      if (failed) toast(`${failed} of ${files.length} photo${files.length === 1 ? "" : "s"} failed to upload.`, "err");
     } catch (e) {
-      toast(e.message || "Couldn't reach Google Drive. Try reconnecting in Settings.", "err");
+      toast(e.message || "Couldn't upload those photos.", "err");
     } finally {
       setUpload(null);
     }
@@ -2173,7 +2234,7 @@ function RoomView({ room }) {
         <>
           <h2 className="sec-h">Your ratings</h2>
           <div className="pad">
-            {isGuest ? <p className="dim">Guests can look but not rate. Sign in as a crew member to add your ratings.</p> : (
+            {isGuest ? <p className="dim">Guests can read ratings and notes but can't add their own.</p> : (
               <>
                 <RatingControl label="Rating" value={(room.ratings || {})[me]} max={10} step={0.5} onChange={(v) => setMine("ratings", v)} onClear={() => clearMine("ratings")} />
                 <RatingControl label="Difficulty" value={(room.difficultyRatings || {})[me]} max={6} step={1} icon={Ico.dumbbell} solid={false} color="var(--danger)" onChange={(v) => setMine("difficultyRatings", v)} onClear={() => clearMine("difficultyRatings")} />
@@ -2190,7 +2251,7 @@ function RoomView({ room }) {
                 return editNote ? (
                   <div className="note" key={m}>
                     <b>{`${m} (you)`}</b>
-                    <textarea className="inp" style={{ marginTop: 8 }} autoFocus value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Puzzle quality, story, scares, would you recommend it?" />
+                    <textarea className="inp" style={{ marginTop: 8 }} autoFocus value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Your impressions: puzzle quality, story, scares, whether it's worth recommending" />
                     <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
                       <button className="btn btn-primary grow" onClick={saveNote}>Save note</button>
                       <button className="btn btn-quiet" onClick={() => setEditNote(false)}>Cancel</button>
@@ -2211,7 +2272,7 @@ function RoomView({ room }) {
           <div className="pad">
             {editWalk ? (
               <>
-                <textarea className="inp" autoFocus style={{ minHeight: 160 }} value={walkText} onChange={(e) => setWalkText(e.target.value)} placeholder="Puzzle order, hints used, anything worth remembering for next time" />
+                <textarea className="inp" autoFocus style={{ minHeight: 160 }} value={walkText} onChange={(e) => setWalkText(e.target.value)} placeholder="Step through how you solved it: puzzle order, hint usage, anything worth remembering next time" />
                 <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
                   <button className="btn btn-primary grow" onClick={saveWalk}>Save walkthrough</button>
                   <button className="btn btn-quiet" onClick={() => setEditWalk(false)}>Cancel</button>
@@ -2229,9 +2290,9 @@ function RoomView({ room }) {
           <h2 className="sec-h">Photos<small>{photos.length ? plural(photos.length, "photo") : ""}</small></h2>
           <div className="pad">
             {!drive.available ? (
-              <p className="dim">Photos need the hosted site and Google Drive. They aren't available in this preview.</p>
+              <p className="dim">Photo upload uses Google Drive and only works on the hosted site, not in this preview.</p>
             ) : !drive.connected ? (
-              <p className="dim">{isGuest ? "No photos yet." : "Google Drive isn't connected yet. Connect it in Settings to add photos."}</p>
+              <p className="dim">{isGuest ? "No photos yet." : "Google Drive isn't connected yet. Connect it from App settings (Google Drive) to enable photo uploads."}</p>
             ) : (
               <div className="pgrid">
                 {photos.map((p, i) => <Thumb key={p.id} photo={p} onClick={() => setLb(i)} />)}
@@ -2309,18 +2370,18 @@ function RoomFormScreen({ initial }) {
       actions={<button className="hbtn" onClick={save}>Save</button>}
     >
       <div className="pad">
-        <Field label="Room name"><input className="inp" value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Nocne Łowy" autoComplete="off" enterKeyHint="next" /></Field>
-        <Field label="Venue or company"><input className="inp" value={form.venue} onChange={(e) => set({ venue: e.target.value })} autoComplete="off" enterKeyHint="next" /></Field>
+        <Field label="Room name *"><input className="inp" value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Nocne Łowy" autoComplete="off" enterKeyHint="next" /></Field>
+        <Field label="Venue / company"><input className="inp" value={form.venue} onChange={(e) => set({ venue: e.target.value })} autoComplete="off" enterKeyHint="next" /></Field>
         <Field label="City">
           <input className="inp" value={form.city} onChange={(e) => set({ city: e.target.value })} autoComplete="off" enterKeyHint="next" />
           {cityOptions.length ? <div className="suggest">{cityOptions.map((c) => <button key={c} onClick={() => set({ city: c })}>{c}</button>)}</div> : null}
         </Field>
         <Field label="Country"><input className="inp" value={form.country} onChange={(e) => set({ country: e.target.value })} autoComplete="off" enterKeyHint="next" /></Field>
         <div className="grid2">
-          <Field label="Genre"><select className="inp" value={form.category} onChange={(e) => set({ category: e.target.value })}>{catOptions.map((c) => <option key={c} value={c}>{c}</option>)}</select></Field>
+          <Field label="Category"><select className="inp" value={form.category} onChange={(e) => set({ category: e.target.value })}>{catOptions.map((c) => <option key={c} value={c}>{c}</option>)}</select></Field>
           <Field label="Difficulty"><select className="inp" value={form.difficulty} onChange={(e) => set({ difficulty: e.target.value })}>{DIFFICULTY_LEVELS.map((c) => <option key={c} value={c}>{c}</option>)}</select></Field>
         </div>
-        <Field label="lock.me link"><input className="inp" type="url" inputMode="url" value={form.lockmeUrl} onChange={(e) => set({ lockmeUrl: e.target.value })} placeholder="https://lock.me/..." autoComplete="off" autoCapitalize="none" /></Field>
+        <Field label="LockMe link (or other listing)"><input className="inp" type="url" inputMode="url" value={form.lockmeUrl} onChange={(e) => set({ lockmeUrl: e.target.value })} placeholder="https://lock.me/..." autoComplete="off" autoCapitalize="none" /></Field>
 
         <Field label="Status">
           <Segmented
@@ -2336,7 +2397,7 @@ function RoomFormScreen({ initial }) {
             <Field label="Result">
               <Segmented value={form.result} onChange={(v) => set({ result: v })} options={[{ id: "escaped", label: "Escaped" }, { id: "not-escaped", label: "Not escaped" }]} />
             </Field>
-            <Field label="Time left or how it ended"><input className="inp" value={form.timeNote} onChange={(e) => set({ timeNote: e.target.value })} placeholder="e.g. 4:12 left" autoComplete="off" /></Field>
+            <Field label="Time note (e.g. '4:12 left')"><input className="inp" value={form.timeNote} onChange={(e) => set({ timeNote: e.target.value })} placeholder="e.g. 4:12 left" autoComplete="off" /></Field>
             <div className="grid2">
               <Field label="Price paid"><input className="inp" type="number" inputMode="decimal" min="0" step="0.01" value={form.price || ""} onChange={(e) => set({ price: e.target.value })} placeholder="0" /></Field>
               <Field label="Currency"><input className="inp" value={form.currency || "PLN"} onChange={(e) => set({ currency: e.target.value })} autoCapitalize="characters" /></Field>
@@ -2368,7 +2429,7 @@ function RoomFormScreen({ initial }) {
           </div>
         </Field>
 
-        <button className="btn btn-primary btn-block" style={{ marginTop: 14 }} onClick={save}>{isNew ? "Add room" : "Save changes"}</button>
+        <button className="btn btn-primary btn-block" style={{ marginTop: 14 }} onClick={save}>Save room</button>
       </div>
     </Screen>
   );
@@ -2431,11 +2492,11 @@ function TripsScreen() {
         </div>
       </div>
       <AppliedPills items={f.cities.map((c) => ({ key: c, label: c, onRemove: () => toggleCity(c) }))} />
-      <div className="count-line">{`${plural(list.length, "trip")}, ${sortLabel.toLowerCase()}`}</div>
+      <div className="count-line">{`${plural(list.length, "trip")} total, ${sortLabel.toLowerCase()}`}</div>
       {!list.length ? (
         <EmptyState
-          title={data.trips.length ? "No trips match" : "No trips yet"}
-          text={data.trips.length ? "Try removing a filter or clearing the search." : "Group the rooms from a city weekend into one trip to see them together."}
+          title={data.trips.length ? "No trips match those filters" : "No trips yet"}
+          text={data.trips.length ? "Try removing a filter or clearing the search." : "Group the rooms from your next city trip together here."}
           action={data.trips.length && (active || f.search) ? <button className="btn btn-quiet" onClick={clearAll}>Clear filters</button> : null}
         />
       ) : grouped ? (
@@ -2476,7 +2537,7 @@ function RoomPicker({ rooms, selected, onToggle, inRange }) {
     <div>
       <SearchBox value={q} onChange={setQ} placeholder="Search completed rooms" />
       <div style={{ marginTop: 8 }}>
-        {!list.length ? <p className="dim">No completed rooms match.</p> : list.map((r) => {
+        {!list.length ? <p className="dim">No matching completed rooms to add.</p> : list.map((r) => {
           const on = selected.includes(r.id);
           return (
             <button key={r.id} className="row pick" role="checkbox" aria-checked={on} onClick={() => { tick(); onToggle(r.id); }}>
@@ -2518,6 +2579,7 @@ function TripView({ trip }) {
   const { data, me, isGuest, nav, act, flags, toast, ask } = useApp();
   const [menu, setMenu] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [ranking, setRanking] = useState(false);
   const [editSum, setEditSum] = useState(false);
   const [sumText, setSumText] = useState("");
   const stats = tripStats(trip, data.rooms);
@@ -2553,14 +2615,14 @@ function TripView({ trip }) {
       <div className="strip3">
         <div><b>{stats.count}</b><span>{stats.count === 1 ? "Room" : "Rooms"}</span></div>
         <div><b>{stats.avg !== null ? stats.avg.toFixed(1) : "-"}</b><span>Group average</span></div>
-        <div><b>{stats.escapeRate !== null ? `${stats.escapeRate}%` : "-"}</b><span>Escaped</span></div>
+        <div><b>{stats.escapeRate !== null ? `${stats.escapeRate}%` : "-"}</b><span>Escape rate</span></div>
       </div>
 
       <h2 className="sec-h">Summary</h2>
       <div className="pad">
         {editSum ? (
           <>
-            <textarea className="inp" autoFocus style={{ minHeight: 140 }} value={sumText} onChange={(e) => setSumText(e.target.value)} placeholder="Highlights, favourites, a running joke from the weekend" />
+            <textarea className="inp" autoFocus style={{ minHeight: 140 }} value={sumText} onChange={(e) => setSumText(e.target.value)} placeholder="Highlights, favorites, or a running joke from the trip" />
             <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
               <button className="btn btn-primary grow" onClick={() => { act.updateTrip(trip.id, { notes: sumText.trim() }); setEditSum(false); toast("Summary saved"); }}>Save summary</button>
               <button className="btn btn-quiet" onClick={() => setEditSum(false)}>Cancel</button>
@@ -2577,7 +2639,7 @@ function TripView({ trip }) {
 
       <h2 className="sec-h">Rooms on this trip</h2>
       {!stats.rooms.length ? (
-        <EmptyState title="No rooms yet" text={isGuest ? "" : "Add the rooms you played on this trip."} action={isGuest ? null : <button className="btn btn-quiet" onClick={() => setAdding(true)}><Ico.plus size={18} /> Add rooms</button>} />
+        <EmptyState title="No rooms on this trip yet" action={isGuest ? null : <button className="btn btn-quiet" onClick={() => setAdding(true)}><Ico.plus size={18} /> Add rooms</button>} />
       ) : stats.rooms.map((r) => (
         <div className="rowwrap" key={r.id}>
           <RoomRow room={r} flagDefs={flags} plain score={avgRating(r) !== null ? avgRating(r).toFixed(1) : null} onOpen={() => nav.openRoom(r.id)} />
@@ -2585,46 +2647,56 @@ function TripView({ trip }) {
         </div>
       ))}
 
-      {!isGuest && myRanking.length > 1 ? (
+      {group.length || (!isGuest && stats.rooms.length > 0) ? (
         <>
-          <h2 className="sec-h">Rank your favourites<small>best first</small></h2>
-          {myRanking.map((id, i) => {
-            const r = data.rooms.find((x) => x.id === id);
-            if (!r) return null;
-            return (
-              <div className="row" key={id}>
-                <span className={cx("rank-n", i === 0 && "top")}>{i + 1}</span>
-                <span className="rr-main"><span className="rr-title" style={{ fontSize: 17 }}>{r.name}</span></span>
-                <button className="step" aria-label={`Move ${r.name} up`} disabled={i === 0} onClick={() => move(i, i - 1)}><Ico.up size={21} /></button>
-                <button className="step" aria-label={`Move ${r.name} down`} disabled={i === myRanking.length - 1} onClick={() => move(i, i + 1)}><Ico.down size={21} /></button>
-              </div>
-            );
-          })}
-        </>
-      ) : null}
-
-      {group.length ? (
-        <>
-          <h2 className="sec-h">Group favourites<small>from everyone's ranking</small></h2>
-          {group.map((x, i) => (
+          <h2 className="sec-h">
+            Group favorites
+            {!isGuest ? (
+              <button className="chip" disabled={myRanking.length === 0} onClick={() => setRanking(true)}>
+                <Ico.ordered size={16} /> Rank your favorites
+              </button>
+            ) : null}
+          </h2>
+          {group.length ? group.map((x, i) => (
             <div className="row" key={x.room.id}>
               <span className={cx("rank-n", i === 0 && "top")}>{i + 1}</span>
               <span className="rr-main"><span className="rr-title" style={{ fontSize: 17 }}>{x.room.name}</span></span>
               <span className="dim sm">{plural(x.voters, "vote")}</span>
             </div>
-          ))}
+          )) : <p className="dim pad" style={{ margin: "10px 0 0" }}>No one has ranked this trip's rooms yet.</p>}
         </>
       ) : null}
 
+      <Sheet
+        open={ranking}
+        onClose={() => setRanking(false)}
+        title="Rank your favorites"
+        footer={<button className="btn btn-primary btn-block" onClick={() => setRanking(false)}>Done</button>}
+      >
+        <p className="dim" style={{ margin: "0 0 6px" }}>Order this trip's rooms from your favorite to least favorite. Everyone's own ranking combines into the group favorites.</p>
+        {myRanking.length === 0 ? <p className="dim">Add rooms to this trip first.</p> : myRanking.map((id, i) => {
+          const r = data.rooms.find((x) => x.id === id);
+          if (!r) return null;
+          return (
+            <div className="row" key={id}>
+              <span className={cx("rank-n", i === 0 && "top")}>{i + 1}</span>
+              <span className="rr-main"><span className="rr-title" style={{ fontSize: 17 }}>{r.name}</span></span>
+              <button className="step" aria-label={`Move ${r.name} up`} disabled={i === 0} onClick={() => move(i, i - 1)}><Ico.up size={21} /></button>
+              <button className="step" aria-label={`Move ${r.name} down`} disabled={i === myRanking.length - 1} onClick={() => move(i, i + 1)}><Ico.down size={21} /></button>
+            </div>
+          );
+        })}
+      </Sheet>
+
       <Sheet open={menu} onClose={() => setMenu(false)} title={trip.name || "Trip"}>
-        <button className="opt" onClick={() => { setMenu(false); setAdding(true); }}><span>Add or remove rooms</span><Ico.plus size={20} color="var(--dim)" /></button>
+        <button className="opt" onClick={() => { setMenu(false); setAdding(true); }}><span>Add rooms</span><Ico.plus size={20} color="var(--dim)" /></button>
         <button className="opt" onClick={() => { setMenu(false); nav.push({ type: "tripForm", trip }); }}><span>Edit trip</span><Ico.edit size={20} color="var(--dim)" /></button>
         <button className="opt" style={{ color: "var(--danger)" }} onClick={() => {
           setMenu(false);
-          ask({ title: "Delete this trip?", body: "The rooms stay in your log. Only the trip, its summary and favourites are removed.", action: "Delete trip", danger: true, onConfirm: () => { act.deleteTrip(trip.id); nav.back(); toast("Trip deleted"); } });
+          ask({ title: "Delete this trip?", body: "The rooms stay in your log. Only the trip, its summary and favorites are removed.", action: "Delete trip", danger: true, onConfirm: () => { act.deleteTrip(trip.id); nav.back(); toast("Trip deleted"); } });
         }}><span>Delete trip</span><Ico.trash size={20} /></button>
       </Sheet>
-      <Sheet open={adding} onClose={() => setAdding(false)} title="Rooms on this trip" footer={<button className="btn btn-primary btn-block" onClick={() => setAdding(false)}>Done</button>}>
+      <Sheet open={adding} onClose={() => setAdding(false)} title="Add rooms" footer={<button className="btn btn-primary btn-block" onClick={() => setAdding(false)}>Done</button>}>
         <RoomPicker rooms={playedRooms} selected={trip.roomIds} onToggle={toggleRoom} inRange={inRange} />
       </Sheet>
     </Screen>
@@ -2650,7 +2722,7 @@ function TripFormScreen({ initial }) {
   return (
     <Screen title={isNew ? "New trip" : "Edit trip"} back bare actions={<button className="hbtn" onClick={save}>Save</button>}>
       <div className="pad">
-        <Field label="Trip name"><input className="inp" value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Wrocław weekend" autoComplete="off" /></Field>
+        <Field label="Trip name *"><input className="inp" value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Wrocław weekend" autoComplete="off" /></Field>
         <Field label="City"><input className="inp" value={form.city} onChange={(e) => set({ city: e.target.value })} autoComplete="off" /></Field>
         <div className="grid2">
           <Field label="Start date"><input className="inp" type="date" value={form.startDate} onChange={(e) => set({ startDate: e.target.value })} /></Field>
@@ -2665,7 +2737,7 @@ function TripFormScreen({ initial }) {
           ) : null}
           <RoomPicker rooms={played} selected={form.roomIds} onToggle={toggle} inRange={inRange} />
         </div>
-        <button className="btn btn-primary btn-block" style={{ marginTop: 10 }} onClick={save}>{isNew ? "Add trip" : "Save changes"}</button>
+        <button className="btn btn-primary btn-block" style={{ marginTop: 10 }} onClick={save}>Save trip</button>
       </div>
     </Screen>
   );
@@ -2715,8 +2787,8 @@ function GalleryScreen() {
     return (
       <Screen title="Gallery">
         <EmptyState
-          title="Google Drive isn't connected"
-          text={isGuest ? "Ask the crew to connect it." : "Connect it once and everyone's photos appear here."}
+          title="Google Drive isn't connected yet"
+          text="Connect it from App settings (Google Drive) to start building a shared gallery."
           action={isGuest ? null : <button className="btn btn-primary" onClick={() => nav.push({ type: "drive" })}>Connect Google Drive</button>}
         />
       </Screen>
@@ -2737,9 +2809,9 @@ function GalleryScreen() {
         </div>
       </div>
       <AppliedPills items={pills} />
-      <div className="count-line">{plural(list.length, "photo")}</div>
+      <div className="count-line">{list.length === all.length ? `${plural(all.length, "photo")} total` : `${list.length} of ${plural(all.length, "photo")}`}</div>
       {!list.length ? (
-        <EmptyState title={all.length ? "No photos match" : "No photos yet"} text={all.length ? "Try removing a filter." : "Photos you add to a room show up here."} action={all.length && (active || f.search) ? <button className="btn btn-quiet" onClick={clearAll}>Clear filters</button> : null} />
+        <EmptyState title={all.length ? "No photos match those filters" : "No photos yet"} text={all.length ? "Try removing a filter." : "Upload some from a room's Photos section."} action={all.length && (active || f.search) ? <button className="btn btn-quiet" onClick={clearAll}>Clear filters</button> : null} />
       ) : grouped ? (
         years.map((g) => {
           const start = offset;
@@ -2803,7 +2875,7 @@ function AccountSheet({ open, onClose }) {
         ))}
       </div>
       <div style={{ marginTop: 18 }}>
-        {!isGuest ? <button className="opt" onClick={() => go({ type: "settings" })}><span>Settings</span><Ico.settings size={20} color="var(--dim)" /></button> : null}
+        {!isGuest ? <button className="opt" onClick={() => go({ type: "settings" })}><span>App settings</span><Ico.settings size={20} color="var(--dim)" /></button> : null}
         <button className="opt" onClick={() => { onClose(); act.switchPlayer(); }}><span>{isGuest ? "Sign in as a crew member" : "Switch player"}</span><Ico.users size={20} color="var(--dim)" /></button>
         <a className="opt" href="index.html?desktop=1"><span>Open the desktop version</span><Ico.monitor size={20} color="var(--dim)" /></a>
       </div>
@@ -2814,13 +2886,14 @@ function AccountSheet({ open, onClose }) {
 function SettingsScreen() {
   const { nav, drive } = useApp();
   const rows = [
-    { type: "categories", label: "Genres", hint: "The genre choices when adding a room", icon: Ico.palette },
+    { type: "general", label: "General", hint: "Crew name, date format, appearance, legacy mode", icon: Ico.settings },
+    { type: "categories", label: "Categories", hint: "Shown as options when adding or editing a room", icon: Ico.palette },
     { type: "flags", label: "Flags", hint: "Status icons like Permanently closed", icon: Ico.flag },
     { type: "drive", label: "Google Drive", hint: drive.available ? (drive.connected ? "Connected" : "Not connected yet") : "Hosted site only", icon: Ico.drive },
     { type: "password", label: "Change password", hint: "For signing in on any device", icon: Ico.key },
   ];
   return (
-    <Screen title="Settings" back bare>
+    <Screen title="App settings" back bare>
       {rows.map((r) => (
         <button className="row" key={r.type} onClick={() => nav.push({ type: r.type })}>
           <r.icon size={22} color="var(--brass)" />
@@ -2828,6 +2901,62 @@ function SettingsScreen() {
           <Ico.next size={20} color="var(--dim)" />
         </button>
       ))}
+    </Screen>
+  );
+}
+
+function GeneralScreen() {
+  const { data, act, settings } = useApp();
+  const [legacy, setLegacy] = useState(() => readLegacyMode());
+  const [nameDraft, setNameDraft] = useState(data.crewName || "");
+  useEffect(() => { setNameDraft(data.crewName || ""); }, [data.crewName]);
+  const sample = new Date(2026, 9, 7, 12);
+  const change = (next) => {
+    setLegacy(next);
+    writeLegacyMode(next);
+    // index.html reads the switch when it opens; it skips the phone redirect while legacy is on.
+    try { window.location.assign("index.html"); } catch (e) { /* nothing to open in a preview */ }
+  };
+  return (
+    <Screen title="General" back bare>
+      <div className="gset">
+        <b>Crew name</b>
+        <small>Shown as the title of the app. Shared by everyone. Leave it empty to use "{DEFAULT_CREW_NAME}".</small>
+        <input
+          className="inp"
+          aria-label="Crew name"
+          maxLength={40}
+          placeholder={DEFAULT_CREW_NAME}
+          enterKeyHint="done"
+          value={nameDraft}
+          onChange={(e) => setNameDraft(e.target.value)}
+          onBlur={() => act.setCrewName(nameDraft)}
+          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        />
+      </div>
+      <div className="gset">
+        <b>Date format</b>
+        <small>How dates appear across rooms and trips. This applies to this device only.</small>
+        <select className="inp" aria-label="Date format" value={settings.dateFormat} onChange={(e) => settings.setDateFormat(e.target.value)}>
+          {DATE_FORMATS.map((f) => <option key={f.id} value={f.id}>{f.id === "auto" ? f.label : formatDateAs(sample, f.id)}</option>)}
+        </select>
+      </div>
+      <div className="gset">
+        <b>Appearance</b>
+        <small>Light uses a soft paper tone instead of bright white. This applies to this device only.</small>
+        <div className="seg" role="group" aria-label="Appearance">
+          <button aria-pressed={settings.theme === "dark"} onClick={() => settings.setTheme("dark")}>Dark</button>
+          <button aria-pressed={settings.theme === "light"} onClick={() => settings.setTheme("light")}>Light</button>
+        </div>
+      </div>
+      <div className="pad">
+        <SwitchRow
+          label="Legacy mode"
+          hint="Open the previous version of the app on this device. It was designed for larger screens, so it may feel cramped on a phone. Both versions share the same data. A button in the corner brings you back."
+          checked={legacy}
+          onChange={change}
+        />
+      </div>
     </Screen>
   );
 }
@@ -2842,11 +2971,11 @@ function CategoriesScreen() {
     if (sheet.old) act.renameCategory(sheet.old, name);
     else act.addCategory(name);
     setSheet(null);
-    toast(sheet.old ? "Genre renamed everywhere" : "Genre added");
+    toast(sheet.old ? "Category renamed everywhere" : "Category added");
   };
   return (
-    <Screen title="Genres" back bare actions={<button className="hbtn" onClick={() => setSheet({ old: null, name: "" })}>Add</button>}>
-      <p className="dim pad" style={{ margin: "14px 0 6px" }}>Renaming a genre updates every room that uses it.</p>
+    <Screen title="Categories" back bare actions={<button className="hbtn" onClick={() => setSheet({ old: null, name: "" })}>Add</button>}>
+      <p className="dim pad" style={{ margin: "14px 0 6px" }}>Shown as category options when adding or editing a room. Renaming one updates every room already using it.</p>
       {list.map((c) => (
         <button className="row" key={c} onClick={() => setSheet({ old: c, name: c })}>
           <span className="rr-main"><span className="rr-title" style={{ fontSize: 17 }}>{c}</span></span>
@@ -2856,10 +2985,10 @@ function CategoriesScreen() {
       <Sheet
         open={!!sheet}
         onClose={() => setSheet(null)}
-        title={sheet && sheet.old ? "Rename genre" : "New genre"}
+        title={sheet && sheet.old ? "Rename category" : "New category"}
         footer={(
           <>
-            {sheet && sheet.old ? <button className="btn btn-danger" onClick={() => { const old = sheet.old; setSheet(null); ask({ title: `Remove ${old}?`, body: "Rooms already using it keep it. It just won't be offered for new rooms.", action: "Remove genre", danger: true, onConfirm: () => { act.removeCategory(old); toast("Genre removed"); } }); }}>Remove</button> : null}
+            {sheet && sheet.old ? <button className="btn btn-danger" onClick={() => { const old = sheet.old; setSheet(null); ask({ title: `Remove ${old}?`, body: "Rooms already using it keep it. It just won't be offered for new rooms.", action: "Remove category", danger: true, onConfirm: () => { act.removeCategory(old); toast("Category removed"); } }); }}>Remove</button> : null}
             <button className="btn btn-primary grow" onClick={save}>Save</button>
           </>
         )}
@@ -2884,7 +3013,7 @@ function FlagsScreen() {
   };
   return (
     <Screen title="Flags" back bare actions={<button className="hbtn" onClick={() => setSheet({ ...blank })}>Add</button>}>
-      <p className="dim pad" style={{ margin: "14px 0 6px" }}>Flags mark a room, for example as permanently closed or moved.</p>
+      <p className="dim pad" style={{ margin: "14px 0 6px" }}>Status pictograms you can set on a room, like "Permanently closed" or "Moved".</p>
       {flags.map((f) => {
         const Ic = resolveFlagIcon(f.icon);
         return (
@@ -2916,7 +3045,7 @@ function FlagsScreen() {
               </div>
             </div>
             <div className="field">
-              <span className="field-l">Colour</span>
+              <span className="field-l">Color</span>
               <div className="chips">
                 {FLAG_COLOR_CHOICES.map((c) => (
                   <button key={c.value} aria-label={c.label} aria-pressed={sheet.color === c.value} onClick={() => setSheet({ ...sheet, color: c.value })} style={{ width: 44, height: 44, borderRadius: "50%", background: c.value, border: sheet.color === c.value ? "3px solid var(--text)" : "3px solid transparent" }} />
@@ -2939,8 +3068,8 @@ function DriveScreen() {
           <p className="dim">Photo storage uses Google Drive and only works on the hosted site, not in this preview.</p>
         ) : (
           <>
-            <p>Photos are stored in a private Google Drive folder, never a public link. Reconnect here whenever photos stop loading or uploading. Google access can expire, and reconnecting simply replaces the old connection.</p>
-            <p className="dim">{drive.connected ? "A connection is on file." : "Not connected yet."}</p>
+            <p>Photos upload straight to a Google Drive folder, not a public link. Use this to connect it, or to reconnect if uploads or photos ever start failing. Google's access can expire after a while, and there's no way to tell from here whether the current one has, other than trying it. Reconnecting is always safe and just replaces the old connection.</p>
+            <p className="dim">{drive.connected ? "A connection is on file" : "Not connected yet"}</p>
             <button className="btn btn-primary btn-block" onClick={drive.connect}><Ico.cloud size={20} />{drive.connected ? "Reconnect Google Drive" : "Connect Google Drive"}</button>
             <p className="fine">You'll go to Google to approve access, then come straight back here.</p>
           </>
@@ -2960,14 +3089,14 @@ function PasswordScreen() {
   const submit = async (e) => {
     e.preventDefault();
     setErr("");
-    if (n1.length < 4) { setErr("Use at least 4 characters."); return; }
-    if (n1 !== n2) { setErr("The two new passwords don't match."); return; }
+    if (n1.length < 4) { setErr("New password must be at least 4 characters."); return; }
+    if (n1 !== n2) { setErr("New passwords don't match."); return; }
     setBusy(true);
     try {
       const ok = await act.changePassword(cur, n1);
-      if (ok) { toast("Password changed"); nav.back(); } else setErr("Your current password doesn't match.");
+      if (ok) { toast("Password updated"); nav.back(); } else setErr("Current password is incorrect.");
     } catch (ex) {
-      setErr("Couldn't save. Check your connection and try again.");
+      setErr("Couldn't update the password. Try again.");
     } finally {
       setBusy(false);
     }
@@ -2989,7 +3118,7 @@ function PasswordScreen() {
 
 /* ---- shell ---- */
 const TABS = [
-  { id: "home", label: "Home", icon: Ico.home },
+  { id: "home", label: "Overview", icon: Ico.home },
   { id: "rooms", label: "Rooms", icon: Ico.door },
   { id: "ranking", label: "Ranking", icon: Ico.trophy },
   { id: "trips", label: "Trips", icon: Ico.plane },
@@ -3016,7 +3145,7 @@ function Splash({ error }) {
   return (
     <div className="login" style={{ alignItems: "center", textAlign: "center" }}>
       <Ico.lock size={34} color="var(--brass)" />
-      <h1 className="disp" style={{ fontSize: 28 }}>The Escape Log</h1>
+      <h1 className="disp" style={{ fontSize: 28 }}>{activeCrewName}</h1>
       {error || slow ? (
         <>
           <p className={error ? "err-t" : ""} role={error ? "alert" : "status"}>{error || "Still connecting. Check that you're online."}</p>
@@ -3069,6 +3198,34 @@ function AppRoot() {
   const [confirm, setConfirm] = useState(null);
   const [toastMsg, setToastMsg] = useState(null);
   const [driveMessage, setDriveMessage] = useState(null);
+  const [theme, setThemeState] = useState("dark"); // remembered per device
+  const [dateFormat, setDateFormatState] = useState("auto"); // remembered per device
+  activeDateFormat = dateFormat; // read by fmtDate during this render
+  activeCrewName = (data.crewName || "").trim() || DEFAULT_CREW_NAME; // read by the title spots
+  const setTheme = async (next) => {
+    setThemeState(next);
+    try { await storageSet(THEME_KEY, next, false); } catch (e) { /* non-fatal */ }
+  };
+  const setDateFormat = async (next) => {
+    setDateFormatState(next);
+    try { await storageSet(DATE_FORMAT_KEY, next, false); } catch (e) { /* non-fatal */ }
+  };
+  // The browser tab title, the page color behind the app and the phone's status bar follow the settings.
+  useEffect(() => {
+    try { document.title = activeCrewName; } catch (e) { /* no document */ }
+  }, [data.crewName]);
+  useEffect(() => {
+    try {
+      document.documentElement.setAttribute("data-theme", theme);
+      const paper = theme === "light" ? "#e4dfd3" : "#14161c";
+      document.documentElement.style.background = paper;
+      document.body.style.background = paper;
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute("content", theme === "light" ? "#e4dfd3" : "#14161c");
+      const scheme = document.querySelector('meta[name="color-scheme"]');
+      if (scheme) scheme.setAttribute("content", theme);
+    } catch (e) { /* no document */ }
+  }, [theme]);
 
   /* ---- load shared data + remembered player ---- */
   useEffect(() => {
@@ -3106,6 +3263,14 @@ function AppRoot() {
     }
     (async () => {
       try {
+        const t = await storageGet(THEME_KEY, false);
+        if (t && (t.value === "light" || t.value === "dark")) setThemeState(t.value);
+        const f = await storageGet(DATE_FORMAT_KEY, false);
+        if (f && DATE_FORMATS.some((x) => x.id === f.value)) setDateFormatState(f.value);
+      } catch (e) { /* defaults */ }
+    })();
+    (async () => {
+      try {
         const r = await storageGet(MEMBER_KEY, false);
         if (r && r.value && (MEMBERS.includes(r.value) || r.value === GUEST_NAME)) setMe(r.value);
       } catch (e) { /* nobody picked yet on this phone */ }
@@ -3120,14 +3285,14 @@ function AppRoot() {
     try {
       if (hasClaudeStorage) {
         const res = await storageSet(STORAGE_KEY, JSON.stringify(next), true);
-        setSaveError(res ? null : "Couldn't save your last change. It may not be stored.");
+        setSaveError(res ? null : "Save failed. Your last change may not be stored.");
       } else {
         const { setDoc, ref } = await getFirebaseHandle();
         await setDoc(ref, JSON.parse(JSON.stringify(next)));
         setSaveError(null);
       }
     } catch (e) {
-      setSaveError("Couldn't save your last change. Check your connection.");
+      setSaveError("Save failed. Your last change may not be stored.");
     }
   }, []);
 
@@ -3256,6 +3421,11 @@ function AppRoot() {
     return (await hashPassword(password, rec.salt)) === rec.hash;
   };
   act.switchPlayer = () => { nav.popAll(); chooseMember(null); };
+  act.setCrewName = (name) => {
+    const next = (name || "").trim().slice(0, 40);
+    if (next === (dataRef.current.crewName || "")) return;
+    persist({ ...dataRef.current, crewName: next });
+  };
 
   /* ---- ui helpers ---- */
   const toastTimer = useRef(null);
@@ -3303,6 +3473,7 @@ function AppRoot() {
   const flags = data.flags && data.flags.length ? data.flags : DEFAULT_FLAGS;
   const ctx = {
     data, me, isGuest, flags, categories: data.categories, nav, act, filters, setFilter, drive, toast, ask,
+    settings: { theme, setTheme, dateFormat, setDateFormat },
     openAccount: () => setAccount(true),
   };
   const top = stack[stack.length - 1];
@@ -3315,6 +3486,7 @@ function AppRoot() {
       case "roomForm": content = <RoomFormScreen key={top.layerId} initial={top.room} />; break;
       case "tripForm": content = <TripFormScreen key={top.layerId} initial={top.trip} />; break;
       case "settings": content = <SettingsScreen />; break;
+      case "general": content = <GeneralScreen />; break;
       case "categories": content = <CategoriesScreen />; break;
       case "flags": content = <FlagsScreen />; break;
       case "drive": content = <DriveScreen />; break;
@@ -3337,13 +3509,13 @@ function AppRoot() {
 
   return (
     <AppCtx.Provider value={ctx}>
-      {isKnownInAppBrowser() ? <div className="banner err">This looks like an in-app browser, which can block saving. Open this link in Safari or Chrome instead.</div> : null}
+      {isKnownInAppBrowser() ? <div className="banner err">This looks like an in-app browser (e.g. Messenger, Instagram). These often block the storage this app needs, so changes may not save. Open this link in Safari or Chrome instead.</div> : null}
       {saveError ? <div className="banner err" role="alert">{saveError}</div> : null}
       {driveMessage ? <div className={cx("banner", driveMessage.type === "err" ? "err" : "ok")} role="status">{driveMessage.text}</div> : null}
       {content}
       {!top ? <TabBar tab={tab} onTab={nav.setTab} /> : null}
       {showFab ? (
-        <button className="fab" aria-label={tab === "trips" ? "Add a trip" : "Add a room"} onClick={onFab}><Ico.plus size={28} strokeWidth={2.4} /></button>
+        <button className="fab" aria-label={tab === "trips" ? "New trip" : "Add room"} onClick={onFab}><Ico.plus size={28} strokeWidth={2.4} /></button>
       ) : null}
       <AccountSheet open={account} onClose={() => setAccount(false)} />
       <ConfirmSheet confirm={confirm} onClose={() => setConfirm(null)} />
