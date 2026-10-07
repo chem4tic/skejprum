@@ -1106,6 +1106,53 @@ function avgRating(room) {
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
 
+// Tie-breaker for "best first" ordering, used everywhere rooms are ranked.
+// When the main score is equal (group average, or your own rating on the
+// personal ranking) it falls through, in order, to:
+//   1. group average (only matters on the personal ranking)
+//   2. the lowest single rating -- a room nobody scored badly beats one with a dud
+//   3. how many people rated it -- more votes is a more trustworthy score
+//   4. the highest single rating
+//   5. the more recently played room
+//   6. name, so the order never jumps around between loads
+// Unrated rooms (null) always sort below rated ones. Reverse the result for "worst first".
+function ratingValues(room) {
+  return Object.values((room && room.ratings) || {}).filter((v) => typeof v === "number");
+}
+function compareRoomsBest(a, b, primary = avgRating) {
+  const pa = primary(a) ?? -1;
+  const pb = primary(b) ?? -1;
+  if (pa !== pb) return pb - pa;
+  if (primary !== avgRating) {
+    const ga = avgRating(a) ?? -1;
+    const gb = avgRating(b) ?? -1;
+    if (ga !== gb) return gb - ga;
+  }
+  const va = ratingValues(a);
+  const vb = ratingValues(b);
+  const minA = va.length ? Math.min(...va) : -1;
+  const minB = vb.length ? Math.min(...vb) : -1;
+  if (minA !== minB) return minB - minA;
+  if (va.length !== vb.length) return vb.length - va.length;
+  const maxA = va.length ? Math.max(...va) : -1;
+  const maxB = vb.length ? Math.max(...vb) : -1;
+  if (maxA !== maxB) return maxB - maxA;
+  const d = String(b.datePlayed || "").localeCompare(String(a.datePlayed || ""));
+  if (d) return d;
+  return String(a.name || "").localeCompare(String(b.name || ""), "pl");
+}
+
+// Position numbers for an already-sorted list where equal scores share a
+// position and the next one skips ahead (1, 1, 3, 4, 4, 6 ...). "Equal" means
+// the score as displayed (one decimal), so two rooms that both read 9.3 never
+// get different positions.
+function tiedPositions(values) {
+  const key = (v) => (v === null || v === undefined ? "-" : v.toFixed(2));
+  const pos = [];
+  values.forEach((v, i) => { pos.push(i > 0 && key(v) === key(values[i - 1]) ? pos[i - 1] : i + 1); });
+  return pos;
+}
+
 // Generic version for other per-member rating maps (difficulty, scariness)
 // that don't affect the main star rating above.
 function avgOfMap(map) {
@@ -1137,6 +1184,10 @@ function PartialGroupIcon({ room, size = 16 }) {
  
 function fmtRating(n) {
   return n === null || n === undefined ? "-" : n.toFixed(1);
+}
+// Group averages are shown to two decimals so close rooms don't look tied.
+function fmtAvg(n) {
+  return n === null || n === undefined ? "-" : n.toFixed(2);
 }
  
 /* ---------------------------------------------------------------
@@ -2297,8 +2348,9 @@ function Dashboard({ rooms, members, onOpenRoom, onOpenWishlist, flags }) {
   const topRated = [...played]
     .map((r) => ({ ...r, _avg: avgRating(r) }))
     .filter((r) => r._avg !== null)
-    .sort((a, b) => b._avg - a._avg)
+    .sort((a, b) => compareRoomsBest(a, b))
     .slice(0, 5);
+  const topPositions = tiedPositions(topRated.map((r) => r._avg));
 
   return (
     <div>
@@ -2309,7 +2361,7 @@ function Dashboard({ rooms, members, onOpenRoom, onOpenWishlist, flags }) {
           {cityCount > 0 ? <p>{`in ${cityCount === 1 ? "1 city" : `${cityCount} cities`}`}</p> : null}
         </div>
         <div className="ert-stats">
-          <div><b>{fmtRating(overallAvg)}</b><span>Group average</span></div>
+          <div><b>{fmtAvg(overallAvg)}</b><span>Group average</span></div>
           <div><b>{escapeRate === null ? "-" : `${escapeRate}%`}</b><span>Escape rate</span></div>
           <button onClick={onOpenWishlist} title="Open the wishlist"><b>{wishlist.length}</b><span>On the wishlist</span></button>
         </div>
@@ -2322,9 +2374,9 @@ function Dashboard({ rooms, members, onOpenRoom, onOpenWishlist, flags }) {
           <div>
             {topRated.map((r, i) => (
               <button key={r.id} className="ert-lrow" onClick={() => onOpenRoom(r.id)}>
-                <span className={`ert-rank${i === 0 ? " top" : ""}`}>{i + 1}</span>
+                <span className={`ert-rank${topPositions[i] === 1 ? " top" : ""}`}>{topPositions[i]}</span>
                 <span><span className="ert-r-title">{r.name}</span><span className="ert-r-sub">{r.venue || r.city}</span></span>
-                <span className="ert-rside"><RowIcons room={r} flags={flags} /><span className="ert-score">{fmtRating(r._avg)}</span></span>
+                <span className="ert-rside"><RowIcons room={r} flags={flags} /><span className="ert-score">{fmtAvg(r._avg)}</span></span>
               </button>
             ))}
           </div>
@@ -2342,7 +2394,7 @@ function Dashboard({ rooms, members, onOpenRoom, onOpenWishlist, flags }) {
                     {r.result === "not-escaped" ? <span style={{ color: "var(--danger)" }}>{" Not escaped"}</span> : null}
                   </span>
                 </span>
-                <span className="ert-rside"><RowIcons room={r} flags={flags} /><span className="ert-score">{fmtRating(avgRating(r))}</span></span>
+                <span className="ert-rside"><RowIcons room={r} flags={flags} /><span className="ert-score">{fmtAvg(avgRating(r))}</span></span>
               </button>
             ))}
           </div>
@@ -2586,14 +2638,7 @@ function sortRooms(rooms, sortBy) {
         return av.localeCompare(bv);
       });
     case "rating-desc":
-      return arr.sort((a, b) => {
-        const av = avgRating(a);
-        const bv = avgRating(b);
-        if (av === null && bv === null) return 0;
-        if (av === null) return 1;
-        if (bv === null) return -1;
-        return bv - av;
-      });
+      return arr.sort((a, b) => compareRoomsBest(a, b));
     case "alpha":
       return arr.sort((a, b) => a.name.localeCompare(b.name, "pl"));
     case "visited-desc":
@@ -2810,7 +2855,7 @@ function RoomCard({ room, onOpen, flags }) {
       <div className="ert-tile-bot">
         <span className="ert-pill">{room.category}</span>
         {played ? (
-          <span className="ert-tile-sc"><Star size={17} />{fmtRating(avg)}</span>
+          <span className="ert-tile-sc"><Star size={17} />{fmtAvg(avg)}</span>
         ) : (
           <span style={{ color: "var(--text-dim)", fontSize: 13 }}>{room.difficulty}</span>
         )}
@@ -2861,18 +2906,10 @@ function RankingView({ rooms, members, currentMember, onOpen, mode, onModeChange
       _avg: avgRating(r),
       _mine: personal ? (typeof r.ratings[currentMember] === "number" ? r.ratings[currentMember] : null) : null,
     }));
-    if (personal) {
-      return withValues.sort((a, b) => {
-        const av = a._mine ?? -1;
-        const bv = b._mine ?? -1;
-        return sortDir === "worst" ? av - bv : bv - av;
-      });
-    }
-    return withValues.sort((a, b) => {
-      const av = a._avg ?? -1;
-      const bv = b._avg ?? -1;
-      return sortDir === "worst" ? av - bv : bv - av;
-    });
+    const primary = personal ? (r) => r._mine : avgRating;
+    const sorted = withValues.sort((a, b) => (sortDir === "worst" ? compareRoomsBest(b, a, primary) : compareRoomsBest(a, b, primary)));
+    const positions = tiedPositions(sorted.map((r) => (personal ? r._mine : r._avg)));
+    return sorted.map((r, i) => ({ ...r, _pos: positions[i] }));
   }, [filteredRooms, mode, currentMember, sortDir]);
 
   return (
@@ -2951,10 +2988,10 @@ function RankingView({ rooms, members, currentMember, onOpen, mode, onModeChange
                   {personal && <span style={{ textAlign: "right" }}>Group average</span>}
                 </div>
                 {ranked.map((r, i) => (
-                  <button key={r.id} data-id={r.id} className={`ert-lrow${r.id === highlightId ? " ert-last" : ""}`} title={`Rank ${i + 1} of ${ranked.length}`} style={{ gridTemplateColumns: cols, gap: 20, alignItems: "center" }} onClick={() => onOpen(r.id)}>
+                  <button key={r.id} data-id={r.id} className={`ert-lrow${r.id === highlightId ? " ert-last" : ""}`} title={`Rank ${r._pos} of ${ranked.length}`} style={{ gridTemplateColumns: cols, gap: 20, alignItems: "center" }} onClick={() => onOpen(r.id)}>
                     <span className="ert-rkcell">
-                      <span className="ert-score sc">{personal ? fmtRating(r._mine) : fmtRating(r._avg)}</span>
-                      <span className={`pos${i === 0 ? " top" : ""}`} aria-hidden="true">{`#${i + 1}`}</span>
+                      <span className="ert-score sc">{personal ? fmtRating(r._mine) : fmtAvg(r._avg)}</span>
+                      <span className={`pos${r._pos === 1 ? " top" : ""}`} aria-hidden="true">{`#${r._pos}`}</span>
                     </span>
                     <span style={{ minWidth: 0 }}>
                       <span className="ert-r-title">{r.name}</span>
@@ -2978,7 +3015,7 @@ function RankingView({ rooms, members, currentMember, onOpen, mode, onModeChange
                         ) : null}
                       </span>
                     ))}
-                    {personal && <span className="ert-mono" style={{ textAlign: "right", color: "var(--text-dim)", fontSize: 15 }}>{fmtRating(r._avg)}</span>}
+                    {personal && <span className="ert-mono" style={{ textAlign: "right", color: "var(--text-dim)", fontSize: 15 }}>{fmtAvg(r._avg)}</span>}
                   </button>
                 ))}
               </>
@@ -3534,7 +3571,7 @@ function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onD
               </div>
               <div className="ert-avgs">
                 <div>
-                  <div className="ert-avg-big">{fmtRating(avg)}</div>
+                  <div className="ert-avg-big">{fmtAvg(avg)}</div>
                   <div className="ert-avg-cap">group average out of 10</div>
                 </div>
                 {(diffAvg !== null || scaryAvg !== null) && (
@@ -4314,7 +4351,7 @@ function TripRow({ trip, rooms, onOpen }) {
         <span className="ert-r-sub" style={{ fontSize: 12.5 }}>{stats.count === 1 ? "room" : "rooms"}</span>
       </span>
       <span style={{ textAlign: "center", minWidth: 64 }}>
-        <span className="ert-score" style={{ display: "block", textAlign: "center", color: stats.avg !== null ? undefined : "var(--text-dim)" }}>{fmtRating(stats.avg)}</span>
+        <span className="ert-score" style={{ display: "block", textAlign: "center", color: stats.avg !== null ? undefined : "var(--text-dim)" }}>{fmtAvg(stats.avg)}</span>
         <span className="ert-r-sub" style={{ fontSize: 12.5, marginTop: 4 }}>average</span>
       </span>
       <ChevronRight size={18} color="var(--text-dim)" />
@@ -4581,7 +4618,7 @@ function TripDetail({ trip, rooms, currentMember, isGuest, onBack, onEdit, onDel
           </div>
           <div className="ert-aside-stats">
             <div><b>{stats.count}</b><span>{stats.count === 1 ? "room" : "rooms"}</span></div>
-            <div><b>{fmtRating(stats.avg)}</b><span>group average</span></div>
+            <div><b>{fmtAvg(stats.avg)}</b><span>group average</span></div>
             <div><b>{stats.escapeRate === null ? "-" : `${stats.escapeRate}%`}</b><span>escape rate</span></div>
             <div><b>{stats.totalSpent === null ? "-" : stats.totalSpent}</b><span>{stats.totalSpent === null ? "total spent" : `${stats.spentCurrency} spent`}</span></div>
           </div>

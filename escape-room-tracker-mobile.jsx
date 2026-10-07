@@ -736,6 +736,53 @@ function avgRating(room) {
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
 
+// Tie-breaker for "best first" ordering, used everywhere rooms are ranked.
+// When the main score is equal (group average, or your own rating on the
+// personal ranking) it falls through, in order, to:
+//   1. group average (only matters on the personal ranking)
+//   2. the lowest single rating -- a room nobody scored badly beats one with a dud
+//   3. how many people rated it -- more votes is a more trustworthy score
+//   4. the highest single rating
+//   5. the more recently played room
+//   6. name, so the order never jumps around between loads
+// Unrated rooms (null) always sort below rated ones. Reverse the result for "worst first".
+function ratingValues(room) {
+  return Object.values((room && room.ratings) || {}).filter((v) => typeof v === "number");
+}
+function compareRoomsBest(a, b, primary = avgRating) {
+  const pa = primary(a) ?? -1;
+  const pb = primary(b) ?? -1;
+  if (pa !== pb) return pb - pa;
+  if (primary !== avgRating) {
+    const ga = avgRating(a) ?? -1;
+    const gb = avgRating(b) ?? -1;
+    if (ga !== gb) return gb - ga;
+  }
+  const va = ratingValues(a);
+  const vb = ratingValues(b);
+  const minA = va.length ? Math.min(...va) : -1;
+  const minB = vb.length ? Math.min(...vb) : -1;
+  if (minA !== minB) return minB - minA;
+  if (va.length !== vb.length) return vb.length - va.length;
+  const maxA = va.length ? Math.max(...va) : -1;
+  const maxB = vb.length ? Math.max(...vb) : -1;
+  if (maxA !== maxB) return maxB - maxA;
+  const d = String(b.datePlayed || "").localeCompare(String(a.datePlayed || ""));
+  if (d) return d;
+  return String(a.name || "").localeCompare(String(b.name || ""), "pl");
+}
+
+// Position numbers for an already-sorted list where equal scores share a
+// position and the next one skips ahead (1, 1, 3, 4, 4, 6 ...). "Equal" means
+// the score as displayed (one decimal), so two rooms that both read 9.3 never
+// get different positions.
+function tiedPositions(values) {
+  const key = (v) => (v === null || v === undefined ? "-" : v.toFixed(2));
+  const pos = [];
+  values.forEach((v, i) => { pos.push(i > 0 && key(v) === key(values[i - 1]) ? pos[i - 1] : i + 1); });
+  return pos;
+}
+
 // Generic version for other per-member rating maps (difficulty, scariness)
 // that don't affect the main star rating above.
 function avgOfMap(map) {
@@ -768,6 +815,10 @@ function PartialGroupIcon({ room, size = 16 }) {
 function fmtRating(n) {
   return n === null || n === undefined ? "-" : n.toFixed(1);
 }
+// Group averages are shown to two decimals so close rooms don't look tied.
+function fmtAvg(n) {
+  return n === null || n === undefined ? "-" : n.toFixed(2);
+}
  
 
 const SORT_OPTIONS = [
@@ -796,14 +847,7 @@ function sortRooms(rooms, sortBy) {
         return av.localeCompare(bv);
       });
     case "rating-desc":
-      return arr.sort((a, b) => {
-        const av = avgRating(a);
-        const bv = avgRating(b);
-        if (av === null && bv === null) return 0;
-        if (av === null) return 1;
-        if (bv === null) return -1;
-        return bv - av;
-      });
+      return arr.sort((a, b) => compareRoomsBest(a, b));
     case "alpha":
       return arr.sort((a, b) => a.name.localeCompare(b.name, "pl"));
     case "visited-desc":
@@ -1721,7 +1765,8 @@ function HomeScreen() {
   const rate = played.length ? Math.round((escaped / played.length) * 100) : null;
   const avgs = played.map(avgRating).filter((v) => v !== null);
   const groupAvg = avgs.length ? avgs.reduce((a, b) => a + b, 0) / avgs.length : null;
-  const top = played.map((r) => ({ r, a: avgRating(r) })).filter((x) => x.a !== null).sort((a, b) => b.a - a.a).slice(0, 5);
+  const top = played.map((r) => ({ r, a: avgRating(r) })).filter((x) => x.a !== null).sort((a, b) => compareRoomsBest(a.r, b.r)).slice(0, 5);
+  const topPositions = tiedPositions(top.map((x) => x.a));
   const recent = [...played].sort((a, b) => (b.datePlayed || "").localeCompare(a.datePlayed || "")).slice(0, 5);
   const cities = countBy(played, "city").slice(0, 6);
   const cityCount = new Set(played.map((r) => (r.city || "").trim().toLowerCase()).filter(Boolean)).size;
@@ -1748,7 +1793,7 @@ function HomeScreen() {
         {cityCount > 0 ? <div className="hero-sub">{`in ${cityCount === 1 ? "1 city" : `${cityCount} cities`}`}</div> : null}
       </section>
       <div className="strip3">
-        <div><b>{groupAvg !== null ? groupAvg.toFixed(1) : "-"}</b><span>Group average</span></div>
+        <div><b>{groupAvg !== null ? groupAvg.toFixed(2) : "-"}</b><span>Group average</span></div>
         <div><b>{rate !== null ? `${rate}%` : "-"}</b><span>Escape rate</span></div>
         <button onClick={() => nav.goList("wishlist")}><b>{wish.length}</b><span>On the wishlist</span></button>
       </div>
@@ -1757,7 +1802,7 @@ function HomeScreen() {
         <>
           <h2 className="sec-h">Best rooms<small>by group average</small></h2>
           {top.map((x, i) => (
-            <RoomRow key={x.r.id} room={x.r} flagDefs={flags} rank={i + 1} score={x.a.toFixed(1)} meta={false} onOpen={() => nav.openRoom(x.r.id)} />
+            <RoomRow key={x.r.id} room={x.r} flagDefs={flags} rank={topPositions[i]} score={x.a.toFixed(2)} meta={false} onOpen={() => nav.openRoom(x.r.id)} />
           ))}
         </>
       ) : null}
@@ -1765,7 +1810,7 @@ function HomeScreen() {
       {recent.length ? (
         <>
           <h2 className="sec-h">Recently played</h2>
-          {recent.map((r) => <RoomRow key={r.id} room={r} flagDefs={flags} score={avgRating(r) !== null ? avgRating(r).toFixed(1) : null} onOpen={() => nav.openRoom(r.id)} />)}
+          {recent.map((r) => <RoomRow key={r.id} room={r} flagDefs={flags} score={avgRating(r) !== null ? avgRating(r).toFixed(2) : null} onOpen={() => nav.openRoom(r.id)} />)}
         </>
       ) : null}
 
@@ -1852,11 +1897,11 @@ function RoomsScreen() {
         years.map((g) => (
           <section key={g.year}>
             <YearHeader year={g.year} count={g.items.length} noun="room" />
-            {g.items.map((r) => <RoomRow key={r.id} room={r} flagDefs={flags} score={avgRating(r) !== null ? avgRating(r).toFixed(1) : null} onOpen={() => nav.openRoom(r.id)} />)}
+            {g.items.map((r) => <RoomRow key={r.id} room={r} flagDefs={flags} score={avgRating(r) !== null ? avgRating(r).toFixed(2) : null} onOpen={() => nav.openRoom(r.id)} />)}
           </section>
         ))
       ) : (
-        list.map((r) => <RoomRow key={r.id} room={r} flagDefs={flags} score={!wish && avgRating(r) !== null ? avgRating(r).toFixed(1) : null} onOpen={() => nav.openRoom(r.id)} />)
+        list.map((r) => <RoomRow key={r.id} room={r} flagDefs={flags} score={!wish && avgRating(r) !== null ? avgRating(r).toFixed(2) : null} onOpen={() => nav.openRoom(r.id)} />)
       )}
 
       <SortSheet open={sortOpen} onClose={() => setSortOpen(false)} options={sortOptions} value={f.sortBy} onChange={(v) => patch({ sortBy: v })} />
@@ -1895,8 +1940,10 @@ function RankingScreen() {
     const rows = played
       .filter((r) => roomMatches(r, f, me) && (!personal || roomParticipants(r).includes(me)))
       .map((r) => ({ r, v: personal ? (typeof (r.ratings || {})[me] === "number" ? r.ratings[me] : null) : avgRating(r) }));
-    rows.sort((a, b) => (f.sortDir === "worst" ? (a.v ?? -1) - (b.v ?? -1) : (b.v ?? -1) - (a.v ?? -1)));
-    return rows;
+    const primary = personal ? (r) => (typeof (r.ratings || {})[me] === "number" ? r.ratings[me] : null) : avgRating;
+    rows.sort((a, b) => (f.sortDir === "worst" ? compareRoomsBest(b.r, a.r, primary) : compareRoomsBest(a.r, b.r, primary)));
+    const positions = tiedPositions(rows.map((x) => x.v));
+    return rows.map((x, i) => ({ ...x, pos: positions[i] }));
   }, [played, f, me, personal]);
   const toggle = (field) => (id) => patch({ [field]: f[field].includes(id) ? f[field].filter((x) => x !== id) : [...f[field], id] });
   const active = countActive(f);
@@ -1937,9 +1984,9 @@ function RankingScreen() {
             key={x.r.id}
             room={x.r}
             flagDefs={flags}
-            rank={i + 1}
+            rank={x.pos}
             meta={false}
-            score={x.v !== null ? fmtRating(x.v) : null}
+            score={x.v !== null ? (personal ? fmtRating(x.v) : fmtAvg(x.v)) : null}
             minis={!personal ? (
               <span className="mini-row">
                 {MEMBERS.filter((m) => typeof (x.r.ratings || {})[m] === "number").map((m) => (
@@ -2310,7 +2357,7 @@ function RoomView({ room }) {
               ))}
             </div>
             <div className="avgs">
-              <div><div className="avg-big">{avg !== null ? avg.toFixed(1) : "-"}</div><div className="avg-cap">group average out of 10</div></div>
+              <div><div className="avg-big">{avg !== null ? avg.toFixed(2) : "-"}</div><div className="avg-cap">group average out of 10</div></div>
               {diffAvg !== null || scaryAvg !== null ? (
                 <div className="avg-col">
                   {diffAvg !== null ? <div className="avg-small" style={{ color: "var(--danger)" }}><Ico.dumbbell size={18} />{diffAvg.toFixed(1)}<span className="dim xs" style={{ fontFamily: "Inter" }}>difficulty</span></div> : null}
@@ -2553,7 +2600,7 @@ function TripRow({ trip, rooms, onOpen }) {
           <span>{plural(s.count, "room")}</span>
         </span>
       </span>
-      <span className="rr-side">{s.avg !== null ? <span className="rr-score">{s.avg.toFixed(1)}</span> : null}</span>
+      <span className="rr-side">{s.avg !== null ? <span className="rr-score">{s.avg.toFixed(2)}</span> : null}</span>
     </button>
   );
 }
@@ -2712,7 +2759,7 @@ function TripView({ trip }) {
       </div>
       <div className="strip3">
         <div><b>{stats.count}</b><span>{stats.count === 1 ? "Room" : "Rooms"}</span></div>
-        <div><b>{stats.avg !== null ? stats.avg.toFixed(1) : "-"}</b><span>Group average</span></div>
+        <div><b>{stats.avg !== null ? stats.avg.toFixed(2) : "-"}</b><span>Group average</span></div>
         <div><b>{stats.escapeRate !== null ? `${stats.escapeRate}%` : "-"}</b><span>Escape rate</span></div>
       </div>
 
@@ -2740,7 +2787,7 @@ function TripView({ trip }) {
         <EmptyState title="No rooms on this trip yet" action={isGuest ? null : <button className="btn btn-quiet" onClick={() => setAdding(true)}><Ico.plus size={18} /> Add rooms</button>} />
       ) : stats.rooms.map((r) => (
         <div className="rowwrap" key={r.id}>
-          <RoomRow room={r} flagDefs={flags} plain score={avgRating(r) !== null ? avgRating(r).toFixed(1) : null} onOpen={() => nav.openRoom(r.id)} />
+          <RoomRow room={r} flagDefs={flags} plain score={avgRating(r) !== null ? avgRating(r).toFixed(2) : null} onOpen={() => nav.openRoom(r.id)} />
           {!isGuest ? <button className="ibtn" style={{ marginRight: 6 }} aria-label={`Remove ${r.name} from this trip`} onClick={() => toggleRoom(r.id)}><Ico.x size={20} color="var(--dim)" /></button> : null}
         </div>
       ))}
