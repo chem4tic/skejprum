@@ -325,16 +325,40 @@ async function fetchDriveBytes(fileId, accessToken) {
   return res.blob();
 }
 
+// Downloads already under way, keyed by file id. If the viewer asks for a
+// photo that is being prefetched, it waits on the same download instead of
+// starting a second one.
+const driveBlobInflight = new Map();
+
 async function fetchDrivePhotoUrl(fileId, accessToken) {
   if (driveBlobCache.has(fileId)) {
     touchCache(driveBlobCache, fileId);
     return driveBlobCache.get(fileId);
   }
-  const blob = await fetchDriveBytes(fileId, accessToken);
-  const url = URL.createObjectURL(blob);
-  driveBlobCache.set(fileId, url);
-  evictIfNeeded(driveBlobCache, FULL_CACHE_LIMIT);
-  return url;
+  if (driveBlobInflight.has(fileId)) return driveBlobInflight.get(fileId);
+  const job = (async () => {
+    const blob = await fetchDriveBytes(fileId, accessToken);
+    const url = URL.createObjectURL(blob);
+    driveBlobCache.set(fileId, url);
+    evictIfNeeded(driveBlobCache, FULL_CACHE_LIMIT);
+    return url;
+  })();
+  driveBlobInflight.set(fileId, job);
+  const clear = () => { if (driveBlobInflight.get(fileId) === job) driveBlobInflight.delete(fileId); };
+  job.then(clear, clear);
+  return job;
+}
+
+// Quietly downloads a photo (and decodes it) ahead of time so the viewer can
+// show it the instant someone swipes to it. Never throws: a failed prefetch
+// just means the photo loads normally when it's actually opened.
+async function prefetchDrivePhoto(fileId, accessToken) {
+  try {
+    const url = await fetchDrivePhotoUrl(fileId, accessToken);
+    const img = new Image();
+    img.src = url;
+    if (img.decode) await img.decode();
+  } catch (e) { /* ignore */ }
 }
 
 // A small, compressed preview for grid thumbnails -- downloads the same
@@ -3809,11 +3833,17 @@ function DrivePhoto({ photo, getDriveAccessToken, onRemove, onPreview, aspect })
 }
  
 function PhotoLightbox({ photos, index, onIndexChange, onClose, getDriveAccessToken }) {
-  const [src, setSrc] = useState(null);
+  const [loaded, setLoaded] = useState({ id: null, url: null }); // full-size image that finished loading
   const [failed, setFailed] = useState(false);
   const [direction, setDirection] = useState(null); // 'next' | 'prev' | null (initial open)
   const photo = photos[index];
   const hasMultiple = photos.length > 1;
+
+  // What to show right now: the full-size photo if it's loaded or already
+  // cached (so swiping to a prefetched photo is instant), otherwise the small
+  // grid thumbnail as a placeholder while the full-size one downloads.
+  const fullSrc = loaded.id === photo.id ? loaded.url : driveBlobCache.get(photo.driveFileId) || null;
+  const placeholderSrc = fullSrc ? null : driveThumbCache.get(photo.thumbFileId || photo.driveFileId) || null;
 
   // Prevent the page behind the lightbox from scrolling while it's open.
   // otherwise a swipe to change photos also drags the page underneath.
@@ -3830,19 +3860,40 @@ function PhotoLightbox({ photos, index, onIndexChange, onClose, getDriveAccessTo
 
   useEffect(() => {
     let cancelled = false;
-    setSrc(null);
     setFailed(false);
     (async () => {
       try {
         const token = await getDriveAccessToken();
         const url = await fetchDrivePhotoUrl(photo.driveFileId, token);
-        if (!cancelled) setSrc(url);
+        if (!cancelled) setLoaded({ id: photo.id, url });
       } catch (e) {
         if (!cancelled) setFailed(true);
       }
     })();
     return () => { cancelled = true; };
-  }, [photo.driveFileId]);
+  }, [photo.id, photo.driveFileId]);
+
+  // Once the current photo is showing, quietly fetch its neighbours (the one
+  // in the direction of travel first) so the next swipe is instant.
+  const currentReady = loaded.id === photo.id;
+  useEffect(() => {
+    if (!hasMultiple || !currentReady) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getDriveAccessToken();
+        const n = photos.length;
+        const offsets = direction === "prev" ? [-1, 1, -2] : [1, -1, 2];
+        for (const o of offsets) {
+          if (cancelled) return;
+          const neighbour = photos[(((index + o) % n) + n) % n];
+          if (!neighbour || neighbour.id === photo.id) continue;
+          await prefetchDrivePhoto(neighbour.driveFileId, token);
+        }
+      } catch (e) { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [index, currentReady, photos.length, hasMultiple]);
 
   const goPrev = useCallback(() => {
     if (!hasMultiple) return;
@@ -3934,14 +3985,20 @@ function PhotoLightbox({ photos, index, onIndexChange, onClose, getDriveAccessTo
         >
           {failed ? (
             <span style={{ fontSize: 12.5, color: "var(--text-dim)", padding: 24 }}>Couldn't load this photo.</span>
-          ) : !src ? (
-            <span className="ert-mono" style={{ fontSize: 11, color: "var(--text-dim)" }}>loading…</span>
-          ) : (
+          ) : fullSrc ? (
             <img
-              src={src}
+              src={fullSrc}
               alt=""
               style={{ maxWidth: "100%", maxHeight: "62vh", borderRadius: 8, display: "block" }}
             />
+          ) : placeholderSrc ? (
+            <img
+              src={placeholderSrc}
+              alt=""
+              style={{ width: "100%", maxHeight: "62vh", objectFit: "contain", borderRadius: 8, display: "block", opacity: 0.8 }}
+            />
+          ) : (
+            <span className="ert-mono" style={{ fontSize: 11, color: "var(--text-dim)" }}>loading…</span>
           )}
         </div>
 

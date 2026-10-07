@@ -331,16 +331,40 @@ async function fetchDriveBytes(fileId, accessToken) {
   return res.blob();
 }
 
+// Downloads already under way, keyed by file id. If the viewer asks for a
+// photo that is being prefetched, it waits on the same download instead of
+// starting a second one.
+const driveBlobInflight = new Map();
+
 async function fetchDrivePhotoUrl(fileId, accessToken) {
   if (driveBlobCache.has(fileId)) {
     touchCache(driveBlobCache, fileId);
     return driveBlobCache.get(fileId);
   }
-  const blob = await fetchDriveBytes(fileId, accessToken);
-  const url = URL.createObjectURL(blob);
-  driveBlobCache.set(fileId, url);
-  evictIfNeeded(driveBlobCache, FULL_CACHE_LIMIT);
-  return url;
+  if (driveBlobInflight.has(fileId)) return driveBlobInflight.get(fileId);
+  const job = (async () => {
+    const blob = await fetchDriveBytes(fileId, accessToken);
+    const url = URL.createObjectURL(blob);
+    driveBlobCache.set(fileId, url);
+    evictIfNeeded(driveBlobCache, FULL_CACHE_LIMIT);
+    return url;
+  })();
+  driveBlobInflight.set(fileId, job);
+  const clear = () => { if (driveBlobInflight.get(fileId) === job) driveBlobInflight.delete(fileId); };
+  job.then(clear, clear);
+  return job;
+}
+
+// Quietly downloads a photo (and decodes it) ahead of time so the viewer can
+// show it the instant someone swipes to it. Never throws: a failed prefetch
+// just means the photo loads normally when it's actually opened.
+async function prefetchDrivePhoto(fileId, accessToken) {
+  try {
+    const url = await fetchDrivePhotoUrl(fileId, accessToken);
+    const img = new Image();
+    img.src = url;
+    if (img.decode) await img.decode();
+  } catch (e) { /* ignore */ }
 }
 
 // A small, compressed preview for grid thumbnails -- downloads the same
@@ -1991,26 +2015,61 @@ function Lightbox({ photos, index, onIndex, onClose, caption, onOpenRoom, onDele
   const { drive } = useApp();
   useLayer(true, onClose);
   const photo = photos[index];
-  const [src, setSrc] = useState(null);
+  const [loaded, setLoaded] = useState({ id: null, url: null, full: false });
   const [t, setT] = useState({ s: 1, x: 0, y: 0, anim: false });
   const stage = useRef(null);
   const g = useRef({ mode: null });
   const lastTap = useRef(0);
+  const lastIndex = useRef(index);
+  const wentBack = useRef(false);
+
+  // Show the cached full-size photo straight away if we already have it
+  // (prefetched or seen before), else the grid thumbnail, else a spinner.
+  const cachedFull = driveBlobCache.get(photo.driveFileId) || null;
+  const src = loaded.id === photo.id && (loaded.full || !cachedFull) ? loaded.url : cachedFull;
+  const fullReady = !!(cachedFull || (loaded.id === photo.id && loaded.full));
 
   useEffect(() => {
     let dead = false;
-    setSrc(null);
     setT({ s: 1, x: 0, y: 0, anim: false });
     (async () => {
       try {
         const token = await drive.getToken();
-        fetchDriveThumbnailUrl(photo, token).then((u) => { if (!dead) setSrc((cur) => cur || u); }).catch(() => {});
+        // Older photos have no separate thumbnail file, so asking for one would
+        // download the whole original a second time. Only use a thumbnail that
+        // is cheap: a tiny thumb file, or one the grid already cached.
+        if (photo.thumbFileId || driveThumbCache.has(photo.driveFileId)) {
+          fetchDriveThumbnailUrl(photo, token).then((u) => {
+            if (!dead) setLoaded((cur) => (cur.id === photo.id && cur.full ? cur : { id: photo.id, url: u, full: false }));
+          }).catch(() => {});
+        }
         const url = await fetchDrivePhotoUrl(photo.driveFileId, token);
-        if (!dead) setSrc(url);
+        if (!dead) setLoaded({ id: photo.id, url, full: true });
       } catch (e) { /* keep whatever is showing */ }
     })();
     return () => { dead = true; };
   }, [photo.id]);
+
+  // With the current photo fully loaded, quietly fetch its neighbours (the one
+  // in the direction of travel first) so the next swipe is instant.
+  useEffect(() => {
+    if (index !== lastIndex.current) { wentBack.current = index < lastIndex.current; lastIndex.current = index; }
+    const back = wentBack.current;
+    if (!fullReady || photos.length < 2) return undefined;
+    let dead = false;
+    (async () => {
+      try {
+        const token = await drive.getToken();
+        const offsets = back ? [-1, 1, -2] : [1, -1, 2];
+        for (const o of offsets) {
+          if (dead) return;
+          const nb = photos[index + o];
+          if (nb) await prefetchDrivePhoto(nb.driveFileId, token);
+        }
+      } catch (e) { /* ignore */ }
+    })();
+    return () => { dead = true; };
+  }, [index, fullReady, photos.length]);
 
   useEffect(() => {
     const k = (e) => {
