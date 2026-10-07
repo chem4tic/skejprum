@@ -446,6 +446,7 @@ const TOKENS = `
     --step-hover: #303644;
     --brass-wash: rgba(200,155,74,.16);
     --brass-ring: rgba(200,155,74,.22);
+    --brass-edge: rgba(200,155,74,.5);
     --rail: 79px;
     --bar: 57px;
     font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -479,6 +480,7 @@ const TOKENS = `
     --step-hover: #e2ddcf;
     --brass-wash: rgba(180,131,43,.17);
     --brass-ring: rgba(180,131,43,.30);
+    --brass-edge: rgba(150,105,28,.5);
   }
   .ert-root[data-theme="light"] .ert-select {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235d6272' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
@@ -608,6 +610,14 @@ const TOKENS = `
   .ert-seg button { height: 31px; padding: 0 15px; border-radius: 8px; font-weight: 600; font-size: 13.5px; color: var(--text-dim); display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; cursor: pointer; }
   .ert-seg button .n { font-weight: 500; }
   .ert-seg button[aria-pressed=true] { background: var(--surface-raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); }
+  /* Two-way toggle (Rooms, Ranking): one button, the brass highlight slides to the other side when clicked. */
+  .ert-tgl { position: relative; display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; flex: none; padding: 3px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 10px; cursor: pointer; font-family: inherit; color: var(--text-dim); }
+  .ert-tgl .thumb { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / 2); border-radius: 8px; background: var(--brass-wash); box-shadow: inset 0 0 0 1px var(--brass-edge); transition: transform .26s cubic-bezier(.4, .05, .2, 1); }
+  .ert-tgl[data-i="1"] .thumb { transform: translateX(100%); }
+  .ert-tgl > span { position: relative; height: 31px; padding: 0 15px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13.5px; white-space: nowrap; transition: color .2s; }
+  .ert-tgl > span.on { color: var(--brass-bright); }
+  .ert-tgl:hover > span:not(.on) { color: var(--text); }
+  @media (prefers-reduced-motion: reduce) { .ert-tgl .thumb, .ert-tgl > span { transition: none; } }
   .ert-yr { display: flex; align-items: baseline; justify-content: space-between; padding: 26px 0 9px; border-bottom: 1px solid var(--border); }
   .ert-yr b { font: 700 19px 'Space Grotesk', sans-serif; }
   .ert-yr span { color: var(--text-dim); font-size: 13px; }
@@ -1593,30 +1603,19 @@ export default function EscapeRoomTracker() {
           <Dashboard rooms={data.rooms} members={MEMBERS} flags={currentFlags()} onOpenRoom={(id) => { setSelectedRoomId(id); setReturnView("dashboard"); setView("room-detail"); }} onOpenWishlist={() => goTab("wishlist")} />
         )}
  
-        {view === "rooms" && (
+        {(view === "rooms" || view === "wishlist") && (
+          // One element for both sides, so the segment toggle keeps its place and its highlight can slide.
           <RoomsView
-            rooms={playedRooms}
-            onOpen={(id) => { setSelectedRoomId(id); setReturnView("rooms"); setView("room-detail"); }}
+            key="rooms-and-wishlist"
+            rooms={view === "wishlist" ? wishlistRooms : playedRooms}
+            emptyLabel={view === "wishlist" ? "No rooms on the wishlist yet. Add one and mark it 'wishlist'." : undefined}
+            onOpen={(id) => { setSelectedRoomId(id); setReturnView(view); setView("room-detail"); }}
+            hideVisitedSort={view === "wishlist"}
             flags={currentFlags()}
-            currentMember={currentMember}
-            filters={roomsFilters}
-            onFiltersChange={setRoomsFilters}
-            segment="completed"
-            counts={{ played: playedRooms.length, wishlist: wishlistRooms.length }}
-            onSegment={goSegment}
-          />
-        )}
-
-        {view === "wishlist" && (
-          <RoomsView
-            rooms={wishlistRooms}
-            emptyLabel="No rooms on the wishlist yet. Add one and mark it 'wishlist'."
-            onOpen={(id) => { setSelectedRoomId(id); setReturnView("wishlist"); setView("room-detail"); }}
-            hideVisitedSort
-            flags={currentFlags()}
-            filters={wishlistFilters}
-            onFiltersChange={setWishlistFilters}
-            segment="wishlist"
+            currentMember={view === "wishlist" ? undefined : currentMember}
+            filters={view === "wishlist" ? wishlistFilters : roomsFilters}
+            onFiltersChange={view === "wishlist" ? setWishlistFilters : setRoomsFilters}
+            segment={view === "wishlist" ? "wishlist" : "completed"}
             counts={{ played: playedRooms.length, wishlist: wishlistRooms.length }}
             onSegment={goSegment}
           />
@@ -2096,6 +2095,18 @@ function Dial({ value, digits = 3, label = "rooms played" }) {
         </div>
       ))}
     </div>
+  );
+}
+
+/* A two-option toggle that is one button: clicking anywhere flips it and the highlight slides across. */
+function SlideToggle({ options, value, onChange, label }) {
+  const idx = options[1].id === value ? 1 : 0;
+  const other = options[1 - idx];
+  return (
+    <button type="button" className="ert-tgl" data-i={idx} aria-label={`${label}: ${options[idx].label}. Switch to ${other.label}`} onClick={() => onChange(other.id)}>
+      <i className="thumb" aria-hidden="true" />
+      {options.map((o, i) => <span key={o.id} className={i === idx ? "on" : ""} aria-hidden="true">{o.label}</span>)}
+    </button>
   );
 }
 
@@ -2664,10 +2675,7 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags, currentM
     <div>
       <div style={{ display: "flex", gap: 10, marginBottom: 6, flexWrap: "wrap", alignItems: "center" }}>
         {onSegment && (
-          <div className="ert-seg" role="group" aria-label="Which rooms">
-            <button aria-pressed={segment !== "wishlist"} onClick={() => onSegment("completed")}>Completed</button>
-            <button aria-pressed={segment === "wishlist"} onClick={() => onSegment("wishlist")}>Wishlist</button>
-          </div>
+          <SlideToggle label="Which rooms" value={segment === "wishlist" ? "wishlist" : "completed"} onChange={onSegment} options={[{ id: "completed", label: "Completed" }, { id: "wishlist", label: "Wishlist" }]} />
         )}
         <div style={{ position: "relative", flex: "1 1 220px", minWidth: 180, maxWidth: 380 }}>
           <Search size={16} style={{ position: "absolute", left: 14, top: 13, color: "var(--text-dim)" }} />
@@ -2827,10 +2835,7 @@ function RankingView({ rooms, members, currentMember, onOpen, mode, onModeChange
     <div>
       <div style={{ display: "flex", gap: 10, marginBottom: 6, flexWrap: "wrap", alignItems: "center" }}>
         {currentMember && (
-          <div className="ert-seg" role="group" aria-label="Whose ratings">
-            <button aria-pressed={!personal} onClick={() => onModeChange("group")}>Group</button>
-            <button aria-pressed={!!personal} onClick={() => onModeChange("personal")}>Mine</button>
-          </div>
+          <SlideToggle label="Whose ratings" value={personal ? "personal" : "group"} onChange={onModeChange} options={[{ id: "group", label: "Group" }, { id: "personal", label: "Mine" }]} />
         )}
         <button className="ert-btn ert-btn-ghost" onClick={() => patch({ sortDir: sortDir === "worst" ? "best" : "worst" })} style={{ flexShrink: 0, fontWeight: 500 }}>
           <ArrowUpDown size={16} /> {sortDir === "worst" ? "Worst first" : "Best first"}

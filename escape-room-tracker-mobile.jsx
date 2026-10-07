@@ -929,14 +929,14 @@ const MOBILE_CSS = `
 :root{--bg:#14161c;--surface:#1b1e27;--raised:#252a35;--hair:#2a2f3b;--line:#3a4152;--text:#ece8dd;--dim:#9aa0b1;
 --brass:#c89b4a;--brass-hi:#e3bd72;--teal:#48a99e;--danger:#d0675a;--success:#6a9d74;
 --on-brass:#17140c;--hdr-bg:rgba(20,22,28,.94);--tabbar-bg:rgba(27,30,39,.97);--press:#2d3340;--step-press:#2f3542;--toast-bg:#2c313e;
---brass-wash:rgba(200,155,74,.16);--brass-ring:rgba(200,155,74,.28);--scrim:rgba(6,7,10,.64);
+--brass-wash:rgba(200,155,74,.16);--brass-ring:rgba(200,155,74,.28);--brass-edge:rgba(200,155,74,.5);--scrim:rgba(6,7,10,.64);
 --err-bg:#3a1f1c;--err-fg:#f0b8b0;--ok-bg:#1d2e24;--ok-fg:#b4d8bf;
 --safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px);--hdr:52px;--tabbar:58px;color-scheme:dark}
 /* Light theme: warm paper rather than white. Cards sit a step lighter than the page so they still lift. */
 :root[data-theme=light]{color-scheme:light;--bg:#e4dfd3;--surface:#efebe1;--raised:#f6f3eb;--hair:#d3cdbd;--line:#bfb8a6;--text:#25272e;--dim:#5d6272;
 --brass:#b4832b;--brass-hi:#7d5614;--teal:#2f857b;--danger:#b94a3d;--success:#4d8559;
 --hdr-bg:rgba(228,223,211,.94);--tabbar-bg:rgba(239,235,225,.97);--press:#ddd7c7;--step-press:#e2ddcf;--toast-bg:#2c313e;
---brass-wash:rgba(180,131,43,.17);--brass-ring:rgba(180,131,43,.32);--scrim:rgba(40,34,22,.42);
+--brass-wash:rgba(180,131,43,.17);--brass-ring:rgba(180,131,43,.32);--brass-edge:rgba(150,105,28,.5);--scrim:rgba(40,34,22,.42);
 --err-bg:#f3d9d3;--err-fg:#8a2f25;--ok-bg:#d9e8dc;--ok-fg:#2f5d3b}
 :root[data-theme=light] select.inp{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235d6272' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
 :root[data-theme=light] .sw i{box-shadow:0 1px 2px rgba(0,0,0,.3)}
@@ -1015,6 +1015,13 @@ button.row:active,a.row:active{background:var(--surface)}
 .seg{display:flex;background:var(--surface);border:1px solid var(--hair);border-radius:12px;padding:3px;gap:3px}
 .seg button{flex:1;height:42px;border-radius:9px;font-weight:600;font-size:15px;color:var(--dim);text-align:center}
 .seg button[aria-pressed=true]{background:var(--raised);color:var(--text);box-shadow:inset 0 0 0 1px var(--line)}
+/* Two-way toggle (Rooms, Ranking): one button, the brass highlight slides to the other side when tapped. */
+.tgl{position:relative;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;width:100%;padding:3px;background:var(--surface);border:1px solid var(--hair);border-radius:12px;color:var(--dim)}
+.tgl .thumb{position:absolute;top:3px;bottom:3px;left:3px;width:calc((100% - 6px)/2);border-radius:9px;background:var(--brass-wash);box-shadow:inset 0 0 0 1px var(--brass-edge);transition:transform .26s cubic-bezier(.4,.05,.2,1)}
+.tgl[data-i="1"] .thumb{transform:translateX(100%)}
+.tgl>span{position:relative;height:42px;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:15px;transition:color .2s}
+.tgl>span.on{color:var(--brass-hi)}
+@media (prefers-reduced-motion:reduce){.tgl .thumb,.tgl>span{transition:none}}
 .tools-row{display:flex;gap:8px;margin-top:10px}
 .tools-row:first-child{margin-top:0}
 .search{flex:1;position:relative;min-width:0}
@@ -1297,6 +1304,17 @@ function Segmented({ options, value, onChange }) {
         <button key={o.id} aria-pressed={value === o.id} onClick={() => onChange(o.id)}>{o.label}</button>
       ))}
     </div>
+  );
+}
+
+function SlideToggle({ options, value, onChange, label }) {
+  const idx = options[1].id === value ? 1 : 0;
+  const other = options[1 - idx];
+  return (
+    <button type="button" className="tgl" data-i={idx} aria-label={`${label}: ${options[idx].label}. Switch to ${other.label}`} onClick={() => { tick(); onChange(other.id); }}>
+      <i className="thumb" aria-hidden="true" />
+      {options.map((o, i) => <span key={o.id} className={i === idx ? "on" : ""} aria-hidden="true">{o.label}</span>)}
+    </button>
   );
 }
 
@@ -1762,7 +1780,8 @@ function RoomsScreen() {
       <div className="tools">
         <div className="tools-row">
           <div className="grow">
-            <Segmented
+            <SlideToggle
+              label="Which rooms"
               value={wish ? "wishlist" : "completed"}
               onChange={(v) => nav.setRoomsSeg(v === "wishlist" ? "wishlist" : "completed")}
               options={[{ id: "completed", label: `Completed ${playedCount}` }, { id: "wishlist", label: `Wishlist ${wishCount}` }]}
@@ -1854,7 +1873,7 @@ function RankingScreen() {
         <div className="tools-row">
           {!isGuest ? (
             <div className="grow">
-              <Segmented value={personal ? "personal" : "group"} onChange={(v) => patch({ mode: v })} options={[{ id: "group", label: "Group" }, { id: "personal", label: "Mine" }]} />
+              <SlideToggle label="Whose ratings" value={personal ? "personal" : "group"} onChange={(v) => patch({ mode: v })} options={[{ id: "group", label: "Group" }, { id: "personal", label: "Mine" }]} />
             </div>
           ) : <div className="grow" />}
           <button className="tbtn wide" aria-label="Reverse order" onClick={() => patch({ sortDir: f.sortDir === "worst" ? "best" : "worst" })}>
