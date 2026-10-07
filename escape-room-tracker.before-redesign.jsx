@@ -777,6 +777,21 @@ function avgOfMap(map) {
 function roomParticipants(room) {
   return room.participants && room.participants.length ? room.participants : MEMBERS;
 }
+
+// Orange pictogram shown on a room's row/card when not everyone in the crew
+// played it. Derived from the "who played" list, so there is nothing to flag by hand.
+const PARTIAL_GROUP_COLOR = "#fb923c";
+function missingPlayers(room) {
+  if (!room || room.status !== "played" || !room.participants || !room.participants.length) return [];
+  return MEMBERS.filter((m) => !room.participants.includes(m));
+}
+function PartialGroupIcon({ room, size = 16 }) {
+  const missing = missingPlayers(room);
+  if (!missing.length) return null;
+  const Icon = LucideIcons.UserMinus || LucideIcons.Users;
+  const label = `Not everyone played (missing: ${missing.join(", ")})`;
+  return <span role="img" aria-label={label} title={label} style={{ display: "inline-flex" }}><Icon size={size} color={PARTIAL_GROUP_COLOR} /></span>;
+}
  
 function fmtRating(n) {
   return n === null || n === undefined ? "-" : n.toFixed(1);
@@ -2193,6 +2208,7 @@ function RoomCard({ room, index, onOpen, flags }) {
             const Icon = resolveFlagIcon(flag.icon);
             return <Icon key={flag.id} size={13} color={flag.color} />;
           })}
+          <PartialGroupIcon room={room} size={13} />
           {room.photos && room.photos.length > 0 && <Camera size={13} color="var(--text-dim)" />}
           {room.status === "played" ? <Unlock size={15} color="var(--success)" /> : <Lock size={15} color="var(--text-dim)" />}
         </div>
