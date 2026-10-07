@@ -30,6 +30,24 @@
   }
 </style>
 
+<script>
+  // Legacy mode (App settings > General) is remembered per device and opens the previous version
+  // of the app, which lives on index.html. ?legacy=0 here switches it off again.
+  (function () {
+    try {
+      var KEY = "escape-room-club-legacy-mode";
+      var qs = new URLSearchParams(location.search);
+      if (qs.get("legacy") === "1") localStorage.setItem(KEY, "1");
+      if (qs.get("legacy") === "0") localStorage.removeItem(KEY);
+      if (localStorage.getItem(KEY) === "1") {
+        qs.delete("legacy");
+        var rest = qs.toString();
+        location.replace("index.html" + (rest ? "?" + rest : "") + location.hash);
+      }
+    } catch (e) { /* stay on the phone page */ }
+  })();
+</script>
+
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
 <script type="importmap">

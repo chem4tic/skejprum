@@ -4,7 +4,6 @@ import {
   ExternalLink, Users, User, Trophy, ListChecks, LayoutDashboard,
   Camera, ChevronLeft, Settings, Check, Clock, Skull, Sparkles, Filter, FilterX,
   ChevronDown, ChevronUp, ChevronRight, Upload, ArrowUpDown, Plane, Calendar, Image as ImageIcon, Wallet, Ghost, Dumbbell, SlidersHorizontal, Ban, CornerUpRight,
-  Home, DoorOpen, PanelLeft, PanelTop, Tag, Minus, KeyRound, ListOrdered,
 } from "lucide-react";
 import * as LucideIcons from "lucide-react";
  
@@ -421,360 +420,102 @@ async function hashPassword(password, salt) {
    hunting for), and a UV-teal accent for "clue" moments.
 --------------------------------------------------------------- */
 const TOKENS = `
-  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
-
-  .ert-root, .ert-root *, .ert-root *::before, .ert-root *::after { box-sizing: border-box; }
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+ 
+  .ert-root, .ert-root *, .ert-root *::before, .ert-root *::after {
+    box-sizing: border-box;
+  }
   .ert-root {
     --bg: #14161c;
-    --surface: #1b1e27;
+    --surface: #1c1f28;
     --surface-raised: #252a35;
-    --border: #3a4152;
+    --border: #343a4a;
     --border-soft: #2a2f3b;
     --text: #ece8dd;
-    --text-dim: #9aa0b1;
+    --text-dim: #8d92a3;
     --brass: #c89b4a;
     --brass-bright: #e3bd72;
     --teal: #48a99e;
-    --danger: #d0675a;
+    --danger: #c1594c;
     --success: #6a9d74;
-    --brass-hover: #e3bd72;
-    --on-brass: #17140c;
-    --topbar-bg: rgba(20,22,28,.93);
-    --hover: rgba(236,232,221,.06);
-    --hover-soft: rgba(236,232,221,.04);
-    --tile-hover: #1f232d;
-    --step-hover: #303644;
-    --brass-wash: rgba(200,155,74,.16);
-    --brass-ring: rgba(200,155,74,.22);
-    --rail: 79px;
-    --bar: 57px;
-    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-    font-size: 14px;
-    line-height: 1.5;
+    font-family: 'Inter', sans-serif;
     background: var(--bg);
     color: var(--text);
-    min-height: 100vh;
-    -webkit-font-smoothing: antialiased;
+    min-height: 100%;
   }
-  /* Light theme: warm paper rather than white. Cards sit a step lighter than the page so they still lift. */
-  .ert-root[data-theme="light"] {
-    color-scheme: light;
-    --bg: #e4dfd3;
-    --surface: #efebe1;
-    --surface-raised: #f6f3eb;
-    --border: #bfb8a6;
-    --border-soft: #d3cdbd;
-    --text: #25272e;
-    --text-dim: #5d6272;
-    --brass: #b4832b;
-    --brass-bright: #7d5614;
-    --brass-hover: #c4953a;
-    --teal: #2f857b;
-    --danger: #b94a3d;
-    --success: #4d8559;
-    --topbar-bg: rgba(228,223,211,.93);
-    --hover: rgba(37,39,46,.07);
-    --hover-soft: rgba(37,39,46,.045);
-    --tile-hover: #f6f3eb;
-    --step-hover: #e2ddcf;
-    --brass-wash: rgba(180,131,43,.17);
-    --brass-ring: rgba(180,131,43,.30);
+  .ert-display { font-family: 'Space Grotesk', sans-serif; }
+  .ert-mono { font-family: 'IBM Plex Mono', monospace; }
+  .ert-root ::selection { background: var(--brass); color: #14161c; }
+ 
+  .ert-card {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
   }
-  .ert-root[data-theme="light"] .ert-select {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235d6272' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  .ert-card-raised {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
   }
-  .ert-root[data-theme="light"] .ert-card-raised[role=menu], .ert-root[data-theme="light"] .ert-card-raised[role=dialog] { box-shadow: 0 10px 28px rgba(60,50,30,.18) !important; }
-  .ert-root[data-theme="light"] .ert-modal { box-shadow: 0 20px 50px rgba(60,50,30,.28); }
-  .ert-root[data-theme="light"] .ert-sw i { box-shadow: 0 1px 2px rgba(0,0,0,.3); }
-  /* The combination dial is a physical object: it stays dark in both themes. */
-  .ert-dial { --brass-bright: #e3bd72; --text: #ece8dd; }
-  .ert-display { font-family: 'Space Grotesk', 'Inter', sans-serif; }
-  .ert-mono { font-family: 'Space Grotesk', 'Inter', sans-serif; font-variant-numeric: tabular-nums; }
-  .ert-root ::selection { background: var(--brass); color: var(--on-brass); }
-  .ert-root button { font-family: inherit; }
-  .ert-root :focus-visible { outline: 2px solid var(--brass-bright); outline-offset: 2px; }
-
-  /* ---- surfaces, inputs, buttons ---- */
-  .ert-card { background: var(--surface); border: 1px solid var(--border-soft); border-radius: 14px; }
-  .ert-card-raised { background: var(--surface-raised); border: 1px solid var(--border); border-radius: 10px; }
   .ert-input, .ert-select, .ert-textarea {
-    background: var(--surface); border: 1px solid var(--border-soft); color: var(--text);
-    border-radius: 10px; padding: 9px 12px; font-family: inherit; font-size: 14px; width: 100%; outline: none;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 7px;
+    padding: 8px 11px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    width: 100%;
+    outline: none;
   }
-  .ert-select {
-    -webkit-appearance: none; appearance: none; padding-right: 33px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239aa0b1' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 12px center;
+  .ert-input:focus, .ert-select:focus, .ert-textarea:focus {
+    border-color: var(--brass);
   }
-  .ert-textarea { line-height: 1.55; }
-  .ert-input:focus, .ert-select:focus, .ert-textarea:focus { border-color: var(--brass); box-shadow: 0 0 0 3px var(--brass-ring); }
   .ert-input::placeholder, .ert-textarea::placeholder { color: var(--text-dim); }
-
+ 
   .ert-btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    border-radius: 10px; padding: 9px 14px; font-size: 13.5px; line-height: 1.2;
-    font-weight: 600; cursor: pointer; border: 1px solid transparent; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 6px;
+    border-radius: 7px; padding: 8px 14px; font-size: 13.5px;
+    font-weight: 600; cursor: pointer; border: 1px solid transparent;
+    transition: filter 0.15s, transform 0.1s;
   }
-  .ert-btn[disabled] { cursor: default; }
-  .ert-btn-brass { background: var(--brass); color: var(--on-brass); }
-  .ert-btn-brass:hover:not([disabled]) { background: var(--brass-hover); }
-  .ert-btn-ghost { background: var(--surface); color: var(--text); border-color: var(--border-soft); }
-  .ert-btn-ghost:hover { background: var(--surface-raised); border-color: var(--border); }
-  .ert-btn-ghost:not([style*="padding"]) { min-height: 38px; font-weight: 500; }
-  .ert-btn-danger { background: transparent; color: var(--danger); border-color: rgba(208,103,90,.55); }
-  .ert-btn-danger:hover { background: rgba(208,103,90,.1); }
-  .ert-ibtn { width: 38px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 9px; color: var(--text-dim); background: none; border: 0; cursor: pointer; }
-  .ert-ibtn:hover { color: var(--text); background: var(--hover); }
-  .ert-avatar { width: 33px; height: 33px; border-radius: 50%; border: 1.5px solid var(--brass); background: var(--surface-raised); color: var(--brass-bright); display: flex; align-items: center; justify-content: center; font-weight: 600; cursor: pointer; font-size: 14px; padding: 0; }
-  .ert-link { background: none; border: 0; padding: 0; color: var(--text-dim); text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 4px; cursor: pointer; font-size: inherit; }
-  .ert-link:hover { color: var(--text); text-decoration-color: var(--brass); }
-  .ert-back { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); height: 34px; margin-left: -9px; padding: 0 12px 0 6px; border-radius: 17px; background: none; border: 0; cursor: pointer; font-size: 14px; }
-  .ert-back:hover { color: var(--text); background: var(--surface); }
+  .ert-btn:active { transform: scale(0.98); }
+  .ert-btn-brass { background: var(--brass); color: #17140c; }
+  .ert-btn-brass:hover { filter: brightness(1.1); }
+  .ert-btn-ghost { background: transparent; color: var(--text); border-color: var(--border); }
+  .ert-btn-ghost:hover { border-color: var(--brass); color: var(--brass-bright); }
+  .ert-btn-danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+  .ert-btn-danger:hover { background: var(--danger); color: #fff; }
+ 
+  .ert-tab {
+    display: flex; align-items: center; gap: 7px;
+    padding: 9px 13px; border-radius: 7px; font-size: 13.5px; font-weight: 600;
+    color: var(--text-dim); cursor: pointer; white-space: nowrap;
+  }
+  .ert-tab:hover { color: var(--text); }
+  .ert-tab-active { color: #17140c; background: var(--brass); }
+  .ert-tab-active:hover { color: #17140c; }
+ 
+  .ert-plaque-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; letter-spacing: 0.08em; color: var(--brass);
+  }
+ 
   .ert-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
   .ert-scrollbar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-  .ert-star-btn { cursor: pointer; }
-
-  /* ---- layout: one navigation, two possible homes for it ---- */
-  .ert-app.ert-nav-side { display: grid; grid-template-columns: var(--rail) minmax(0, 1fr); }
-  .ert-col { min-width: 0; }
-  .ert-main { padding: 28px 44px 80px; max-width: 1240px; }
-  .ert-nav-top .ert-main { margin: 0 auto; padding-top: 28px; }
-  .ert-ph { display: flex; align-items: center; justify-content: space-between; gap: 21px; margin-bottom: 21px; min-height: 40px; }
-  .ert-ph h1 { font: 700 30px/1.1 'Space Grotesk', sans-serif; letter-spacing: -.02em; margin: 0; }
-
-  .ert-rail { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; border-right: 1px solid var(--border-soft); padding: 17px 0 14px; }
-  .ert-logo { display: flex; justify-content: center; padding: 4px 0 22px; color: var(--brass); }
-  .ert-rail nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
-  .ert-rtab { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 11px 4px; font-size: 11.5px; font-weight: 500; color: var(--text-dim); text-align: center; background: none; border: 0; cursor: pointer; }
-  .ert-rtab:hover { color: var(--text); background: var(--hover-soft); }
-  .ert-rtab[aria-current=page] { color: var(--brass-bright); }
-  .ert-rtab[aria-current=page]::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--brass); }
-  .ert-rail-foot { display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 10px; margin: 0 12px; border-top: 1px solid var(--border-soft); }
-  .ert-rail-foot .ert-avatar { margin-top: 6px; }
-
-  .ert-topbar { position: sticky; top: 0; z-index: 20; height: var(--bar); display: flex; align-items: center; padding: 0 24px; background: var(--topbar-bg); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-bottom: 1px solid var(--border-soft); }
-  .ert-brand { display: flex; align-items: center; gap: 9px; font: 700 18px 'Space Grotesk', sans-serif; letter-spacing: -.01em; margin-right: 26px; white-space: nowrap; }
-  .ert-brand svg { color: var(--brass); }
-  .ert-ttabs { display: flex; height: 100%; }
-  .ert-ttab { position: relative; display: flex; align-items: center; gap: 8px; padding: 0 15px; color: var(--text-dim); font-weight: 500; font-size: 14px; white-space: nowrap; background: none; border: 0; cursor: pointer; }
-  .ert-ttab:hover { color: var(--text); }
-  .ert-ttab[aria-current=page] { color: var(--brass-bright); }
-  .ert-ttab[aria-current=page]::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 3px; border-radius: 3px 3px 0 0; background: var(--brass); }
-  .ert-tright { margin-left: auto; display: flex; align-items: center; gap: 6px; }
-  .ert-tright .ert-addwrap { margin-right: 8px; }
-  .ert-tright .ert-avatar { width: 31px; height: 31px; margin-left: 4px; }
-
-  /* ---- Home ---- */
-  .ert-hero { display: flex; align-items: center; gap: 48px; padding: 6px 0 33px; border-bottom: 1px solid var(--border-soft); }
-  .ert-dial { display: inline-flex; gap: 8px; padding: 12px; border-radius: 20px; background: #0e1015; border: 1px solid #4a3d22; box-shadow: 0 0 0 1px #000, 0 14px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(227,189,114,.12); position: relative; flex: none; }
-  .ert-dial::before { content: ""; position: absolute; top: -8px; left: 50%; margin-left: -8px; border: 8px solid transparent; border-top-color: var(--brass); border-bottom: 0; }
-  .ert-wheel { width: 66px; height: 96px; overflow: hidden; position: relative; border-radius: 10px; background: #20252f; box-shadow: inset 0 0 0 1px #3a4152; }
-  .ert-wheel::after { content: ""; position: absolute; inset: 0; border-radius: 10px; pointer-events: none; background: linear-gradient(#000c, #0000 28%, #0000 72%, #000c); box-shadow: inset 0 0 14px rgba(0,0,0,.7); }
-  .ert-strip { transition: transform 1.4s cubic-bezier(.22,.9,.24,1); }
-  .ert-strip span { display: block; height: 96px; line-height: 96px; text-align: center; font: 700 60px 'Space Grotesk', sans-serif; color: var(--brass-bright); font-variant-numeric: tabular-nums; }
-  .ert-hero-copy .big { font: 600 28px/1.15 'Space Grotesk', sans-serif; letter-spacing: -.015em; }
-  .ert-hero-copy p { margin: 6px 0 0; color: var(--text-dim); font-size: 15px; }
-  .ert-stats { margin-left: auto; display: flex; }
-  .ert-stats > div, .ert-stats > button { padding: 2px 33px; border: 0; border-left: 1px solid var(--border-soft); min-width: 129px; background: none; text-align: left; color: inherit; }
-  .ert-stats > button { cursor: pointer; }
-  .ert-stats > button:hover b { color: var(--brass-bright); }
-  .ert-stats b { display: block; font: 700 37px/1.1 'Space Grotesk', sans-serif; font-variant-numeric: tabular-nums; }
-  .ert-stats span { color: var(--text-dim); font-size: 13px; }
-  .ert-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 62px; margin-top: 38px; }
-  .ert-sh { display: flex; align-items: baseline; justify-content: space-between; margin: 0 0 4px; font: 600 19px 'Space Grotesk', sans-serif; }
-  .ert-sh small { font: 400 13px 'Inter', sans-serif; color: var(--text-dim); }
-  .ert-lrow { display: grid; grid-template-columns: 29px minmax(0, 1fr) auto; align-items: center; gap: 17px; width: 100%; padding: 13px 0; border: 0; border-bottom: 1px solid var(--border-soft); text-align: left; background: none; color: inherit; cursor: pointer; }
-  .ert-lrow.no-rank { grid-template-columns: minmax(0, 1fr) auto; }
-  .ert-lrow:hover { background: var(--surface); box-shadow: -12px 0 0 var(--surface), 12px 0 0 var(--surface); }
-  .ert-rank { font: 700 19px 'Space Grotesk', sans-serif; color: var(--text-dim); }
-  .ert-rank.top { color: var(--brass-bright); }
-  .ert-rkcell { position: relative; display: block; min-height: 22px; }
-  .ert-rkcell .sc { display: block; text-align: left; transition: opacity .12s; }
-  .ert-rkcell .pos { position: absolute; left: 0; top: 0; bottom: 0; display: flex; align-items: center; opacity: 0; transition: opacity .12s; font: 700 19px 'Space Grotesk', sans-serif; color: var(--text-dim); }
-  .ert-rkcell .pos.top { color: var(--brass-bright); }
-  .ert-lrow:hover .ert-rkcell .sc, .ert-lrow:focus-visible .ert-rkcell .sc { opacity: 0; }
-  .ert-lrow:hover .ert-rkcell .pos, .ert-lrow:focus-visible .ert-rkcell .pos { opacity: 1; }
-  .ert-r-title { font: 600 16px/1.25 'Space Grotesk', sans-serif; display: block; }
-  .ert-r-sub { color: var(--text-dim); font-size: 13px; display: block; }
-  .ert-score { font: 700 21px 'Space Grotesk', sans-serif; color: var(--brass-bright); font-variant-numeric: tabular-nums; text-align: right; line-height: 1; }
-  .ert-bar { display: grid; grid-template-columns: 129px 1fr 22px; align-items: center; gap: 12px; padding: 8px 0; }
-  .ert-bar i { display: block; height: 8px; border-radius: 4px; background: var(--surface-raised); overflow: hidden; }
-  .ert-bar i b { display: block; height: 100%; background: var(--brass); border-radius: 4px; }
-  .ert-bar span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ert-bar span:last-child { text-align: right; color: var(--text-dim); font-variant-numeric: tabular-nums; }
-
-  /* ---- Rooms: one tab, a toggle, tiles ---- */
-  .ert-seg { display: inline-flex; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 10px; padding: 3px; gap: 3px; flex: none; }
-  .ert-seg button { height: 31px; padding: 0 15px; border-radius: 8px; font-weight: 600; font-size: 13.5px; color: var(--text-dim); display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; cursor: pointer; }
-  .ert-seg button .n { font-weight: 500; }
-  .ert-seg button[aria-pressed=true] { background: var(--surface-raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); }
-  .ert-yr { display: flex; align-items: baseline; justify-content: space-between; padding: 26px 0 9px; border-bottom: 1px solid var(--border); }
-  .ert-yr b { font: 700 19px 'Space Grotesk', sans-serif; }
-  .ert-yr span { color: var(--text-dim); font-size: 13px; }
-  .ert-tgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(225px, 1fr)); gap: 14px; margin-top: 14px; }
-  .ert-tile { display: flex; flex-direction: column; text-align: left; padding: 15px 15px 14px; min-height: 158px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 14px; color: inherit; cursor: pointer; font-family: inherit; }
-  .ert-tilewrap { position: relative; display: flex; }
-  .ert-tilewrap .ert-tile, .ert-tgrid .ert-tile { width: 100%; }
-  .ert-tile-x { position: absolute; top: -8px; right: -8px; width: 26px; height: 26px; border-radius: 50%; background: var(--surface-raised); border: 1px solid var(--border); color: var(--text-dim); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; z-index: 1; }
-  .ert-tile-x:hover, .ert-tile-x.armed { color: #fff; background: var(--danger); border-color: var(--danger); }
-  .ert-tile-x.armed { width: auto; padding: 0 11px 0 8px; border-radius: 13px; gap: 5px; font-size: 12px; font-weight: 600; font-family: inherit; }
-  .ert-tile:hover { border-color: var(--border); background: var(--tile-hover); }
-  .ert-tile-top { display: flex; justify-content: space-between; align-items: center; gap: 9px; color: var(--text-dim); font-size: 13px; min-height: 19px; }
-  .ert-tile-nm { font: 600 18px/1.2 'Space Grotesk', sans-serif; margin-top: 10px; letter-spacing: -.005em; }
-  .ert-tile-vn { color: var(--text-dim); font-size: 13.5px; margin-top: 2px; }
-  .ert-tile-loc { display: flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 13px; margin-top: 9px; }
-  .ert-tile-bot { display: flex; align-items: center; justify-content: space-between; margin-top: auto; padding-top: 14px; gap: 9px; }
-  .ert-pill { font-size: 12.5px; padding: 4px 10px; border-radius: 859px; background: var(--surface-raised); color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ert-tile-sc { display: flex; align-items: center; gap: 7px; font: 700 22px/1 'Space Grotesk', sans-serif; color: var(--brass-bright); font-variant-numeric: tabular-nums; }
-  .ert-tile-sc svg { color: var(--brass); fill: var(--brass); }
-
-  /* ---- room page: identity pinned left, interaction given room on the right ---- */
-  .ert-room-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 6px; }
-  .ert-room { display: grid; grid-template-columns: minmax(292px, 361px) minmax(0, 1fr); gap: 69px; align-items: start; margin-top: 9px; }
-  .ert-room-aside { position: sticky; top: 31px; }
-  .ert-nav-top .ert-room-aside { top: calc(var(--bar) + 26px); }
-  .ert-status { display: flex; align-items: center; gap: 8px; color: var(--text-dim); }
-  .ert-room h1 { font: 700 40px/1.06 'Space Grotesk', sans-serif; letter-spacing: -.025em; margin: 9px 0 6px; overflow-wrap: anywhere; }
-  .ert-facts { margin-top: 17px; display: grid; }
-  .ert-fact { display: flex; align-items: center; gap: 9px; min-height: 30px; color: var(--text-dim); }
-  .ert-who { display: flex; gap: 9px; margin-top: 22px; flex-wrap: wrap; }
-  .ert-pchip { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 62px; font-size: 12.5px; color: var(--text); text-align: center; line-height: 1.25; }
-  .ert-pchip .c { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--brass); color: #17140c; }
-  .ert-pchip.off { color: var(--text-dim); }
-  .ert-pchip.off .c { background: var(--surface-raised); color: var(--text-dim); border: 1px solid var(--border); }
-  .ert-avgs { display: flex; align-items: center; gap: 29px; margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--border-soft); }
-  .ert-avg-big { font: 700 60px/1 'Space Grotesk', sans-serif; color: var(--brass-bright); font-variant-numeric: tabular-nums; }
-  .ert-avg-cap { color: var(--text-dim); font-size: 13px; margin-top: 6px; }
-  .ert-avg-small { display: flex; align-items: center; gap: 8px; font: 600 19px 'Space Grotesk', sans-serif; font-variant-numeric: tabular-nums; }
-  .ert-avg-small small { font: 400 13px 'Inter', sans-serif; color: var(--text-dim); }
-  .ert-rsec { padding-bottom: 36px; }
-  .ert-rsec > h2 { font: 600 21px 'Space Grotesk', sans-serif; margin: 0 0 12px; display: flex; align-items: baseline; justify-content: space-between; }
-  .ert-rsec > h2 small { font: 400 13px 'Inter', sans-serif; color: var(--text-dim); }
-  .ert-panel { background: var(--surface); border: 1px solid var(--border-soft); border-radius: 15px; padding: 4px 24px; }
-  .ert-rate { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "label right" "stars stars"; align-items: center; row-gap: 8px; column-gap: 15px; padding: 19px 0 15px; border-bottom: 1px solid var(--border-soft); }
-  .ert-rate:last-child { border-bottom: 0; }
-  .ert-rate-l { grid-area: label; font-weight: 600; }
-  .ert-rate-right { grid-area: right; display: flex; align-items: center; justify-content: flex-end; gap: 9px; }
-  .ert-stars { grid-area: stars; display: flex; align-items: center; min-height: 41px; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: pan-y; }
-  .ert-stars.ro { cursor: default; }
-  .ert-star { flex: 1; min-width: 0; position: relative; display: flex; align-items: center; justify-content: flex-start; }
-  .ert-star .base { color: var(--border); }
-  .ert-star .fillclip { position: absolute; inset: 0; pointer-events: none; }
-  .ert-rate-val { font: 700 28px 'Space Grotesk', sans-serif; color: var(--brass-bright); min-width: 67px; text-align: center; font-variant-numeric: tabular-nums; line-height: 1; }
-  .ert-rate-val small { font-size: 14px; color: var(--text-dim); font-weight: 500; }
-  .ert-step { width: 31px; height: 31px; border-radius: 50%; background: var(--surface-raised); display: flex; align-items: center; justify-content: center; border: 0; color: inherit; cursor: pointer; }
-  .ert-step:hover { background: var(--step-hover); }
-  .ert-clear { color: var(--text-dim); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; padding: 4px; background: none; border: 0; cursor: pointer; }
-  .ert-clear:hover { color: var(--text); }
-  .ert-note { display: grid; grid-template-columns: 1fr auto; gap: 2px 17px; padding: 15px 0; border-bottom: 1px solid var(--border-soft); }
-  .ert-note b { font-weight: 600; }
-  .ert-note.me b { color: var(--brass-bright); }
-  .ert-note .n { font: 700 16px 'Space Grotesk', sans-serif; color: var(--brass-bright); font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 10px; }
-  .ert-note p { grid-column: 1 / -1; margin: 2px 0 0; max-width: 68ch; white-space: pre-wrap; line-height: 1.55; }
-  .ert-note .full { grid-column: 1 / -1; }
-  .ert-unplayed { padding: 34px 28px; border: 1.5px dashed var(--border); border-radius: 15px; text-align: center; margin-bottom: 36px; }
-  .ert-unplayed h3 { margin: 0 0 6px; font: 600 19px 'Space Grotesk', sans-serif; }
-  .ert-unplayed p { margin: 0 0 17px; color: var(--text-dim); }
-
-  .ert-split { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 72px; align-items: start; }
-  .ert-sidehead { display: flex; align-items: baseline; justify-content: space-between; padding: 26px 0 9px; border-bottom: 1px solid var(--border); }
-  .ert-sidehead b { font: 700 19px 'Space Grotesk', sans-serif; }
-
-  /* trip detail, gallery, settings */
-  .ert-aside-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 28px; margin-top: 26px; padding-top: 24px; border-top: 1px solid var(--border-soft); }
-  .ert-aside-stats b { display: block; font: 700 30px/1.1 'Space Grotesk', sans-serif; font-variant-numeric: tabular-nums; }
-  .ert-aside-stats span { color: var(--text-dim); font-size: 13.5px; }
-  .ert-hint { margin: -6px 0 12px; color: var(--text-dim); font-size: 13px; max-width: 62ch; }
-  .ert-frow { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-soft); }
-  .ert-step[disabled] { opacity: .3; cursor: default; }
-  .ert-step[disabled]:hover { background: var(--surface-raised); }
-  .ert-srow { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--border-soft); }
-  .ert-ibtn.sm { width: 34px; height: 34px; }
-  .ert-modal-bg { position: fixed; inset: 0; background: rgba(10,11,15,.72); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 24px; }
-  .ert-modal { width: 100%; max-width: 480px; max-height: 80vh; display: flex; flex-direction: column; padding: 20px 22px 12px; box-shadow: 0 20px 60px rgba(0,0,0,.55); border-radius: 16px; }
-  .ert-pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 18px 16px; margin-top: 16px; }
-  .ert-photo-x { position: absolute; top: 8px; right: 8px; min-width: 26px; height: 26px; padding: 0; border-radius: 13px; background: rgba(20,22,28,.78); border: 1px solid rgba(255,255,255,.16); color: #fff; display: flex; align-items: center; justify-content: center; gap: 5px; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
-  .ert-photo-x:hover, .ert-photo-x.armed { background: var(--danger); border-color: var(--danger); }
-  .ert-photo-x.armed { padding: 0 11px 0 8px; }
-  .ert-pick { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border-soft); background: var(--surface); display: flex; align-items: center; justify-content: center; color: var(--text); cursor: pointer; padding: 0; }
-  .ert-pick:hover { border-color: var(--border); }
-  .ert-pick[aria-pressed=true] { border-color: var(--brass); background: var(--brass-wash); color: var(--brass-bright); }
-  .ert-swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
-  .ert-swatch[aria-pressed=true] { border-color: var(--text); box-shadow: inset 0 0 0 2px var(--bg); }
-
-  /* overview row icons, and the row you came back from */
-  .ert-rside { display: flex; align-items: center; justify-content: flex-end; gap: 16px; }
-  .ert-rowicons { display: flex; align-items: center; gap: 9px; color: var(--text-dim); }
-  .ert-lrow.ert-last { background: var(--surface); box-shadow: -12px 0 0 var(--surface), 12px 0 0 var(--surface); }
-  .ert-lrow.ert-last .ert-rkcell .sc { opacity: 0; }
-  .ert-lrow.ert-last .ert-rkcell .pos { opacity: 1; }
-
-  /* settings switch rows */
-  .ert-swrow { display: flex; align-items: center; justify-content: space-between; gap: 20px; width: 100%; padding: 16px 0; border: 0; border-bottom: 1px solid var(--border-soft); background: none; color: var(--text); text-align: left; cursor: pointer; font-family: inherit; }
-  .ert-gsrow { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px 0; border-bottom: 1px solid var(--border-soft); }
-  .ert-gsrow b { display: block; font-size: 15px; font-weight: 600; }
-  .ert-gsrow small { display: block; margin-top: 4px; max-width: 58ch; color: var(--text-dim); font-size: 13px; line-height: 1.5; }
-  .ert-gsrow > :last-child { flex: none; }
-  @media (max-width: 640px) { .ert-gsrow { flex-direction: column; align-items: stretch; } .ert-gsrow > :last-child { width: 100% !important; } }
-  .ert-swrow b { display: block; font-size: 15px; font-weight: 600; }
-  .ert-swrow small { display: block; margin-top: 4px; max-width: 58ch; color: var(--text-dim); font-size: 13px; line-height: 1.5; }
-  .ert-sw { flex: none; width: 44px; height: 26px; border-radius: 13px; background: var(--border); position: relative; transition: background .15s; }
-  .ert-sw i { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform .15s; }
-  .ert-swrow[aria-checked=true] .ert-sw { background: var(--brass); }
-  .ert-swrow[aria-checked=true] .ert-sw i { transform: translateX(18px); }
-  .ert-swrow:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
-
-  /* toolbar count + filter chips and menus */
-  .ert-count { margin-left: auto; flex-shrink: 0; color: var(--text-dim); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .ert-chips { display: flex; flex-wrap: wrap; gap: 7px; }
-  .ert-chip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 15px; background: var(--surface); border: 1px solid var(--border-soft); color: var(--text); font-size: 13px; cursor: pointer; font-family: inherit; }
-  .ert-chip:hover { border-color: var(--border); }
-  .ert-chip[aria-pressed=true] { background: var(--brass-wash); border-color: var(--brass); color: var(--brass-bright); }
-  .ert-pop-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; font: 600 16px 'Space Grotesk', sans-serif; }
-  .ert-fsec { margin-bottom: 16px; }
-  .ert-flabel { font-size: 12.5px; color: var(--text-dim); margin: 0 0 8px; }
-  .ert-fbadge { background: var(--brass); color: var(--on-brass); border-radius: 9px; font-size: 12px; font-weight: 700; padding: 0 7px; line-height: 18px; }
-  .ert-menu-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 8px 10px; border-radius: 8px; border: 0; background: none; color: var(--text); font-size: 14px; cursor: pointer; text-align: left; }
-  .ert-menu-item:hover { background: var(--surface); }
-  .ert-menu-item[aria-checked=true] { color: var(--brass-bright); font-weight: 600; }
-
-  /* sub-tabs inside a screen (App settings) */
-  .ert-tab { display: flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 9px; font-size: 13.5px; font-weight: 600; color: var(--text-dim); cursor: pointer; white-space: nowrap; }
-  .ert-tab:hover { color: var(--text); }
-  .ert-tab-active, .ert-tab-active:hover { color: var(--text); background: var(--surface-raised); box-shadow: inset 0 0 0 1px var(--border); }
-
-  @keyframes ert-fade-in { from { opacity: 0; } to { opacity: 1; } }
+ 
+  .ert-star-btn { cursor: pointer; transition: transform 0.1s; }
+  .ert-star-btn:hover { transform: scale(1.15); }
+ 
+  @keyframes ert-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
   .ert-fade-in { animation: ert-fade-in 0.2s ease-out; }
+
   @keyframes ert-slide-from-right { from { opacity: 0; transform: translateX(36px); } to { opacity: 1; transform: translateX(0); } }
   @keyframes ert-slide-from-left { from { opacity: 0; transform: translateX(-36px); } to { opacity: 1; transform: translateX(0); } }
   @keyframes ert-photo-fade { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
   .ert-slide-next { animation: ert-slide-from-right 0.24s ease-out; }
   .ert-slide-prev { animation: ert-slide-from-left 0.24s ease-out; }
   .ert-slide-fade { animation: ert-photo-fade 0.18s ease-out; }
-
-  @media (prefers-reduced-motion: reduce) { .ert-strip, .ert-fade-in, .ert-rkcell .sc, .ert-rkcell .pos { transition: none; animation: none; } }
-  @media (max-width: 1180px) {
-    .ert-room { grid-template-columns: 1fr; gap: 31px; }
-    .ert-room-aside { position: static !important; }
-    .ert-stats > div, .ert-stats > button { padding: 2px 19px; min-width: 0; }
-    .ert-hero { gap: 31px; flex-wrap: wrap; row-gap: 24px; }
-    .ert-brand span { display: none; }
-    .ert-ttab { padding: 0 10px; }
-    .ert-cols { gap: 34px; }
-  }
-  @media (max-width: 1040px) {
-    .ert-split { grid-template-columns: minmax(0, 1fr); gap: 28px; }
-    .ert-ttab .lbl { display: none; }
-    .ert-ttab { padding: 0 12px; }
-  }
-  @media (max-width: 860px) {
-    .ert-main { padding: 21px 17px 69px; }
-    .ert-hero { flex-wrap: wrap; }
-    .ert-stats { margin-left: 0; }
-    .ert-cols { grid-template-columns: 1fr; }
-    .ert-topbar { padding: 0 10px; overflow-x: auto; }
-    .ert-ph h1 { font-size: 25px; }
-  }
 `;
  
 /* ---------------------------------------------------------------
@@ -783,48 +524,6 @@ const TOKENS = `
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const STORAGE_KEY = "escape-room-club-data-v1";
 const MEMBER_KEY = "escape-room-club-current-member";
-// Per-device switch read by index.html / mobile.html to open the previous version of the app.
-const LEGACY_MODE_KEY = "escape-room-club-legacy-mode";
-function readLegacyMode() {
-  try { return window.localStorage.getItem(LEGACY_MODE_KEY) === "1"; } catch (e) { return false; }
-}
-function writeLegacyMode(on) {
-  try {
-    if (on) window.localStorage.setItem(LEGACY_MODE_KEY, "1");
-    else window.localStorage.removeItem(LEGACY_MODE_KEY);
-  } catch (e) { /* storage blocked: the switch simply won't stick */ }
-}
-// Per-device appearance and date settings (App settings > General).
-const THEME_KEY = "escape-room-club-theme";
-const DATE_FORMAT_KEY = "escape-room-club-date-format";
-const DEFAULT_CREW_NAME = "The Escape Log";
-const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const DATE_FORMATS = [
-  { id: "auto", label: "Automatic (browser setting)" },
-  { id: "mdy-text", label: "Oct 7, 2026" },
-  { id: "dmy-text", label: "7 Oct 2026" },
-  { id: "dmy-dots", label: "07.10.2026" },
-  { id: "dmy-slash", label: "07/10/2026" },
-  { id: "mdy-slash", label: "10/07/2026" },
-  { id: "iso", label: "2026-10-07" },
-];
-// fmtDate is a plain helper used all over the app, so the chosen format lives here and the
-// root component re-renders everything when it changes.
-let activeDateFormat = "auto";
-function formatDateAs(d, fmt) {
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  switch (fmt) {
-    case "mdy-text": return `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}, ${yyyy}`;
-    case "dmy-text": return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${yyyy}`;
-    case "dmy-dots": return `${dd}.${mm}.${yyyy}`;
-    case "dmy-slash": return `${dd}/${mm}/${yyyy}`;
-    case "mdy-slash": return `${mm}/${dd}/${yyyy}`;
-    case "iso": return `${yyyy}-${mm}-${dd}`;
-    default: return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
-  }
-}
 const MEMBERS = ["Karol", "Asia", "Jano", "Jaćka"];
 const GUEST_NAME = "Guest"; // read-only visitor: no password, can browse/filter/search/sort but never writes data
  
@@ -987,7 +686,7 @@ function normalizeData(raw) {
     trips: Array.isArray(safe.trips) ? safe.trips : [],
     categories: Array.isArray(safe.categories) && safe.categories.length ? [...safe.categories].sort((a, b) => a.localeCompare(b, "pl")) : [...DEFAULT_CATEGORIES].sort((a, b) => a.localeCompare(b, "pl")),
     flags: Array.isArray(safe.flags) && safe.flags.length ? safe.flags : DEFAULT_FLAGS,
-    crewName: typeof safe.crewName === "string" ? safe.crewName.trim().slice(0, 40) : "",
+    crewName: typeof safe.crewName === "string" ? safe.crewName : "", // kept so saving here never wipes the crew name
   };
 }
 
@@ -1093,26 +792,7 @@ export default function EscapeRoomTracker() {
   const [data, setData] = useState({ rooms: [], auth: {}, driveAuth: null, trips: [], categories: DEFAULT_CATEGORIES, flags: DEFAULT_FLAGS });
   const [currentMember, setCurrentMember] = useState(null);
   const isGuest = currentMember === GUEST_NAME;
-  const [view, setViewRaw] = useState("dashboard");
-  // Scroll memory. Opening something starts it at the top; pressing Back puts the page you came
-  // from back exactly where you left it. The position is recorded at the moment you leave.
-  const viewRef = React.useRef(view);
-  const scrollMemory = React.useRef({});
-  const pendingScroll = React.useRef(0);
-  const setView = useCallback((next, opts) => {
-    scrollMemory.current[viewRef.current] = window.scrollY;
-    pendingScroll.current = opts && opts.back ? scrollMemory.current[next] || 0 : 0;
-    setViewRaw(next);
-  }, []);
-  React.useLayoutEffect(() => {
-    viewRef.current = view;
-    window.scrollTo(0, pendingScroll.current);
-  }, [view]);
-  const [rankOpenedId, setRankOpenedId] = useState(null); // the Ranking row to highlight when you come back
-  const [navMode, setNavMode] = useState("top"); // "top" (default) or "side"; remembered per device
-  const [theme, setThemeState] = useState("dark"); // "dark" (default) or "light"; remembered per device
-  const [dateFormat, setDateFormatState] = useState("auto"); // remembered per device
-  activeDateFormat = dateFormat; // read by fmtDate during this render
+  const [view, setView] = useState("dashboard");
 
   // Guests can browse/filter everything but never reach a mutation-only
   // view, even if some other path tried to send them there.
@@ -1194,26 +874,6 @@ export default function EscapeRoomTracker() {
       }
     })();
  
-    (async () => {
-      try {
-        const themeRes = await storageGet(THEME_KEY, false);
-        if (themeRes && (themeRes.value === "light" || themeRes.value === "dark")) setThemeState(themeRes.value);
-        const dfRes = await storageGet(DATE_FORMAT_KEY, false);
-        if (dfRes && DATE_FORMATS.some((f) => f.id === dfRes.value)) setDateFormatState(dfRes.value);
-      } catch (e) {
-        // defaults
-      }
-    })();
-
-    (async () => {
-      try {
-        const navRes = await storageGet(NAV_MODE_KEY, false);
-        if (navRes && (navRes.value === "side" || navRes.value === "top")) setNavMode(navRes.value);
-      } catch (e) {
-        // no preference saved yet: stay on the top bar
-      }
-    })();
-
     return () => {
       if (unsubscribeFirestore) unsubscribeFirestore();
     };
@@ -1241,41 +901,6 @@ export default function EscapeRoomTracker() {
     setCurrentMember(name);
     try {
       await storageSet(MEMBER_KEY, name, false);
-    } catch (e) {
-      /* non-fatal */
-    }
-  };
-  const setTheme = async (next) => {
-    setThemeState(next);
-    try { await storageSet(THEME_KEY, next, false); } catch (e) { /* non-fatal */ }
-  };
-  const setDateFormat = async (next) => {
-    setDateFormatState(next);
-    try { await storageSet(DATE_FORMAT_KEY, next, false); } catch (e) { /* non-fatal */ }
-  };
-  const crewName = (data.crewName || "").trim() || DEFAULT_CREW_NAME;
-  const changeCrewName = (name) => {
-    const next = (name || "").trim().slice(0, 40);
-    if (next === (data.crewName || "")) return;
-    persist({ ...data, crewName: next });
-  };
-  // Browser tab title and the color of the page behind the app follow the settings.
-  useEffect(() => {
-    try { document.title = crewName; } catch (e) { /* no document */ }
-  }, [crewName]);
-  useEffect(() => {
-    try {
-      const bg = theme === "light" ? "#e4dfd3" : "#14161c";
-      document.documentElement.style.background = bg;
-      document.body.style.background = bg;
-      document.documentElement.style.colorScheme = theme;
-    } catch (e) { /* no document */ }
-  }, [theme]);
-  const toggleNav = async () => {
-    const next = navMode === "top" ? "side" : "top";
-    setNavMode(next);
-    try {
-      await storageSet(NAV_MODE_KEY, next, false);
     } catch (e) {
       /* non-fatal */
     }
@@ -1487,7 +1112,7 @@ export default function EscapeRoomTracker() {
  
   if (loading) {
     return (
-      <div className="ert-root" data-theme={theme} style={{ minHeight: 480, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div className="ert-root" style={{ minHeight: 480, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <style>{TOKENS}</style>
         <div className="ert-mono" style={{ color: "var(--text-dim)", fontSize: 13 }}>opening the door…</div>
       </div>
@@ -1503,57 +1128,23 @@ export default function EscapeRoomTracker() {
         onChoose={chooseMember}
         onCreatePassword={createPassword}
         onVerifyPassword={verifyPassword}
-        theme={theme}
       />
     );
   }
  
-  const activeTab = activeTabFor(view, returnView);
-  const goTab = (v) => {
-    setView(v);
-    setSelectedRoomId(null);
-    setEditingRoom(null);
-    setSelectedTripId(null);
-    setEditingTrip(null);
-    // Deliberately switching tabs (as opposed to opening a room/trip
-    // and hitting Back) starts each tab fresh rather than carrying
-    // over whatever was filtered/sorted last time.
-    setRoomsFilters(defaultRoomFilters(false));
-    setWishlistFilters(defaultRoomFilters(true));
-    setTripsFilters(defaultTripFilters());
-    setGalleryFilters(defaultGalleryFilters());
-    setRankingFilters(defaultRankingFilters());
-    setRankingMode("group");
-    setRankOpenedId(null);
-  };
-  const goSegment = (seg) => goTab(seg === "wishlist" ? "wishlist" : "rooms");
-  const addRoom = () => { setEditingRoom(emptyRoom(currentMember)); setView("edit-room"); };
-  const pageTitle =
-    view === "dashboard" ? (navMode === "side" ? crewName : "Overview")
-    : view === "rooms" || view === "wishlist" ? "Rooms"
-    : view === "ranking" ? "Ranking"
-    : view === "trips" ? "Trips"
-    : view === "gallery" ? "Gallery"
-    : view === "settings" ? "Crew"
-    : null;
-  const chromeProps = {
-    activeTab,
-    onNav: goTab,
-    currentMember,
-    isGuest,
-    onSwitchMember: () => chooseMember(null),
-    onOpenAppSettings: () => setView("app-settings"),
-    onToggleNav: toggleNav,
-    crewName,
-  };
-
   return (
-    <div className={`ert-root ert-app ert-nav-${navMode}`} data-theme={theme}>
+    <div className="ert-root" style={{ minHeight: 600, borderRadius: 14, overflow: "hidden", maxWidth: 1600, margin: "0 auto" }}>
       <style>{TOKENS}</style>
-
-      {navMode === "side" && <SideRail {...chromeProps} />}
-
-      <div className="ert-col">
+ 
+      <Header
+        currentMember={currentMember}
+        isGuest={isGuest}
+        onSwitchMember={() => chooseMember(null)}
+        onAdd={() => { setEditingRoom(emptyRoom(currentMember)); setView("edit-room"); }}
+        onImportFile={importRoomsFromFile}
+        onOpenAppSettings={() => setView("app-settings")}
+      />
+ 
       {saveError && (
         <div style={{ background: "var(--danger)", color: "#fff", fontSize: 12.5, padding: "6px 20px" }}>
           {saveError}
@@ -1578,14 +1169,29 @@ export default function EscapeRoomTracker() {
         </div>
       )}
  
-
-        {navMode === "top" && <TopBar {...chromeProps} onAdd={addRoom} onImportFile={importRoomsFromFile} />}
-
-        <main className="ert-main">
-      <div className="ert-fade-in">
-        {pageTitle && <PageHeader title={pageTitle} navMode={navMode} isGuest={isGuest} onAdd={addRoom} onImportFile={importRoomsFromFile} />}
+      <Nav
+        view={view}
+        setView={(v) => {
+          setView(v);
+          setSelectedRoomId(null);
+          setEditingRoom(null);
+          setSelectedTripId(null);
+          setEditingTrip(null);
+          // Deliberately switching tabs (as opposed to opening a room/trip
+          // and hitting Back) starts each tab fresh rather than carrying
+          // over whatever was filtered/sorted last time.
+          setRoomsFilters(defaultRoomFilters(false));
+          setWishlistFilters(defaultRoomFilters(true));
+          setTripsFilters(defaultTripFilters());
+          setGalleryFilters(defaultGalleryFilters());
+          setRankingFilters(defaultRankingFilters());
+          setRankingMode("group");
+        }}
+      />
+ 
+      <div style={{ padding: "20px 24px 32px" }} className="ert-fade-in">
         {view === "dashboard" && (
-          <Dashboard rooms={data.rooms} members={MEMBERS} flags={currentFlags()} onOpenRoom={(id) => { setSelectedRoomId(id); setReturnView("dashboard"); setView("room-detail"); }} onOpenWishlist={() => goTab("wishlist")} />
+          <Dashboard rooms={data.rooms} members={MEMBERS} onOpenRoom={(id) => { setSelectedRoomId(id); setReturnView("dashboard"); setView("room-detail"); }} />
         )}
  
         {view === "rooms" && (
@@ -1596,9 +1202,6 @@ export default function EscapeRoomTracker() {
             currentMember={currentMember}
             filters={roomsFilters}
             onFiltersChange={setRoomsFilters}
-            segment="completed"
-            counts={{ played: playedRooms.length, wishlist: wishlistRooms.length }}
-            onSegment={goSegment}
           />
         )}
 
@@ -1611,13 +1214,10 @@ export default function EscapeRoomTracker() {
             flags={currentFlags()}
             filters={wishlistFilters}
             onFiltersChange={setWishlistFilters}
-            segment="wishlist"
-            counts={{ played: playedRooms.length, wishlist: wishlistRooms.length }}
-            onSegment={goSegment}
           />
         )}
 
-        {view === "ranking" && <RankingView rooms={playedRooms} members={MEMBERS} currentMember={currentMember} onOpen={(id) => { setRankOpenedId(id); setSelectedRoomId(id); setReturnView("ranking"); setView("room-detail"); }} highlightId={rankOpenedId} onClearHighlight={() => setRankOpenedId(null)} mode={rankingMode} onModeChange={setRankingMode} filters={rankingFilters} onFiltersChange={setRankingFilters} flags={currentFlags()} />}
+        {view === "ranking" && <RankingView rooms={playedRooms} members={MEMBERS} currentMember={currentMember} onOpen={(id) => { setSelectedRoomId(id); setReturnView("ranking"); setView("room-detail"); }} mode={rankingMode} onModeChange={setRankingMode} filters={rankingFilters} onFiltersChange={setRankingFilters} flags={currentFlags()} />}
 
         {view === "settings" && (
           <SettingsView members={MEMBERS} currentMember={currentMember} onChangePassword={changePassword} rooms={data.rooms} />
@@ -1625,14 +1225,8 @@ export default function EscapeRoomTracker() {
 
         {view === "app-settings" && (
           <AppSettingsView
-            crewName={data.crewName || ""}
-            onChangeCrewName={changeCrewName}
-            dateFormat={dateFormat}
-            onChangeDateFormat={setDateFormat}
-            theme={theme}
-            onChangeTheme={setTheme}
             categories={data.categories}
-            onBack={() => setView("dashboard", { back: true })}
+            onBack={() => setView("dashboard")}
             onAddCategory={addCategory}
             onRemoveCategory={removeCategory}
             onRenameCategory={renameCategory}
@@ -1652,7 +1246,7 @@ export default function EscapeRoomTracker() {
             existingRooms={data.rooms}
             categories={data.categories}
             flags={currentFlags()}
-            onCancel={() => { setEditingRoom(null); setView(selectedRoom ? "room-detail" : "dashboard", { back: true }); }}
+            onCancel={() => { setEditingRoom(null); setView(selectedRoom ? "room-detail" : "dashboard"); }}
             onSave={saveRoom}
           />
         )}
@@ -1663,7 +1257,7 @@ export default function EscapeRoomTracker() {
             members={MEMBERS}
             currentMember={currentMember}
             isGuest={isGuest}
-            onBack={() => { setView(returnView, { back: true }); setSelectedRoomId(null); }}
+            onBack={() => { setView(returnView); setSelectedRoomId(null); }}
             onEdit={() => { setEditingRoom(selectedRoom); setView("edit-room"); }}
             onDelete={() => deleteRoom(selectedRoom.id)}
             onUpdate={(patch) => updateRoomField(selectedRoom.id, patch)}
@@ -1705,7 +1299,7 @@ export default function EscapeRoomTracker() {
           <TripForm
             trip={editingTrip}
             rooms={playedRooms}
-            onCancel={() => { setEditingTrip(null); setView(selectedTrip ? "trip-detail" : "trips", { back: true }); }}
+            onCancel={() => { setEditingTrip(null); setView(selectedTrip ? "trip-detail" : "trips"); }}
             onSave={saveTrip}
           />
         )}
@@ -1716,7 +1310,7 @@ export default function EscapeRoomTracker() {
             rooms={data.rooms}
             currentMember={currentMember}
             isGuest={isGuest}
-            onBack={() => { setView("trips", { back: true }); setSelectedTripId(null); }}
+            onBack={() => { setView("trips"); setSelectedTripId(null); }}
             onEdit={() => { setEditingTrip(selectedTrip); setView("edit-trip"); }}
             onDelete={() => deleteTrip(selectedTrip.id)}
             onUpdate={(patch) => updateTripField(selectedTrip.id, patch)}
@@ -1725,8 +1319,6 @@ export default function EscapeRoomTracker() {
           />
         )}
       </div>
-        </main>
-      </div>
     </div>
   );
 }
@@ -1734,7 +1326,7 @@ export default function EscapeRoomTracker() {
 /* ---------------------------------------------------------------
    WHO AM I
 --------------------------------------------------------------- */
-function WhoAmI({ members, authRecords, onChoose, onCreatePassword, onVerifyPassword, theme }) {
+function WhoAmI({ members, authRecords, onChoose, onCreatePassword, onVerifyPassword }) {
   const [selected, setSelected] = useState(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -1788,7 +1380,7 @@ function WhoAmI({ members, authRecords, onChoose, onCreatePassword, onVerifyPass
   if (selected) {
     const isNew = !hasPassword(selected);
     return (
-      <div className="ert-root" data-theme={theme} style={{ minHeight: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div className="ert-root" style={{ minHeight: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
         <style>{TOKENS}</style>
         <div className="ert-card" style={{ padding: 28, maxWidth: 380, width: "100%" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
@@ -1841,7 +1433,7 @@ function WhoAmI({ members, authRecords, onChoose, onCreatePassword, onVerifyPass
   }
  
   return (
-    <div className="ert-root" data-theme={theme} style={{ minHeight: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+    <div className="ert-root" style={{ minHeight: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <style>{TOKENS}</style>
       <div className="ert-card" style={{ padding: 28, maxWidth: 380, width: "100%" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
@@ -1881,42 +1473,7 @@ function WhoAmI({ members, authRecords, onChoose, onCreatePassword, onVerifyPass
 /* ---------------------------------------------------------------
    HEADER / NAV
 --------------------------------------------------------------- */
-/* ---------------------------------------------------------------
-   NAVIGATION CHROME
-   One set of destinations, two possible homes for it: a slim top bar
-   (the default) or a vertical side rail. The choice is remembered on
-   this device.
---------------------------------------------------------------- */
-const NAV_TABS = [
-  { id: "dashboard", label: "Overview", icon: Home },
-  { id: "rooms", label: "Rooms", icon: DoorOpen },
-  { id: "ranking", label: "Ranking", icon: Trophy },
-  { id: "trips", label: "Trips", icon: Plane },
-  { id: "gallery", label: "Gallery", icon: ImageIcon },
-  { id: "settings", label: "Crew", icon: Users },
-];
-const NAV_MODE_KEY = "escape-room-club-nav-mode";
-
-// Which tab should look selected for the current screen (detail and form screens belong to a tab).
-function activeTabFor(view, returnView) {
-  if (view === "dashboard") return "dashboard";
-  if (view === "rooms" || view === "wishlist" || view === "edit-room") return "rooms";
-  if (view === "ranking") return "ranking";
-  if (view === "trips" || view === "trip-detail" || view === "edit-trip") return "trips";
-  if (view === "gallery") return "gallery";
-  if (view === "settings") return "settings";
-  if (view === "room-detail") {
-    if (returnView === "dashboard") return "dashboard";
-    if (returnView === "ranking") return "ranking";
-    if (returnView === "trip-detail") return "trips";
-    return "rooms";
-  }
-  return null;
-}
-
-const initialOf = (name) => (name === GUEST_NAME ? "G" : (name || "?").slice(0, 1).toUpperCase());
-
-function AddRoomButton({ onAdd, onImportFile }) {
+function Header({ currentMember, isGuest, onSwitchMember, onAdd, onImportFile, onOpenAppSettings }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = React.useRef(null);
   const fileInputRef = React.useRef(null);
@@ -1941,290 +1498,126 @@ function AddRoomButton({ onAdd, onImportFile }) {
   };
 
   return (
-    <div className="ert-addwrap" style={{ display: "flex", position: "relative" }} ref={menuRef}>
-      <button className="ert-btn ert-btn-brass" onClick={onAdd} style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0, height: 38 }}>
-        <Plus size={17} /> Add room
-      </button>
-      <button
-        className="ert-btn ert-btn-brass"
-        onClick={() => setMenuOpen((v) => !v)}
-        title="More ways to add rooms"
-        aria-label="More ways to add rooms"
-        style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: "1px solid rgba(0,0,0,0.2)", padding: "0 11px", height: 38 }}
-      >
-        <ChevronDown size={14} />
-      </button>
-      {menuOpen && (
-        <div
-          className="ert-card-raised"
-          style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 230, zIndex: 30, padding: 6, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
-        >
-          <button className="ert-btn ert-btn-ghost" style={{ width: "100%", justifyContent: "flex-start", border: "none" }} onClick={triggerFilePicker}>
-            <Upload size={14} /> Upload from file (CSV)
-          </button>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 24px 10px", borderBottom: "1px solid var(--border-soft)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ width: 34, height: 34, borderRadius: 8, background: "var(--surface-raised)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Lock size={17} color="var(--brass)" />
         </div>
-      )}
-      <input ref={fileInputRef} type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={handleFileChange} />
+        <div>
+          <div className="ert-display" style={{ fontSize: 17, fontWeight: 700, letterSpacing: "0.01em" }}>The Escape Log</div>
+          <div className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)", marginTop: -2 }}>playing as {currentMember}</div>
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="ert-btn ert-btn-ghost" onClick={onSwitchMember} style={{ padding: "8px 10px" }}>
+          <User size={14} />
+        </button>
+        {!isGuest && (
+          <button className="ert-btn ert-btn-ghost" onClick={onOpenAppSettings} title="App settings" style={{ padding: "8px 10px" }}>
+            <SlidersHorizontal size={14} />
+          </button>
+        )}
+
+        {!isGuest && (
+        <div style={{ display: "flex", position: "relative" }} ref={menuRef}>
+          <button
+            className="ert-btn ert-btn-brass"
+            onClick={onAdd}
+            style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+          >
+            <Plus size={15} /> Add room
+          </button>
+          <button
+            className="ert-btn ert-btn-brass"
+            onClick={() => setMenuOpen((v) => !v)}
+            title="More ways to add rooms"
+            style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: "1px solid rgba(0,0,0,0.18)", padding: "8px 9px" }}
+          >
+            <ChevronDown size={14} />
+          </button>
+
+          {menuOpen && (
+            <div
+              className="ert-card-raised"
+              style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 210, zIndex: 20, padding: 6, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
+            >
+              <button
+                className="ert-btn ert-btn-ghost"
+                style={{ width: "100%", justifyContent: "flex-start", border: "none" }}
+                onClick={triggerFilePicker}
+              >
+                <Upload size={14} /> Upload from file (CSV)
+              </button>
+            </div>
+          )}
+        </div>
+        )}
+
+        {!isGuest && (
+          <input ref={fileInputRef} type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={handleFileChange} />
+        )}
+      </div>
     </div>
   );
 }
-
-function TopBar({ activeTab, onNav, currentMember, isGuest, onSwitchMember, onOpenAppSettings, onToggleNav, onAdd, onImportFile, crewName }) {
+ 
+function Nav({ view, setView }) {
+  const tabs = [
+    { id: "dashboard", label: "Overview", icon: LayoutDashboard },
+    { id: "ranking", label: "Ranking", icon: Trophy },
+    { id: "rooms", label: "Completed", icon: ListChecks },
+    { id: "wishlist", label: "Wishlist", icon: Sparkles },
+    { id: "trips", label: "Trips", icon: Plane },
+    { id: "gallery", label: "Gallery", icon: ImageIcon },
+    { id: "settings", label: "Crew", icon: Settings },
+  ];
   return (
-    <header className="ert-topbar">
-      <div className="ert-brand"><Lock size={21} /><span>{crewName}</span></div>
-      <nav className="ert-ttabs" aria-label="Main">
-        {NAV_TABS.map((t) => (
-          <button key={t.id} className="ert-ttab" aria-label={t.label} title={t.label} aria-current={activeTab === t.id ? "page" : undefined} onClick={() => onNav(t.id)}>
-            <t.icon size={17} /><span className="lbl">{t.label}</span>
-          </button>
-        ))}
-      </nav>
-      <div className="ert-tright">
-        {!isGuest && <AddRoomButton onAdd={onAdd} onImportFile={onImportFile} />}
-        <button className="ert-ibtn" title="Switch to the side rail" aria-label="Switch to the side rail" onClick={onToggleNav}><PanelLeft size={19} /></button>
-        {!isGuest && <button className="ert-ibtn" title="App settings" aria-label="App settings" onClick={onOpenAppSettings}><SlidersHorizontal size={19} /></button>}
-        <button className="ert-avatar" title={`Playing as ${currentMember}. Click to switch player`} aria-label={`Playing as ${currentMember}. Switch player`} onClick={onSwitchMember}>{initialOf(currentMember)}</button>
-      </div>
-    </header>
-  );
-}
-
-function SideRail({ activeTab, onNav, currentMember, isGuest, onSwitchMember, onOpenAppSettings, onToggleNav, crewName }) {
-  return (
-    <aside className="ert-rail">
-      <div className="ert-logo" title={crewName}><Lock size={26} /></div>
-      <nav aria-label="Main">
-        {NAV_TABS.map((t) => (
-          <button key={t.id} className="ert-rtab" aria-current={activeTab === t.id ? "page" : undefined} onClick={() => onNav(t.id)}>
-            <t.icon size={20} />{t.label}
-          </button>
-        ))}
-      </nav>
-      <div className="ert-rail-foot">
-        <button className="ert-ibtn" title="Switch to the top bar" aria-label="Switch to the top bar" onClick={onToggleNav}><PanelTop size={19} /></button>
-        {!isGuest && <button className="ert-ibtn" title="App settings" aria-label="App settings" onClick={onOpenAppSettings}><SlidersHorizontal size={19} /></button>}
-        <button className="ert-avatar" title={`Playing as ${currentMember}. Click to switch player`} aria-label={`Playing as ${currentMember}. Switch player`} onClick={onSwitchMember}>{initialOf(currentMember)}</button>
-      </div>
-    </aside>
-  );
-}
-
-// Title row for the main screens. With the side rail there is no top bar, so the
-// primary action lives here instead.
-function PageHeader({ title, navMode, isGuest, onAdd, onImportFile }) {
-  return (
-    <div className="ert-ph">
-      <h1>{title}</h1>
-      {navMode === "side" && !isGuest && <AddRoomButton onAdd={onAdd} onImportFile={onImportFile} />}
-    </div>
-  );
-}
-
-// Removing a room from a trip asks for a second click, like deleting a photo: the first
-// click arms the button, and it disarms after 3 seconds or when you click elsewhere.
-function TripRoomRemove({ roomName, onRemove }) {
-  const [armed, setArmed] = useState(false);
-  const ref = React.useRef(null);
-  useEffect(() => {
-    if (!armed) return undefined;
-    const timer = setTimeout(() => setArmed(false), 3000);
-    const away = (e) => { if (ref.current && !ref.current.contains(e.target)) setArmed(false); };
-    document.addEventListener("mousedown", away);
-    return () => { clearTimeout(timer); document.removeEventListener("mousedown", away); };
-  }, [armed]);
-  return (
-    <button
-      ref={ref}
-      className={`ert-tile-x${armed ? " armed" : ""}`}
-      title={armed ? "Click again to remove" : "Remove from trip"}
-      aria-label={armed ? `Confirm removing ${roomName} from this trip` : `Remove ${roomName} from this trip`}
-      onBlur={() => setArmed(false)}
-      onClick={(e) => {
-        e.stopPropagation();
-        if (armed) { setArmed(false); onRemove(); } else setArmed(true);
-      }}
-    >
-      <X size={13} />{armed ? "Remove" : null}
-    </button>
-  );
-}
-
-/* ---------------------------------------------------------------
-   DASHBOARD
---------------------------------------------------------------- */
-/* ---------------------------------------------------------------
-   SMALL SHARED HELPERS
---------------------------------------------------------------- */
-const fmtDate = (iso) => {
-  if (!iso) return "";
-  const d = new Date(iso + "T12:00:00");
-  return isNaN(d.getTime()) ? iso : formatDateAs(d, activeDateFormat);
-};
-// Search ignores case and Polish diacritics, so "lodz" finds "Łódź".
-const normSearch = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ł/g, "l");
-const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
-// Shortest unique prefix per name (Karol -> K, Jano -> Jan, Jaćka -> Jać), for compact rating chips.
-const shortNamesOf = (names) => {
-  const out = {};
-  names.forEach((n) => {
-    let k = 1;
-    while (k < n.length && names.some((o) => o !== n && o.slice(0, k) === n.slice(0, k))) k += 1;
-    out[n] = n.slice(0, k);
-  });
-  return out;
-};
-
-/* The combination dial: the one bold element, shared with the phone edition. The wheels
-   roll to the count once when Home opens. */
-function Dial({ value, digits = 3, label = "rooms played" }) {
-  const str = String(Math.min(value, Math.pow(10, digits) - 1)).padStart(digits, "0");
-  const [rolled, setRolled] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setRolled(true), 160); return () => clearTimeout(t); }, []);
-  return (
-    <div className="ert-dial" role="img" aria-label={`${value} ${label}`}>
-      {str.split("").map((d, i) => (
-        <div className="ert-wheel" key={i}>
-          <div className="ert-strip" style={{ transform: `translateY(${rolled ? -Number(d) * 10 : 0}%)`, transitionDelay: `${i * 120}ms` }}>
-            {Array.from({ length: 10 }).map((__, n) => <span key={n}>{n}</span>)}
-          </div>
+    <div className="ert-scrollbar" style={{ display: "flex", gap: 6, padding: "12px 24px", overflowX: "auto", borderBottom: "1px solid var(--border-soft)" }}>
+      {tabs.map((t) => (
+        <div key={t.id} className={`ert-tab ${view === t.id || (view === "room-detail" && false) ? (view === t.id ? "ert-tab-active" : "") : ""}`} onClick={() => setView(t.id)}>
+          <t.icon size={14} /> {t.label}
         </div>
       ))}
     </div>
   );
 }
-
-/* A rating you can drag across (or step with - / +). Half-points on the 10 point scale, whole
-   points elsewhere. Read-only when no onChange is given. */
-function RatingControl({ label, value, max, step, icon, color, solid = true, onChange, onClear }) {
-  const ref = React.useRef(null);
-  const [drag, setDrag] = useState(null);
-  const Icon = icon || Star;
-  const readOnly = !onChange;
-  const shown = drag != null ? drag : value || 0;
-  const size = max > 8 ? 29 : 32;
-  const calc = (x) => {
-    const r = ref.current.getBoundingClientRect();
-    const frac = Math.min(1, Math.max(0, (x - r.left) / (r.width || 1)));
-    const v = Math.ceil((frac * max) / step - 1e-9) * step;
-    return Math.min(max, Math.max(step, v));
-  };
-  const down = (e) => {
-    if (readOnly) return;
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-    setDrag(calc(e.clientX));
-  };
-  const move = (e) => { if (drag != null) setDrag(calc(e.clientX)); };
-  const up = (e) => {
-    if (drag == null) return;
-    const v = calc(e.clientX);
-    setDrag(null);
-    onChange(v);
-  };
-  const key = (e) => {
-    if (readOnly) return;
-    if (e.key === "ArrowRight" || e.key === "ArrowUp") { e.preventDefault(); onChange(Math.min(max, (value || 0) + step)); }
-    if (e.key === "ArrowLeft" || e.key === "ArrowDown") { e.preventDefault(); const nv = (value || 0) - step; nv < step - 1e-9 ? onClear() : onChange(nv); }
-  };
-  const minus = () => { const nv = (value || 0) - step; nv < step - 1e-9 ? onClear() : onChange(nv); };
-  const plus = () => onChange(Math.min(max, (value || 0) + step));
-  return (
-    <div className="ert-rate">
-      <span className="ert-rate-l">{label}</span>
-      <div className="ert-rate-right">
-        {!readOnly && step < 1 ? <button className="ert-step" aria-label={`Lower ${label.toLowerCase()} by half a point`} onClick={minus}><Minus size={16} /></button> : null}
-        <span className="ert-rate-val">{shown ? shown : "-"}<small>{`/${max}`}</small></span>
-        {!readOnly && step < 1 ? <button className="ert-step" aria-label={`Raise ${label.toLowerCase()} by half a point`} onClick={plus}><Plus size={16} /></button> : null}
-        {!readOnly && value ? <button className="ert-clear" onClick={onClear}>Clear</button> : null}
-      </div>
-      <div
-        className={`ert-stars${readOnly ? " ro" : ""}`}
-        ref={ref}
-        role="slider"
-        tabIndex={readOnly ? -1 : 0}
-        aria-label={label}
-        aria-valuemin={0}
-        aria-valuemax={max}
-        aria-valuenow={value || 0}
-        onPointerDown={down}
-        onPointerMove={move}
-        onPointerUp={up}
-        onPointerCancel={() => setDrag(null)}
-        onKeyDown={key}
-      >
-        {Array.from({ length: max }).map((_, i) => {
-          const f = Math.max(0, Math.min(1, shown - i));
-          return (
-            <div className="ert-star" key={i} style={{ maxWidth: max > 8 ? 54 : 68 }}>
-              <div style={{ position: "relative", width: size, height: size, flex: "none" }}>
-                <Icon className="base" size={size} strokeWidth={1.6} />
-                {f > 0 ? (
-                  <div className="fillclip" style={{ clipPath: `inset(0 ${(1 - f) * 100}% 0 0)` }}>
-                    <Icon size={size} strokeWidth={solid ? 1.8 : 2.4} color={color || "var(--brass)"} fill={solid ? color || "var(--brass)" : "none"} />
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
+ 
+/* ---------------------------------------------------------------
+   DASHBOARD
+--------------------------------------------------------------- */
 function StatBlock({ label, value, sub }) {
   return (
-    <div style={{ flex: "1 1 140px", minWidth: 140 }}>
-      <div className="ert-display" style={{ fontSize: 26, fontWeight: 700, lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>{value}</div>
-      <div style={{ fontSize: 13, color: "var(--text-dim)", marginTop: 3 }}>{label}</div>
-      {sub && <div style={{ fontSize: 12.5, color: "var(--text-dim)" }}>{sub}</div>}
+    <div className="ert-card" style={{ padding: "14px 16px", flex: "1 1 140px", minWidth: 140 }}>
+      <div className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)", letterSpacing: "0.06em", textTransform: "uppercase" }}>{label}</div>
+      <div className="ert-display" style={{ fontSize: 26, fontWeight: 700, marginTop: 4 }}>{value}</div>
+      {sub && <div style={{ fontSize: 11.5, color: "var(--text-dim)", marginTop: 2 }}>{sub}</div>}
     </div>
   );
 }
-
-/* ---------------------------------------------------------------
-   DASHBOARD (Home)
---------------------------------------------------------------- */
-// The same flag and photo icons the phone shows on the right of a row.
-function RowIcons({ room, flags }) {
-  const defs = (flags && flags.length ? flags : DEFAULT_FLAGS).filter((f) => (room.flags || []).includes(f.id));
-  const hasPhotos = room.photos && room.photos.length > 0;
-  if (!defs.length && !hasPhotos) return null;
-  return (
-    <span className="ert-rowicons">
-      {defs.map((f) => {
-        const Icon = resolveFlagIcon(f.icon);
-        return <Icon key={f.id} size={16} color={f.color} aria-label={f.label} />;
-      })}
-      {hasPhotos ? <Camera size={16} aria-label="Has photos" /> : null}
-    </span>
-  );
-}
-
-function Dashboard({ rooms, members, onOpenRoom, onOpenWishlist, flags }) {
+ 
+function Dashboard({ rooms, members, onOpenRoom }) {
   const played = rooms.filter((r) => r.status === "played");
   const wishlist = rooms.filter((r) => r.status === "wishlist");
   const escaped = played.filter((r) => r.result === "escaped").length;
   const escapeRate = played.length ? Math.round((escaped / played.length) * 100) : null;
-  const cityCount = new Set(played.map((r) => (r.city || "").trim().toLowerCase()).filter(Boolean)).size;
   const overallAvg = useMemo(() => {
     const vals = played.map(avgRating).filter((v) => v !== null);
     if (!vals.length) return null;
     return vals.reduce((a, b) => a + b, 0) / vals.length;
   }, [played]);
-
+ 
   const byCity = useMemo(() => {
     const map = {};
     played.forEach((r) => { if (r.city) map[r.city] = (map[r.city] || 0) + 1; });
     return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5);
   }, [played]);
-
+ 
   const byCategory = useMemo(() => {
     const map = {};
     played.forEach((r) => { map[r.category] = (map[r.category] || 0) + 1; });
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
   }, [played]);
-
+ 
   const recent = [...played].sort((a, b) => (b.datePlayed || "").localeCompare(a.datePlayed || "")).slice(0, 5);
   const topRated = [...played]
     .map((r) => ({ ...r, _avg: avgRating(r) }))
@@ -2234,83 +1627,95 @@ function Dashboard({ rooms, members, onOpenRoom, onOpenWishlist, flags }) {
 
   return (
     <div>
-      <div className="ert-hero">
-        <Dial value={played.length} label="rooms played" />
-        <div className="ert-hero-copy">
-          <div className="big">{played.length === 1 ? "room played" : "rooms played"}</div>
-          {cityCount > 0 ? <p>{`in ${cityCount === 1 ? "1 city" : `${cityCount} cities`}`}</p> : null}
-        </div>
-        <div className="ert-stats">
-          <div><b>{fmtRating(overallAvg)}</b><span>Group average</span></div>
-          <div><b>{escapeRate === null ? "-" : `${escapeRate}%`}</b><span>Escape rate</span></div>
-          <button onClick={onOpenWishlist} title="Open the wishlist"><b>{wishlist.length}</b><span>On the wishlist</span></button>
-        </div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 22 }}>
+        <StatBlock label="Rooms played" value={played.length} />
+        <StatBlock label="Escape rate" value={escapeRate === null ? "-" : `${escapeRate}%`} sub={played.length ? `${escaped}/${played.length} escaped` : null} />
+        <StatBlock label="Group avg rating" value={fmtRating(overallAvg)} sub="out of 10" />
+        <StatBlock label="Wishlist" value={wishlist.length} />
+        <StatBlock label="Crew" value={members.length} />
       </div>
 
-      <div className="ert-cols">
-        <div>
-          <h2 className="ert-sh">Best rooms<small>by group average</small></h2>
-          {topRated.length === 0 && <EmptyNote text="No ratings yet. Rate a room to build your ranking." />}
-          <div>
-            {topRated.map((r, i) => (
-              <button key={r.id} className="ert-lrow" onClick={() => onOpenRoom(r.id)}>
-                <span className={`ert-rank${i === 0 ? " top" : ""}`}>{i + 1}</span>
-                <span><span className="ert-r-title">{r.name}</span><span className="ert-r-sub">{r.venue || r.city}</span></span>
-                <span className="ert-rside"><RowIcons room={r} flags={flags} /><span className="ert-score">{fmtRating(r._avg)}</span></span>
-              </button>
-            ))}
+      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="ert-card" style={{ padding: 18 }}>
+            <div className="ert-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Top rooms</div>
+            {topRated.length === 0 && <EmptyNote text="No ratings yet. Rate a room to build your ranking." />}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {topRated.map((r, i) => (
+                <div key={r.id} onClick={() => onOpenRoom(r.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 11px", background: "var(--surface-raised)", borderRadius: 7, cursor: "pointer" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span className="ert-display" style={{ fontSize: 14, fontWeight: 700, color: i === 0 ? "var(--brass-bright)" : "var(--text-dim)", width: 16 }}>{i + 1}</span>
+                    <div>
+                      <div style={{ fontSize: 13.5, fontWeight: 600 }}>{r.name}</div>
+                      <div style={{ fontSize: 11.5, color: "var(--text-dim)" }}>{r.venue}{r.city ? ` · ${r.city}` : ""}</div>
+                    </div>
+                  </div>
+                  <div className="ert-mono" style={{ fontSize: 13, color: "var(--brass)" }}>{fmtRating(r._avg)}</div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-        <div>
-          <h2 className="ert-sh">Recently played</h2>
-          {recent.length === 0 && <EmptyNote text="Nothing logged yet. Add your first room." />}
-          <div>
-            {recent.map((r) => (
-              <button key={r.id} className="ert-lrow no-rank" onClick={() => onOpenRoom(r.id)}>
-                <span>
-                  <span className="ert-r-title">{r.name}</span>
-                  <span className="ert-r-sub">
-                    {[r.city, fmtDate(r.datePlayed)].filter(Boolean).join(", ")}
-                    {r.result === "not-escaped" ? <span style={{ color: "var(--danger)" }}>{" Not escaped"}</span> : null}
-                  </span>
-                </span>
-                <span className="ert-rside"><RowIcons room={r} flags={flags} /><span className="ert-score">{fmtRating(avgRating(r))}</span></span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
 
-      <div className="ert-cols" style={{ marginTop: 52 }}>
-        <div>
-          <h2 className="ert-sh">Where you've played</h2>
-          {byCity.length === 0 && <EmptyNote text="No played rooms yet." />}
-          <div>{byCity.map(([city, count]) => <BarRow key={city} label={city} count={count} max={byCity[0][1]} />)}</div>
+          <div className="ert-card" style={{ padding: 18 }}>
+            <div className="ert-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Recently played</div>
+            {recent.length === 0 && <EmptyNote text="Nothing logged yet. Add your first room." />}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {recent.map((r) => (
+                <div key={r.id} onClick={() => onOpenRoom(r.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 11px", background: "var(--surface-raised)", borderRadius: 7, cursor: "pointer" }}>
+                  <div>
+                    <div style={{ fontSize: 13.5, fontWeight: 600 }}>{r.name}</div>
+                    <div style={{ fontSize: 11.5, color: "var(--text-dim)" }}>{r.venue}{r.city ? ` · ${r.city}` : ""}</div>
+                  </div>
+                  <div className="ert-mono" style={{ fontSize: 13, color: "var(--brass)" }}>{fmtRating(avgRating(r))}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-        <div>
-          <h2 className="ert-sh">Categories</h2>
-          {byCategory.length === 0 && <EmptyNote text="No played rooms yet." />}
-          <div>{byCategory.map(([cat, count]) => <BarRow key={cat} label={cat} count={count} max={byCategory[0][1]} />)}</div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="ert-card" style={{ padding: 18 }}>
+            <div className="ert-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Top cities</div>
+            {byCity.length === 0 && <EmptyNote text="No played rooms yet." />}
+            <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+              {byCity.map(([city, count]) => (
+                <BarRow key={city} label={city} count={count} max={byCity[0][1]} />
+              ))}
+            </div>
+          </div>
+          <div className="ert-card" style={{ padding: 18 }}>
+            <div className="ert-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>By genre</div>
+            {byCategory.length === 0 && <EmptyNote text="No played rooms yet." />}
+            <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+              {byCategory.map(([cat, count]) => (
+                <BarRow key={cat} label={cat} count={count} max={byCategory[0][1]} />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
+ 
 function BarRow({ label, count, max }) {
+  const pct = Math.max(8, Math.round((count / max) * 100));
   return (
-    <div className="ert-bar">
-      <span>{label}</span>
-      <i><b style={{ width: `${Math.max(8, Math.round((count / max) * 100))}%` }} /></i>
-      <span>{count}</span>
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
+        <span>{label}</span>
+        <span className="ert-mono" style={{ color: "var(--text-dim)" }}>{count}</span>
+      </div>
+      <div style={{ height: 5, background: "var(--surface-raised)", borderRadius: 3, overflow: "hidden" }}>
+        <div style={{ width: `${pct}%`, height: "100%", background: "var(--teal)" }} />
+      </div>
     </div>
   );
 }
-
+ 
 function EmptyNote({ text }) {
-  return <div style={{ fontSize: 13.5, color: "var(--text-dim)", padding: "8px 0" }}>{text}</div>;
+  return <div style={{ fontSize: 12.5, color: "var(--text-dim)", fontStyle: "italic" }}>{text}</div>;
 }
-
 
 /* ---------------------------------------------------------------
    STAR ROW
@@ -2380,61 +1785,44 @@ function StarRow({ value, onChange, size, max, allowHalf, icon, halfIcon, color 
 /* ---------------------------------------------------------------
    ROOMS LIST (played or wishlist)
 --------------------------------------------------------------- */
-/* ---------------------------------------------------------------
-   FILTER AND SORT POPOVERS
-   Chips instead of checkboxes, the same look as the phone's filter sheet.
---------------------------------------------------------------- */
-// Shared by the popovers: keeps the panel under its button in real screen pixels, closes on
-// outside click or Escape.
-function usePopoverPosition(open, setOpen, wrapRef, btnRef, width, maxH) {
+function FilterPopover({ cities, cats, countries, flagOptions, selectedCities, selectedGenres, selectedCountries, selectedFlags, onToggleCity, onToggleGenre, onToggleCountry, onToggleFlag, onClear }) {
+  const [open, setOpen] = useState(false);
   const [panelStyle, setPanelStyle] = useState(null);
-  const recompute = useCallback(() => {
+  const ref = React.useRef(null);
+  const btnRef = React.useRef(null);
+
+  // Positioned in real screen pixels measured from the button itself at the
+  // moment it opens (and kept in sync on resize/scroll) rather than guessed
+  // from CSS percentages of the viewport -- that keeps it correct regardless
+  // of window size, browser zoom, or display scaling.
+  const recomputePosition = useCallback(() => {
     const btn = btnRef.current;
     if (!btn) return;
     const rect = btn.getBoundingClientRect();
-    const panelWidth = Math.min(width, window.innerWidth - 24);
-    const left = Math.max(12, Math.min(rect.left, window.innerWidth - panelWidth - 12));
-    const top = rect.bottom + 8;
-    setPanelStyle({ position: "fixed", top, left, width: panelWidth, maxHeight: Math.max(160, Math.min(maxH, window.innerHeight - top - 12)) });
-  }, [width, maxH]);
+    const panelWidth = Math.min(260, window.innerWidth - 24);
+    let left = rect.right - panelWidth;
+    left = Math.max(12, Math.min(left, window.innerWidth - panelWidth - 12));
+    const top = rect.bottom + 6;
+    setPanelStyle({ position: "fixed", top, left, width: panelWidth, maxHeight: Math.min(360, window.innerHeight - top - 12) });
+  }, []);
+
   useEffect(() => {
-    if (!open) return undefined;
-    recompute();
-    const onDown = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
-    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    window.addEventListener("resize", recompute);
-    window.addEventListener("scroll", recompute, true);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-      window.removeEventListener("resize", recompute);
-      window.removeEventListener("scroll", recompute, true);
+    if (!open) return;
+    recomputePosition();
+    const handleClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
     };
-  }, [open, recompute]);
-  return panelStyle;
-}
+    const handleReposition = () => recomputePosition();
+    document.addEventListener("mousedown", handleClick);
+    window.addEventListener("resize", handleReposition);
+    window.addEventListener("scroll", handleReposition, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("resize", handleReposition);
+      window.removeEventListener("scroll", handleReposition, true);
+    };
+  }, [open, recomputePosition]);
 
-function FilterSection({ label, items, selected, onToggle }) {
-  if (!items.length) return null;
-  return (
-    <div className="ert-fsec">
-      <div className="ert-flabel">{label}</div>
-      <div className="ert-chips">
-        {items.map((c) => (
-          <button key={c} type="button" className="ert-chip" aria-pressed={selected.includes(c)} onClick={() => onToggle(c)}>{c}</button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function FilterPopover({ cities, cats, countries, flagOptions, selectedCities, selectedGenres, selectedCountries, selectedFlags, onToggleCity, onToggleGenre, onToggleCountry, onToggleFlag, onClear }) {
-  const [open, setOpen] = useState(false);
-  const ref = React.useRef(null);
-  const btnRef = React.useRef(null);
-  const panelStyle = usePopoverPosition(open, setOpen, ref, btnRef, 400, 560);
   const flagList = flagOptions || [];
   const activeCount = selectedCities.length + selectedGenres.length + selectedCountries.length + (selectedFlags ? selectedFlags.length : 0);
 
@@ -2444,44 +1832,78 @@ function FilterPopover({ cities, cats, countries, flagOptions, selectedCities, s
         ref={btnRef}
         type="button"
         className="ert-btn ert-btn-ghost"
-        aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        style={{ fontWeight: 500, borderColor: activeCount ? "var(--brass)" : undefined, color: activeCount ? "var(--brass-bright)" : undefined }}
+        style={{ borderColor: activeCount ? "var(--brass)" : "var(--border)", color: activeCount ? "var(--brass-bright)" : "var(--text)" }}
       >
-        <SlidersHorizontal size={16} />
+        <Filter size={14} />
         Filters
-        {activeCount > 0 && <span className="ert-fbadge">{activeCount}</span>}
+        {activeCount > 0 && (
+          <span className="ert-mono" style={{ background: "var(--brass)", color: "#17140c", borderRadius: 9, fontSize: 10.5, padding: "1px 6px", marginLeft: 2 }}>
+            {activeCount}
+          </span>
+        )}
       </button>
 
       {open && panelStyle && (
         <div
           className="ert-card-raised ert-scrollbar"
-          role="dialog"
-          aria-label="Filters"
-          style={{ ...panelStyle, overflowY: "auto", zIndex: 20, padding: "16px 18px 6px", boxShadow: "0 12px 32px rgba(0,0,0,0.45)" }}
+          style={{ ...panelStyle, overflowY: "auto", zIndex: 20, padding: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
         >
-          <div className="ert-pop-h">
-            <span>Filters</span>
-            {activeCount > 0 && <button type="button" className="ert-clear" onClick={onClear}>Clear all</button>}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)", textTransform: "uppercase" }}>Filters</span>
+            {activeCount > 0 && (
+              <span onClick={onClear} style={{ fontSize: 11.5, color: "var(--brass)", cursor: "pointer" }}>Clear all</span>
+            )}
           </div>
-
-          <FilterSection label="Country" items={countries} selected={selectedCountries} onToggle={onToggleCountry} />
-          <FilterSection label="City" items={cities} selected={selectedCities} onToggle={onToggleCity} />
-          <FilterSection label="Category" items={cats} selected={selectedGenres} onToggle={onToggleGenre} />
+ 
+          {countries.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              <div className="ert-mono" style={{ fontSize: 10, color: "var(--text-dim)", marginBottom: 5 }}>COUNTRY</div>
+              {countries.map((c) => (
+                <label key={c} style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 0", fontSize: 13, cursor: "pointer" }}>
+                  <input type="checkbox" checked={selectedCountries.includes(c)} onChange={() => onToggleCountry(c)} />
+                  {c}
+                </label>
+              ))}
+            </div>
+          )}
+ 
+          {cities.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              <div className="ert-mono" style={{ fontSize: 10, color: "var(--text-dim)", marginBottom: 5 }}>CITY</div>
+              {cities.map((c) => (
+                <label key={c} style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 0", fontSize: 13, cursor: "pointer" }}>
+                  <input type="checkbox" checked={selectedCities.includes(c)} onChange={() => onToggleCity(c)} />
+                  {c}
+                </label>
+              ))}
+            </div>
+          )}
+ 
+          {cats.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              <div className="ert-mono" style={{ fontSize: 10, color: "var(--text-dim)", marginBottom: 5 }}>GENRE</div>
+              {cats.map((c) => (
+                <label key={c} style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 0", fontSize: 13, cursor: "pointer" }}>
+                  <input type="checkbox" checked={selectedGenres.includes(c)} onChange={() => onToggleGenre(c)} />
+                  {c}
+                </label>
+              ))}
+            </div>
+          )}
 
           {flagList.length > 0 && (
-            <div className="ert-fsec">
-              <div className="ert-flabel">Flags</div>
-              <div className="ert-chips">
-                {flagList.map((f) => {
-                  const Icon = resolveFlagIcon(f.icon);
-                  return (
-                    <button key={f.id} type="button" className="ert-chip" aria-pressed={(selectedFlags || []).includes(f.id)} onClick={() => onToggleFlag(f.id)}>
-                      <Icon size={14} color={f.color} />{f.label}
-                    </button>
-                  );
-                })}
-              </div>
+            <div>
+              <div className="ert-mono" style={{ fontSize: 10, color: "var(--text-dim)", marginBottom: 5 }}>FLAGS</div>
+              {flagList.map((f) => {
+                const Icon = resolveFlagIcon(f.icon);
+                return (
+                  <label key={f.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 0", fontSize: 13, cursor: "pointer" }}>
+                    <input type="checkbox" checked={(selectedFlags || []).includes(f.id)} onChange={() => onToggleFlag(f.id)} />
+                    <Icon size={13} color={f.color} /> {f.label}
+                  </label>
+                );
+              })}
             </div>
           )}
 
@@ -2491,14 +1913,14 @@ function FilterPopover({ cities, cats, countries, flagOptions, selectedCities, s
     </div>
   );
 }
-
+ 
 const SORT_OPTIONS = [
   { id: "visited-desc", label: "Date visited (newest)" },
   { id: "visited-asc", label: "Date visited (oldest)" },
   { id: "date-desc", label: "Date added (newest)" },
   { id: "date-asc", label: "Date added (oldest)" },
   { id: "rating-desc", label: "Rating (high to low)" },
-  { id: "alpha", label: "Alphabetical (A to Z)" },
+  { id: "alpha", label: "Alphabetical (A\u2013Z)" },
 ];
 
 function sortRooms(rooms, sortBy) {
@@ -2564,38 +1986,81 @@ function groupByYear(items, dateField) {
 
 function YearDivider({ year, count, itemLabel }) {
   return (
-    <div className="ert-yr"><b>{year}</b><span>{plural(count, itemLabel)}</span></div>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "6px 0 12px" }}>
+      <span className="ert-mono" style={{ fontSize: 11, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>
+        {year} · {count} {itemLabel}{count === 1 ? "" : "s"}
+      </span>
+      <div style={{ flex: 1, height: 1, background: "var(--border-soft)" }} />
+    </div>
   );
 }
 
 function SortPopover({ options, sortBy, onChange }) {
   const [open, setOpen] = useState(false);
+  const [panelStyle, setPanelStyle] = useState(null);
   const ref = React.useRef(null);
   const btnRef = React.useRef(null);
-  const panelStyle = usePopoverPosition(open, setOpen, ref, btnRef, 260, 420);
+
+  const recomputePosition = useCallback(() => {
+    const btn = btnRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const panelWidth = Math.min(220, window.innerWidth - 24);
+    let left = rect.right - panelWidth;
+    left = Math.max(12, Math.min(left, window.innerWidth - panelWidth - 12));
+    const top = rect.bottom + 6;
+    setPanelStyle({ position: "fixed", top, left, width: panelWidth });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    recomputePosition();
+    const handleClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    const handleReposition = () => recomputePosition();
+    document.addEventListener("mousedown", handleClick);
+    window.addEventListener("resize", handleReposition);
+    window.addEventListener("scroll", handleReposition, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("resize", handleReposition);
+      window.removeEventListener("scroll", handleReposition, true);
+    };
+  }, [open, recomputePosition]);
+
   const current = options.find((o) => o.id === sortBy) || options[0];
 
   return (
     <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
-      <button ref={btnRef} type="button" className="ert-btn ert-btn-ghost" aria-expanded={open} aria-haspopup="menu" style={{ fontWeight: 500 }} onClick={() => setOpen((o) => !o)}>
-        <ArrowUpDown size={16} />
-        {current.label}
+      <button
+        ref={btnRef}
+        type="button"
+        className="ert-btn ert-btn-ghost"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <ArrowUpDown size={14} />
+        Sort
       </button>
 
       {open && panelStyle && (
-        <div className="ert-card-raised" role="menu" aria-label="Sort by" style={{ ...panelStyle, zIndex: 20, padding: 6, boxShadow: "0 12px 32px rgba(0,0,0,0.45)" }}>
+        <div
+          className="ert-card-raised"
+          style={{ ...panelStyle, zIndex: 20, padding: 6, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
+        >
           {options.map((opt) => (
-            <button
+            <div
               key={opt.id}
-              type="button"
-              role="menuitemradio"
-              aria-checked={opt.id === current.id}
-              className="ert-menu-item"
               onClick={() => { onChange(opt.id); setOpen(false); }}
+              style={{
+                padding: "8px 10px", borderRadius: 6, fontSize: 13, cursor: "pointer",
+                color: opt.id === current.id ? "var(--brass-bright)" : "var(--text)",
+                background: opt.id === current.id ? "var(--surface-raised)" : "transparent",
+                fontWeight: opt.id === current.id ? 600 : 400,
+              }}
             >
-              <span>{opt.label}</span>
-              {opt.id === current.id ? <Check size={16} color="var(--brass-bright)" /> : null}
-            </button>
+              {opt.label}
+            </div>
           ))}
         </div>
       )}
@@ -2615,7 +2080,7 @@ function defaultRoomFilters(hideVisitedSort) {
   };
 }
 
-function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags, currentMember, filters, onFiltersChange, segment, counts, onSegment }) {
+function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags, currentMember, filters, onFiltersChange }) {
   const { search, selectedCities, selectedGenres, selectedCountries, selectedFlags, onlyUnrated, sortBy } = filters;
   const patch = (p) => onFiltersChange({ ...filters, ...p });
   const sortOptions = hideVisitedSort ? SORT_OPTIONS.filter((o) => !o.id.startsWith("visited-")) : SORT_OPTIONS;
@@ -2634,7 +2099,7 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags, currentM
   const clearAll = () => patch({ search: "", selectedCities: [], selectedGenres: [], selectedCountries: [], selectedFlags: [], onlyUnrated: false });
 
   const filtered = rooms.filter((r) => {
-    if (search && !normSearch(`${r.name} ${r.venue}`).includes(normSearch(search))) return false;
+    if (search && !`${r.name} ${r.venue}`.toLowerCase().includes(search.toLowerCase())) return false;
     if (selectedCountries.length && !selectedCountries.includes(r.country)) return false;
     if (selectedCities.length && !selectedCities.includes(r.city)) return false;
     if (selectedGenres.length && !selectedGenres.includes(r.category)) return false;
@@ -2648,16 +2113,10 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags, currentM
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 10, marginBottom: 6, flexWrap: "wrap", alignItems: "center" }}>
-        {onSegment && (
-          <div className="ert-seg" role="group" aria-label="Which rooms">
-            <button aria-pressed={segment !== "wishlist"} onClick={() => onSegment("completed")}>Completed</button>
-            <button aria-pressed={segment === "wishlist"} onClick={() => onSegment("wishlist")}>Wishlist</button>
-          </div>
-        )}
-        <div style={{ position: "relative", flex: "1 1 220px", minWidth: 180, maxWidth: 380 }}>
-          <Search size={16} style={{ position: "absolute", left: 14, top: 13, color: "var(--text-dim)" }} />
-          <input className="ert-input" style={{ paddingLeft: 42, height: 38 }} placeholder="Search rooms" aria-label="Search rooms" value={search} onChange={(e) => patch({ search: e.target.value })} />
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ position: "relative", flex: "1 1 220px", minWidth: 160, maxWidth: 600 }}>
+          <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
+          <input className="ert-input" style={{ paddingLeft: 30 }} placeholder="Search rooms or venues" value={search} onChange={(e) => patch({ search: e.target.value })} />
         </div>
         <SortPopover options={sortOptions} sortBy={sortBy} onChange={(v) => patch({ sortBy: v })} />
         {!hideVisitedSort && currentMember && (
@@ -2665,11 +2124,12 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags, currentM
             className="ert-btn ert-btn-ghost"
             onClick={() => patch({ onlyUnrated: !onlyUnrated })}
             style={{
-              flexShrink: 0, height: 38, background: "var(--surface)", borderColor: onlyUnrated ? "var(--brass)" : "var(--border-soft)",
-              color: onlyUnrated ? "var(--brass-bright)" : "var(--text)", fontWeight: 500,
+              flexShrink: 0,
+              borderColor: onlyUnrated ? "var(--brass)" : "var(--border)",
+              color: onlyUnrated ? "var(--brass-bright)" : "var(--text)",
             }}
           >
-            <Star size={16} /> Not rated by me
+            <Star size={14} /> My unrated
           </button>
         )}
         <FilterPopover
@@ -2688,72 +2148,72 @@ function RoomsView({ rooms, onOpen, emptyLabel, hideVisitedSort, flags, currentM
           onClear={clearPopoverFilters}
         />
         {hasActiveFilters && (
-          <button className="ert-btn ert-btn-ghost" onClick={clearAll} title="Clear filters" aria-label="Clear filters" style={{ flexShrink: 0, height: 38, padding: "0 12px" }}>
-            <FilterX size={16} />
+          <button className="ert-btn ert-btn-ghost" onClick={clearAll} title="Clear filters" style={{ flexShrink: 0, padding: "8px 9px" }}>
+            <FilterX size={14} />
           </button>
         )}
-        <span className="ert-count">
-          {sorted.length === rooms.length ? `${plural(rooms.length, "room")} total` : `${sorted.length} of ${plural(rooms.length, "room")}`}
+        <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em", marginLeft: "auto", flexShrink: 0 }}>
+          {sorted.length} room{sorted.length === 1 ? "" : "s"} total
         </span>
       </div>
 
       {sorted.length === 0 ? (
-        <div style={{ paddingTop: 22 }}><EmptyNote text={emptyLabel || "No rooms match those filters."} /></div>
+        <EmptyNote text={emptyLabel || "No rooms match those filters."} />
       ) : isDateGrouped ? (
         <div>
-          {yearGroups.map((group) => (
-            <section key={group.year}>
-              <YearDivider year={group.year} count={group.items.length} itemLabel="room" />
-              <div className="ert-tgrid">
-                {group.items.map((r) => <RoomCard key={r.id} room={r} onOpen={() => onOpen(r.id)} flags={flags} />)}
+          {yearGroups.map((group, gi) => {
+            const offset = yearGroups.slice(0, gi).reduce((n, g) => n + g.items.length, 0);
+            return (
+              <div key={group.year} style={{ marginBottom: 22 }}>
+                <YearDivider year={group.year} count={group.items.length} itemLabel="room" />
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
+                  {group.items.map((r, i) => <RoomCard key={r.id} room={r} index={offset + i} onOpen={() => onOpen(r.id)} flags={flags} />)}
+                </div>
               </div>
-            </section>
-          ))}
+            );
+          })}
         </div>
       ) : (
-        <div className="ert-tgrid" style={{ marginTop: 22 }}>
-          {sorted.map((r) => <RoomCard key={r.id} room={r} onOpen={() => onOpen(r.id)} flags={flags} />)}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
+          {sorted.map((r, i) => <RoomCard key={r.id} room={r} index={i} onOpen={() => onOpen(r.id)} flags={flags} />)}
         </div>
       )}
     </div>
   );
 }
-
-function RoomCard({ room, onOpen, flags }) {
+ 
+function RoomCard({ room, index, onOpen, flags }) {
   const avg = avgRating(room);
-  const played = room.status === "played";
-  const flagDefs = (flags || DEFAULT_FLAGS).filter((f) => (room.flags || []).includes(f.id));
   return (
-    <button type="button" className="ert-tile" onClick={onOpen}>
-      <div className="ert-tile-top">
-        <span>
-          {played ? fmtDate(room.datePlayed) : "Not played yet"}
-          {played && room.result === "not-escaped" ? <span style={{ color: "var(--danger)" }}>{room.datePlayed ? " Not escaped" : "Not escaped"}</span> : null}
-        </span>
-        <span style={{ display: "flex", alignItems: "center", gap: 9 }}>
-          {flagDefs.map((flag) => {
+    <div className="ert-card" onClick={onOpen} style={{ padding: 15, cursor: "pointer", position: "relative" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <span className="ert-plaque-num">No. {String(index + 1).padStart(3, "0")}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {(flags || DEFAULT_FLAGS).filter((f) => (room.flags || []).includes(f.id)).map((flag) => {
             const Icon = resolveFlagIcon(flag.icon);
-            return <Icon key={flag.id} size={15} color={flag.color} aria-label={flag.label} />;
+            return <Icon key={flag.id} size={13} color={flag.color} />;
           })}
-          {room.photos && room.photos.length > 0 && <Camera size={15} color="var(--text-dim)" aria-label="Has photos" />}
-        </span>
+          {room.photos && room.photos.length > 0 && <Camera size={13} color="var(--text-dim)" />}
+          {room.status === "played" ? <Unlock size={15} color="var(--success)" /> : <Lock size={15} color="var(--text-dim)" />}
+        </div>
       </div>
-      <div className="ert-tile-nm">{room.name || "Untitled room"}</div>
-      {room.venue ? <div className="ert-tile-vn">{room.venue}</div> : null}
-      <div className="ert-tile-loc"><MapPin size={13} />{room.city || "-"}{room.country ? `, ${room.country}` : ""}</div>
-      <div className="ert-tile-bot">
-        <span className="ert-pill">{room.category}</span>
-        {played ? (
-          <span className="ert-tile-sc"><Star size={17} />{fmtRating(avg)}</span>
-        ) : (
-          <span style={{ color: "var(--text-dim)", fontSize: 13 }}>{room.difficulty}</span>
+      <div className="ert-display" style={{ fontSize: 15.5, fontWeight: 700, marginTop: 8, lineHeight: 1.25 }}>{room.name || "Untitled room"}</div>
+      <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 3 }}>{room.venue}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5, color: "var(--text-dim)", marginTop: 6 }}>
+        <MapPin size={11} /> {room.city || "-"}{room.country ? `, ${room.country}` : ""}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
+        <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: "var(--surface-raised)", color: "var(--text-dim)" }}>{room.category}</span>
+        {room.status === "played" && (
+          <span className="ert-mono" style={{ fontSize: 13, color: "var(--brass)", display: "flex", alignItems: "center", gap: 3 }}>
+            <Star size={12} fill="var(--brass)" color="var(--brass)" /> {fmtRating(avg)}
+          </span>
         )}
       </div>
-    </button>
+    </div>
   );
 }
-
-
+ 
 /* ---------------------------------------------------------------
    RANKING
 --------------------------------------------------------------- */
@@ -2761,7 +2221,7 @@ function defaultRankingFilters() {
   return { selectedCities: [], selectedGenres: [], selectedCountries: [], selectedFlags: [], onlyUnrated: false, sortDir: "best" };
 }
 
-function RankingView({ rooms, members, currentMember, onOpen, mode, onModeChange, filters, onFiltersChange, flags, highlightId, onClearHighlight }) {
+function RankingView({ rooms, members, currentMember, onOpen, mode, onModeChange, filters, onFiltersChange, flags }) {
   const personal = mode === "personal" && currentMember;
   const { selectedCities, selectedGenres, selectedCountries, selectedFlags, onlyUnrated, sortDir } = filters;
   const flagOptions = flags && flags.length ? flags : DEFAULT_FLAGS;
@@ -2810,28 +2270,39 @@ function RankingView({ rooms, members, currentMember, onOpen, mode, onModeChange
   }, [filteredRooms, mode, currentMember, sortDir]);
 
   return (
-    <div>
-      <div style={{ display: "flex", gap: 10, marginBottom: 6, flexWrap: "wrap", alignItems: "center" }}>
+    <div style={{ maxWidth: 700 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
         {currentMember && (
-          <div className="ert-seg" role="group" aria-label="Whose ratings">
-            <button aria-pressed={!personal} onClick={() => onModeChange("group")}>Group</button>
-            <button aria-pressed={!!personal} onClick={() => onModeChange("personal")}>Mine</button>
-          </div>
+          <button
+            className="ert-btn ert-btn-ghost"
+            onClick={() => onModeChange(personal ? "group" : "personal")}
+            style={{
+              flexShrink: 0,
+              borderColor: personal ? "var(--brass)" : "var(--border)",
+              color: personal ? "var(--brass-bright)" : "var(--text)",
+            }}
+          >
+            <Star size={14} /> {personal ? "Group ranking" : "My ranking"}
+          </button>
         )}
-        <button className="ert-btn ert-btn-ghost" onClick={() => patch({ sortDir: sortDir === "worst" ? "best" : "worst" })} style={{ flexShrink: 0, fontWeight: 500 }}>
-          <ArrowUpDown size={16} /> {sortDir === "worst" ? "Worst first" : "Best first"}
+        <button
+          className="ert-btn ert-btn-ghost"
+          onClick={() => patch({ sortDir: sortDir === "worst" ? "best" : "worst" })}
+          style={{ flexShrink: 0 }}
+        >
+          <ArrowUpDown size={14} /> {sortDir === "worst" ? "Worst first" : "Best first"}
         </button>
         {currentMember && (
           <button
             className="ert-btn ert-btn-ghost"
             onClick={() => patch({ onlyUnrated: !onlyUnrated })}
             style={{
-              flexShrink: 0, height: 38, background: "var(--surface)", fontWeight: 500,
-              borderColor: onlyUnrated ? "var(--brass)" : "var(--border-soft)",
+              flexShrink: 0,
+              borderColor: onlyUnrated ? "var(--brass)" : "var(--border)",
               color: onlyUnrated ? "var(--brass-bright)" : "var(--text)",
             }}
           >
-            <Star size={16} /> Not rated by me
+            <Star size={14} /> My unrated
           </button>
         )}
         <FilterPopover
@@ -2850,77 +2321,66 @@ function RankingView({ rooms, members, currentMember, onOpen, mode, onModeChange
           onClear={clearPopoverFilters}
         />
         {hasActiveFilters && (
-          <button className="ert-btn ert-btn-ghost" onClick={clearAll} title="Clear filters" aria-label="Clear filters" style={{ flexShrink: 0, height: 38, padding: "0 12px" }}>
-            <FilterX size={16} />
+          <button className="ert-btn ert-btn-ghost" onClick={clearAll} title="Clear filters" style={{ flexShrink: 0, padding: "8px 9px" }}>
+            <FilterX size={14} />
           </button>
         )}
-        <span className="ert-count">
-          {(() => {
-            const total = personal ? rooms.filter((r) => roomParticipants(r).includes(currentMember)).length : rooms.length;
-            return ranked.length === total ? `${plural(total, "room")} total` : `${ranked.length} of ${plural(total, "room")}`;
-          })()}
+        <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em", marginLeft: "auto", flexShrink: 0 }}>
+          {ranked.length} room{ranked.length === 1 ? "" : "s"} total
         </span>
       </div>
 
       {ranked.length === 0 ? (
         <EmptyNote text={rooms.length === 0 ? "No completed rooms yet. The ranking fills in once you log one." : "No rooms match those filters."} />
       ) : (
-        <div
-          onMouseMove={highlightId ? (e) => {
-            if (!(e.movementX || e.movementY)) return;
-            const row = e.target.closest ? e.target.closest(".ert-lrow") : null;
-            if (row && row.getAttribute("data-id") !== highlightId) onClearHighlight();
-          } : undefined}
-        >
-          {(() => {
-            const cols = personal
-              ? "100px minmax(0, 1fr) 110px"
-              : `100px minmax(0, 1fr) repeat(${members.length}, 84px)`;
-            const head = { fontSize: 12.5, color: "var(--text-dim)" };
-            return (
-              <>
-                <div style={{ display: "grid", gridTemplateColumns: cols, gap: 20, padding: "4px 0 9px", borderBottom: "1px solid var(--border)", alignItems: "end", ...head }}>
-                  <span>{personal ? "My rating" : "Group average"}</span>
-                  <span>Room</span>
-                  {!personal && members.map((m) => (
-                    <span key={m} title={m} style={{ textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: m === currentMember ? "var(--brass-bright)" : undefined }}>{m}</span>
-                  ))}
-                  {personal && <span style={{ textAlign: "right" }}>Group average</span>}
-                </div>
-                {ranked.map((r, i) => (
-                  <button key={r.id} data-id={r.id} className={`ert-lrow${r.id === highlightId ? " ert-last" : ""}`} title={`Rank ${i + 1} of ${ranked.length}`} style={{ gridTemplateColumns: cols, gap: 20, alignItems: "center" }} onClick={() => onOpen(r.id)}>
-                    <span className="ert-rkcell">
-                      <span className="ert-score sc">{personal ? fmtRating(r._mine) : fmtRating(r._avg)}</span>
-                      <span className={`pos${i === 0 ? " top" : ""}`} aria-hidden="true">{`#${i + 1}`}</span>
-                    </span>
-                    <span style={{ minWidth: 0 }}>
-                      <span className="ert-r-title">{r.name}</span>
-                      <span className="ert-r-sub">{r.venue || r.city}</span>
-                    </span>
-                    {!personal && members.map((m) => (
-                      <span key={m} style={{ textAlign: "center" }}>
-                        {typeof r.ratings[m] === "number" ? (
-                          <span
-                            className="ert-mono"
-                            title={`${m}: ${r.ratings[m]}`}
-                            style={{
-                              display: "inline-block", minWidth: 40, fontSize: 13, padding: "2px 9px", borderRadius: 7,
-                              color: m === currentMember ? "#17140c" : "var(--text-dim)",
-                              background: m === currentMember ? "var(--brass)" : "var(--surface-raised)",
-                              fontWeight: m === currentMember ? 700 : 500,
-                            }}
-                          >
-                            {r.ratings[m]}
-                          </span>
-                        ) : null}
-                      </span>
-                    ))}
-                    {personal && <span className="ert-mono" style={{ textAlign: "right", color: "var(--text-dim)", fontSize: 15 }}>{fmtRating(r._avg)}</span>}
-                  </button>
-                ))}
-              </>
-            );
-          })()}
+        <div className="ert-card" style={{ overflow: "hidden" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "42px 1.6fr 1fr", padding: "10px 16px", borderBottom: "1px solid var(--border-soft)" }}>
+            <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)" }}>#</span>
+            <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)" }}>ROOM</span>
+            <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)", textAlign: "right" }}>{personal ? "MINE" : "AVG"}</span>
+          </div>
+          {ranked.map((r, i) => (
+            <div
+              key={r.id}
+              onClick={() => onOpen(r.id)}
+              style={{
+                display: "grid", gridTemplateColumns: "42px 1.6fr 1fr", alignItems: "center", padding: "12px 16px",
+                borderBottom: i < ranked.length - 1 ? "1px solid var(--border-soft)" : "none", cursor: "pointer",
+              }}
+            >
+              <span className="ert-display" style={{ fontSize: 16, fontWeight: 700, color: i === 0 ? "var(--brass-bright)" : "var(--text-dim)" }}>{i + 1}</span>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{r.name}</div>
+                <div style={{ fontSize: 11.5, color: "var(--text-dim)" }}>{r.venue}{r.city ? ` \u00b7 ${r.city}` : ""}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
+                {!personal && (
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {members.map((m) =>
+                      typeof r.ratings[m] === "number" ? (
+                        <span
+                          key={m}
+                          title={m}
+                          className="ert-mono"
+                          style={{
+                            fontSize: 10.5, padding: "2px 5px", borderRadius: 4,
+                            color: m === currentMember ? "#17140c" : "var(--text-dim)",
+                            background: m === currentMember ? "var(--brass)" : "var(--surface-raised)",
+                            fontWeight: m === currentMember ? 700 : 400,
+                          }}
+                        >
+                          {r.ratings[m]}
+                        </span>
+                      ) : null
+                    )}
+                  </div>
+                )}
+                <span className="ert-mono" style={{ fontSize: 15, fontWeight: 600, color: "var(--brass)", minWidth: 34, textAlign: "right" }}>
+                  {personal ? fmtRating(r._mine) : fmtRating(r._avg)}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -2934,108 +2394,25 @@ function RankingView({ rooms, members, currentMember, onOpen, mode, onModeChange
    categories offered when adding a room. More settings can live
    here later without cluttering the main nav.
 --------------------------------------------------------------- */
-function GeneralSettings({ crewName, onChangeCrewName, dateFormat, onChangeDateFormat, theme, onChangeTheme }) {
-  const [legacy, setLegacy] = useState(() => readLegacyMode());
-  const [nameDraft, setNameDraft] = useState(crewName);
-  useEffect(() => { setNameDraft(crewName); }, [crewName]);
-  const commitName = () => onChangeCrewName(nameDraft);
-  const sample = new Date(2026, 9, 7, 12);
-  const toggle = () => {
-    const next = !legacy;
-    setLegacy(next);
-    writeLegacyMode(next);
-    // The page chooses which version to load when it opens, so reload to switch.
-    try { window.location.reload(); } catch (e) { /* nothing to reload in a preview */ }
-  };
+// Opens the current version of the app. index.html reads this per-device setting when it loads.
+function openNewVersion() {
+  try { window.localStorage.removeItem("escape-room-club-legacy-mode"); } catch (e) { /* storage blocked */ }
+  try { window.location.replace("index.html"); } catch (e) { /* nothing to open in a preview */ }
+}
+
+function GeneralSettings() {
   return (
-    <div style={{ borderTop: "1px solid var(--border-soft)" }}>
-      <div className="ert-gsrow">
-        <label htmlFor="ert-crew-name">
-          <b>Crew name</b>
-          <small>Shown as the title of the app, in the top bar and the browser tab. Shared by everyone. Leave it empty to use "{DEFAULT_CREW_NAME}".</small>
-        </label>
-        <input
-          id="ert-crew-name"
-          className="ert-input"
-          style={{ width: 240 }}
-          maxLength={40}
-          placeholder={DEFAULT_CREW_NAME}
-          value={nameDraft}
-          onChange={(e) => setNameDraft(e.target.value)}
-          onBlur={commitName}
-          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-        />
-      </div>
-
-      <div className="ert-gsrow">
-        <label htmlFor="ert-date-format">
-          <b>Date format</b>
-          <small>How dates appear across rooms and trips. This applies to this device only.</small>
-        </label>
-        <select id="ert-date-format" className="ert-select" style={{ width: 240 }} value={dateFormat} onChange={(e) => onChangeDateFormat(e.target.value)}>
-          {DATE_FORMATS.map((f) => (
-            <option key={f.id} value={f.id}>{f.id === "auto" ? f.label : formatDateAs(sample, f.id)}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="ert-gsrow">
-        <div>
-          <b>Appearance</b>
-          <small>Dark is easy on the eyes in a dim room, Light uses a soft paper tone instead of bright white. This applies to this device only.</small>
-        </div>
-        <div className="ert-seg" role="group" aria-label="Appearance">
-          <button aria-pressed={theme === "dark"} onClick={() => onChangeTheme("dark")}>Dark</button>
-          <button aria-pressed={theme === "light"} onClick={() => onChangeTheme("light")}>Light</button>
-        </div>
-      </div>
-
-      <button className="ert-swrow" role="switch" aria-checked={legacy} onClick={toggle}>
-        <span>
-          <b>Legacy mode</b>
-          <small>Open the previous version of the app on this device. Both versions share the same data, so nothing is lost or duplicated. A button in the corner brings you back to the new version.</small>
-        </span>
-        <span className="ert-sw"><i /></span>
-      </button>
+    <div className="ert-card" style={{ padding: 20 }}>
+      <div className="ert-display" style={{ fontSize: 14.5, fontWeight: 700, marginBottom: 4 }}>Legacy mode</div>
+      <p style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 14 }}>
+        You are using the previous version of the app. Both versions share the same data, so nothing is lost or duplicated.
+      </p>
+      <button className="ert-btn ert-btn-brass" onClick={openNewVersion}>Open the new version</button>
     </div>
   );
 }
 
-function FlagIconPicker({ value, onChange }) {
-  return (
-    <div className="ert-chips" style={{ gap: 6 }}>
-      {FLAG_ICON_CHOICES.map((name) => {
-        const Icon = resolveFlagIcon(name);
-        return (
-          <button key={name} type="button" className="ert-pick" aria-pressed={value === name} aria-label={name} title={name} onClick={() => onChange(name)}>
-            <Icon size={17} />
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function FlagColorPicker({ value, onChange }) {
-  return (
-    <div className="ert-chips" style={{ gap: 8 }}>
-      {FLAG_COLOR_CHOICES.map((c) => (
-        <button
-          key={c.value}
-          type="button"
-          className="ert-swatch"
-          aria-pressed={value === c.value}
-          aria-label={c.label}
-          title={c.label}
-          onClick={() => onChange(c.value)}
-          style={{ background: c.value }}
-        />
-      ))}
-    </div>
-  );
-}
-
-function AppSettingsView({ crewName, onChangeCrewName, dateFormat, onChangeDateFormat, theme, onChangeTheme, categories, onBack, onAddCategory, onRemoveCategory, onRenameCategory, flags, onAddFlag, onUpdateFlag, onRemoveFlag, driveAvailable, driveConnected, onConnectDrive }) {
+function AppSettingsView({ categories, onBack, onAddCategory, onRemoveCategory, onRenameCategory, flags, onAddFlag, onUpdateFlag, onRemoveFlag, driveAvailable, driveConnected, onConnectDrive }) {
   const [tab, setTab] = useState("general");
 
   const [newCategory, setNewCategory] = useState("");
@@ -3093,164 +2470,228 @@ function AppSettingsView({ crewName, onChangeCrewName, dateFormat, onChangeDateF
     cancelEditFlag();
   };
 
+  const IconPicker = ({ value, onChange }) => (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxWidth: 320 }}>
+      {FLAG_ICON_CHOICES.map((name) => {
+        const Icon = resolveFlagIcon(name);
+        const selected = value === name;
+        return (
+          <button
+            key={name}
+            type="button"
+            onClick={() => onChange(name)}
+            title={name}
+            className="ert-btn ert-btn-ghost"
+            style={{ padding: 6, borderColor: selected ? "var(--brass)" : "var(--border)", background: selected ? "var(--surface-raised)" : "transparent" }}
+          >
+            <Icon size={14} />
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const ColorPicker = ({ value, onChange }) => (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      {FLAG_COLOR_CHOICES.map((c) => (
+        <button
+          key={c.value}
+          type="button"
+          title={c.label}
+          onClick={() => onChange(c.value)}
+          style={{
+            width: 22, height: 22, borderRadius: "50%", background: c.value, cursor: "pointer",
+            border: value === c.value ? "2px solid var(--text)" : "2px solid transparent",
+          }}
+        />
+      ))}
+    </div>
+  );
+
   const settingsTabs = [
     { id: "general", label: "General" },
     { id: "categories", label: "Categories" },
     { id: "flags", label: "Flags" },
     { id: "drive", label: "Google Drive" },
   ];
-  const hint = { margin: "0 0 18px", color: "var(--text-dim)", maxWidth: "62ch" };
 
   return (
-    <div>
-      <div className="ert-room-top">
-        <button className="ert-back" onClick={onBack}><ChevronLeft size={22} /> Back</button>
-      </div>
-      <div className="ert-ph" style={{ marginTop: 6 }}>
-        <h1>App settings</h1>
+    <div style={{ maxWidth: 600 }}>
+      <button className="ert-btn ert-btn-ghost" onClick={onBack} style={{ marginBottom: 14 }}>
+        <ChevronLeft size={14} /> Back
+      </button>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
+        <SlidersHorizontal size={18} color="var(--brass)" />
+        <div className="ert-display" style={{ fontSize: 20, fontWeight: 700 }}>App settings</div>
       </div>
 
-      <div className="ert-seg" role="group" aria-label="Settings section" style={{ marginBottom: 24 }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 20, borderBottom: "1px solid var(--border-soft)" }}>
         {settingsTabs.map((t) => (
-          <button key={t.id} aria-pressed={tab === t.id} onClick={() => setTab(t.id)}>{t.label}</button>
+          <div
+            key={t.id}
+            className={`ert-tab ${tab === t.id ? "ert-tab-active" : ""}`}
+            onClick={() => setTab(t.id)}
+            style={{ marginBottom: -1 }}
+          >
+            {t.label}
+          </div>
         ))}
       </div>
 
-      <div style={{ maxWidth: 720 }}>
-        {tab === "general" && <GeneralSettings crewName={crewName} onChangeCrewName={onChangeCrewName} dateFormat={dateFormat} onChangeDateFormat={onChangeDateFormat} theme={theme} onChangeTheme={onChangeTheme} />}
+      {tab === "general" && <GeneralSettings />}
 
-        {tab === "categories" && (
-          <div>
-            <p style={hint}>Shown as category options when adding or editing a room. Renaming one updates every room already using it.</p>
-            <div style={{ borderTop: "1px solid var(--border-soft)" }}>
-              {list.map((c) =>
-                editingCategory === c ? (
-                  <div key={c} className="ert-srow">
-                    <input
-                      className="ert-input"
-                      style={{ height: 38 }}
-                      value={editValue}
-                      autoFocus
-                      aria-label={`Rename ${c}`}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") submitEdit(); if (e.key === "Escape") cancelEdit(); }}
-                    />
-                    <span style={{ display: "flex", gap: 6, flex: "none" }}>
-                      <button className="ert-btn ert-btn-brass" style={{ padding: "7px 14px" }} onClick={submitEdit}><Check size={16} /> Save</button>
-                      <button className="ert-btn ert-btn-ghost" style={{ padding: "7px 14px" }} onClick={cancelEdit}>Cancel</button>
-                    </span>
-                  </div>
-                ) : (
-                  <div key={c} className="ert-srow">
-                    <span style={{ fontWeight: 500 }}>{c}</span>
-                    <span style={{ display: "flex", gap: 2, flex: "none" }}>
-                      <button className="ert-ibtn sm" aria-label={`Rename ${c}`} title="Rename" onClick={() => startEdit(c)}><Edit2 size={16} /></button>
-                      <button className="ert-ibtn sm" aria-label={`Remove ${c}`} title="Remove" onClick={() => onRemoveCategory(c)}><X size={17} /></button>
-                    </span>
-                  </div>
-                )
-              )}
-            </div>
-            <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
-              <input
-                className="ert-input"
-                style={{ height: 38 }}
-                placeholder="Add a category"
-                aria-label="New category name"
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") submitAdd(); }}
-              />
-              <button className="ert-btn ert-btn-brass" style={{ flex: "none" }} onClick={submitAdd}><Plus size={17} /> Add</button>
-            </div>
-          </div>
-        )}
-
-        {tab === "flags" && (
-          <div>
-            <p style={hint}>Status pictograms you can set on a room, like "Permanently closed" or "Moved".</p>
-            <div style={{ borderTop: "1px solid var(--border-soft)" }}>
-              {flagList.map((f) => {
-                const Icon = resolveFlagIcon(f.icon);
-                if (editingFlagId === f.id) {
-                  return (
-                    <div key={f.id} className="ert-panel" style={{ margin: "14px 0", padding: "18px 20px", display: "grid", gap: 14 }}>
-                      <input
-                        className="ert-input"
-                        style={{ height: 38 }}
-                        value={editFlagLabel}
-                        autoFocus
-                        aria-label="Flag name"
-                        onChange={(e) => setEditFlagLabel(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Escape") cancelEditFlag(); if (e.key === "Enter") submitEditFlag(); }}
-                      />
-                      <div><div className="ert-flabel">Icon</div><FlagIconPicker value={editFlagIcon} onChange={setEditFlagIcon} /></div>
-                      <div><div className="ert-flabel">Color</div><FlagColorPicker value={editFlagColor} onChange={setEditFlagColor} /></div>
-                      <div style={{ display: "flex", gap: 10 }}>
-                        <button className="ert-btn ert-btn-brass" onClick={submitEditFlag}><Check size={16} /> Save flag</button>
-                        <button className="ert-btn ert-btn-ghost" onClick={cancelEditFlag}>Cancel</button>
-                      </div>
-                    </div>
-                  );
-                }
-                return (
-                  <div key={f.id} className="ert-srow">
-                    <span style={{ display: "flex", alignItems: "center", gap: 12, fontWeight: 500 }}>
-                      <Icon size={19} color={f.color} /> {f.label}
-                    </span>
-                    <span style={{ display: "flex", gap: 2, flex: "none" }}>
-                      <button className="ert-ibtn sm" aria-label={`Edit ${f.label}`} title="Edit" onClick={() => startEditFlag(f)}><Edit2 size={16} /></button>
-                      <button className="ert-ibtn sm" aria-label={`Remove ${f.label}`} title="Remove" onClick={() => onRemoveFlag(f.id)}><X size={17} /></button>
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="ert-rsec" style={{ marginTop: 34 }}>
-              <h2>Add a flag</h2>
-              <div className="ert-panel" style={{ padding: "18px 20px", display: "grid", gap: 14 }}>
-                <input
-                  className="ert-input"
-                  style={{ height: 38 }}
-                  placeholder="Flag name"
-                  aria-label="New flag name"
-                  value={newFlagLabel}
-                  onChange={(e) => setNewFlagLabel(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") submitAddFlag(); }}
-                />
-                <div><div className="ert-flabel">Icon</div><FlagIconPicker value={newFlagIcon} onChange={setNewFlagIcon} /></div>
-                <div><div className="ert-flabel">Color</div><FlagColorPicker value={newFlagColor} onChange={setNewFlagColor} /></div>
-                <div><button className="ert-btn ert-btn-brass" onClick={submitAddFlag}><Plus size={17} /> Add flag</button></div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {tab === "drive" && (
-          <div>
-            {!driveAvailable ? (
-              <div className="ert-unplayed" style={{ marginBottom: 0 }}>
-                <h3>Photos need the hosted site</h3>
-                <p style={{ marginBottom: 0 }}>Photo storage uses Google Drive and only works on the hosted site, not in this preview.</p>
-              </div>
-            ) : (
-              <>
-                <p style={{ ...hint, marginBottom: 20 }}>
-                  Photos upload straight to a Google Drive folder, not a public link. Use this to connect it, or to reconnect if uploads or photos ever start failing. Google's access can expire after a while, and there's no way to tell from here whether the current one has, other than trying it. Reconnecting is always safe and just replaces the old connection.
-                </p>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: "50%", background: driveConnected ? "var(--success)" : "var(--text-dim)" }} />
-                  <span style={{ fontWeight: 500 }}>{driveConnected ? "A connection is on file" : "Not connected yet"}</span>
+      {tab === "categories" && (
+        <div className="ert-card" style={{ padding: 20 }}>
+          <div className="ert-display" style={{ fontSize: 14.5, fontWeight: 700, marginBottom: 4 }}>Categories</div>
+          <p style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 12 }}>
+            Shown as genre options when adding or editing a room. Renaming one updates every room already using it.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+            {list.map((c) =>
+              editingCategory === c ? (
+                <div key={c} style={{ display: "flex", gap: 6, alignItems: "center", background: "var(--surface-raised)", padding: "6px 8px", borderRadius: 7 }}>
+                  <input
+                    className="ert-input"
+                    style={{ padding: "5px 8px", fontSize: 13 }}
+                    value={editValue}
+                    autoFocus
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") submitEdit(); if (e.key === "Escape") cancelEdit(); }}
+                  />
+                  <button className="ert-btn ert-btn-brass" style={{ padding: "5px 8px" }} onClick={submitEdit}>
+                    <Check size={12} />
+                  </button>
+                  <button className="ert-btn ert-btn-ghost" style={{ padding: "5px 8px" }} onClick={cancelEdit}>
+                    <X size={12} />
+                  </button>
                 </div>
-                <button className="ert-btn ert-btn-brass" onClick={onConnectDrive}>
-                  <Upload size={17} /> {driveConnected ? "Reconnect Google Drive" : "Connect Google Drive"}
-                </button>
-              </>
+              ) : (
+                <div key={c} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-raised)", padding: "7px 10px", borderRadius: 7 }}>
+                  <span style={{ fontSize: 13 }}>{c}</span>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <button className="ert-btn ert-btn-ghost" style={{ padding: "3px 7px" }} onClick={() => startEdit(c)}>
+                      <Edit2 size={11} />
+                    </button>
+                    <button className="ert-btn ert-btn-ghost" style={{ padding: "3px 7px" }} onClick={() => onRemoveCategory(c)}>
+                      <X size={11} />
+                    </button>
+                  </div>
+                </div>
+              )
             )}
           </div>
-        )}
-      </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              className="ert-input"
+              placeholder="Add a category"
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") submitAdd(); }}
+            />
+            <button className="ert-btn ert-btn-brass" onClick={submitAdd}>
+              <Plus size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {tab === "flags" && (
+        <div className="ert-card" style={{ padding: 20 }}>
+          <div className="ert-display" style={{ fontSize: 14.5, fontWeight: 700, marginBottom: 4 }}>Flags</div>
+          <p style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 12 }}>
+            Status pictograms you can set on a room, like "Permanently closed" or "Moved".
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+            {flagList.map((f) => {
+              const Icon = resolveFlagIcon(f.icon);
+              if (editingFlagId === f.id) {
+                return (
+                  <div key={f.id} style={{ background: "var(--surface-raised)", padding: 10, borderRadius: 7, display: "flex", flexDirection: "column", gap: 8 }}>
+                    <input
+                      className="ert-input"
+                      style={{ padding: "5px 8px", fontSize: 13 }}
+                      value={editFlagLabel}
+                      autoFocus
+                      onChange={(e) => setEditFlagLabel(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Escape") cancelEditFlag(); }}
+                    />
+                    <IconPicker value={editFlagIcon} onChange={setEditFlagIcon} />
+                    <ColorPicker value={editFlagColor} onChange={setEditFlagColor} />
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button className="ert-btn ert-btn-brass" style={{ padding: "5px 10px" }} onClick={submitEditFlag}>
+                        <Check size={12} /> Save
+                      </button>
+                      <button className="ert-btn ert-btn-ghost" style={{ padding: "5px 10px" }} onClick={cancelEditFlag}>Cancel</button>
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <div key={f.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-raised)", padding: "7px 10px", borderRadius: 7 }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                    <Icon size={14} color={f.color} /> {f.label}
+                  </span>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <button className="ert-btn ert-btn-ghost" style={{ padding: "3px 7px" }} onClick={() => startEditFlag(f)}>
+                      <Edit2 size={11} />
+                    </button>
+                    <button className="ert-btn ert-btn-ghost" style={{ padding: "3px 7px" }} onClick={() => onRemoveFlag(f.id)}>
+                      <X size={11} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ background: "var(--surface-raised)", padding: 10, borderRadius: 7, display: "flex", flexDirection: "column", gap: 8 }}>
+            <input
+              className="ert-input"
+              placeholder="New flag name"
+              value={newFlagLabel}
+              onChange={(e) => setNewFlagLabel(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") submitAddFlag(); }}
+            />
+            <IconPicker value={newFlagIcon} onChange={setNewFlagIcon} />
+            <ColorPicker value={newFlagColor} onChange={setNewFlagColor} />
+            <button className="ert-btn ert-btn-brass" style={{ alignSelf: "flex-start" }} onClick={submitAddFlag}>
+              <Plus size={14} /> Add flag
+            </button>
+          </div>
+        </div>
+      )}
+
+      {tab === "drive" && (
+        <div className="ert-card" style={{ padding: 20 }}>
+          <div className="ert-display" style={{ fontSize: 14.5, fontWeight: 700, marginBottom: 4 }}>Google Drive</div>
+          {!driveAvailable ? (
+            <p style={{ fontSize: 12, color: "var(--text-dim)" }}>
+              Photo storage uses Google Drive and only works on the hosted site, not in this preview.
+            </p>
+          ) : (
+            <>
+              <p style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 4 }}>
+                Photos upload straight to a Google Drive folder, not a public link. This is what any of you use to connect it, or to reconnect if uploads or photos ever start failing (Google's access tokens can expire after a while, and there's no way to tell from here whether the current one has, other than trying it). Reconnecting is always safe and just replaces the old connection.
+              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "12px 0" }}>
+                <span
+                  style={{
+                    width: 8, height: 8, borderRadius: "50%",
+                    background: driveConnected ? "var(--success)" : "var(--text-dim)",
+                  }}
+                />
+                <span style={{ fontSize: 12.5, color: "var(--text-dim)" }}>
+                  {driveConnected ? "A connection is on file" : "Not connected yet"}
+                </span>
+              </div>
+              <button className="ert-btn ert-btn-brass" onClick={onConnectDrive}>
+                <Upload size={14} /> {driveConnected ? "Reconnect Google Drive" : "Connect Google Drive"}
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -3387,274 +2828,388 @@ function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onD
   };
  
   const avg = avgRating(room);
-  const played = room.status === "played";
-  const flagDefs = (flags || DEFAULT_FLAGS).filter((f) => (room.flags || []).includes(f.id));
-  const who = roomParticipants(room);
-  const diffAvg = avgOfMap(room.difficultyRatings);
-  const scaryAvg = avgOfMap(room.scaryRatings);
-  const hasResult = played && room.result !== "unknown";
-  const hasPrice = played && room.price !== "" && room.price !== undefined && room.price !== null;
-  const photoCount = room.photos ? room.photos.length : 0;
-
+ 
   return (
     <div>
-      <div className="ert-room-top">
-        <button className="ert-back" onClick={onBack}><ChevronLeft size={19} /> Back</button>
-        {!isGuest && (
-          <div style={{ display: "flex", gap: 10 }}>
-            <button className="ert-btn ert-btn-ghost" onClick={onEdit}><Edit2 size={15} /> Edit</button>
-            {confirmDelete ? (
-              <button className="ert-btn ert-btn-danger" onClick={onDelete}>Confirm delete</button>
-            ) : (
-              <button className="ert-btn ert-btn-danger" onClick={() => setConfirmDelete(true)}><Trash2 size={15} /> Delete</button>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="ert-room">
-        <aside className="ert-room-aside">
-          <div className="ert-status">
-            {played ? <Unlock size={15} color="var(--success)" /> : <Lock size={15} />}
-            {played ? "Completed" : "On the wishlist"}
-          </div>
-          <h1>{room.name}</h1>
-          {room.venue && (
-            <button className="ert-link" style={{ fontSize: 14 }} onClick={() => onSearchVenue(room.venue, room.status)} title={`See other rooms at ${room.venue}`}>
-              {room.venue}
-            </button>
-          )}
-
-          <div className="ert-facts">
-            {(room.city || room.country) && (
-              <div className="ert-fact">
-                <MapPin size={16} />
-                <span>
-                  {room.city && <button className="ert-link" onClick={() => onFilterCity(room.city, room.status)} title={`See other rooms in ${room.city}`}>{room.city}</button>}
-                  {room.city && room.country ? ", " : ""}
-                  {room.country && <button className="ert-link" onClick={() => onFilterCountry(room.country, room.status)} title={`See other rooms in ${room.country}`}>{room.country}</button>}
-                </span>
-              </div>
-            )}
-            <div className="ert-fact"><Skull size={16} />{room.difficulty}</div>
-            {room.category && <div className="ert-fact"><Tag size={16} />{room.category}</div>}
-            {played && room.datePlayed && <div className="ert-fact"><Calendar size={16} />{fmtDate(room.datePlayed)}</div>}
-            {hasResult && (
-              <div className="ert-fact" style={{ color: room.result === "escaped" ? "var(--success)" : "var(--danger)" }}>
-                {room.result === "escaped" ? <Check size={16} /> : <X size={16} />}
-                {room.result === "escaped" ? "Escaped" : "Not escaped"}{room.timeNote ? `, ${room.timeNote}` : ""}
-              </div>
-            )}
-            {hasPrice && <div className="ert-fact"><Wallet size={16} />{room.price} {room.currency || "PLN"}</div>}
-            {flagDefs.map((flag) => {
-              const Icon = resolveFlagIcon(flag.icon);
-              return <div key={flag.id} className="ert-fact" style={{ color: flag.color }}><Icon size={16} />{flag.label}</div>;
-            })}
-            {room.lockmeUrl && (
-              <div className="ert-fact">
-                <ExternalLink size={16} />
-                <a href={room.lockmeUrl} target="_blank" rel="noreferrer" className="ert-link" style={{ color: "var(--brass-bright)" }}>Open on lock.me</a>
+      <button className="ert-btn ert-btn-ghost" onClick={onBack} style={{ marginBottom: 14 }}>
+        <ChevronLeft size={14} /> Back
+      </button>
+ 
+      <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {room.status === "played" ? <Unlock size={16} color="var(--success)" /> : <Lock size={16} color="var(--text-dim)" />}
+              <span className="ert-mono" style={{ fontSize: 11, color: "var(--text-dim)", textTransform: "uppercase" }}>{room.status === "played" ? "Completed" : "Wishlist"}</span>
+            </div>
+            <div className="ert-display" style={{ fontSize: 24, fontWeight: 700, marginTop: 6 }}>{room.name}</div>
+            {room.venue && (
+              <div
+                onClick={() => onSearchVenue(room.venue, room.status)}
+                title={`See other rooms at ${room.venue}`}
+                style={{ fontSize: 13.5, color: "var(--text-dim)", marginTop: 3, cursor: "pointer", width: "fit-content" }}
+                onMouseEnter={(e) => { e.currentTarget.style.textDecoration = "underline"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.textDecoration = "none"; }}
+              >
+                {room.venue}
               </div>
             )}
           </div>
-
-          {played && (
-            <>
-              <div className="ert-who">
-                {MEMBERS.map((m) => {
-                  const on = who.includes(m);
-                  return (
-                    <div key={m} className={`ert-pchip${on ? "" : " off"}`} title={on ? `${m} played` : `${m} sat this one out`}>
-                      <span className="c"><User size={19} /></span>
-                      {m}
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="ert-avgs">
-                <div>
-                  <div className="ert-avg-big">{fmtRating(avg)}</div>
-                  <div className="ert-avg-cap">group average out of 10</div>
-                </div>
-                {(diffAvg !== null || scaryAvg !== null) && (
-                  <div style={{ display: "grid", gap: 10 }}>
-                    {diffAvg !== null && <div className="ert-avg-small" style={{ color: "var(--danger)" }}><Dumbbell size={17} />{diffAvg.toFixed(1)}<small>difficulty</small></div>}
-                    {scaryAvg !== null && <div className="ert-avg-small" style={{ color: "var(--teal)" }}><Ghost size={17} />{scaryAvg.toFixed(1)}<small>scariness</small></div>}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </aside>
-
-        <div>
-          {!played && (
-            <div className="ert-unplayed">
-              <h3>Not played yet</h3>
-              <p>{isGuest ? "Once the crew has played it, ratings, notes and photos show up here." : "Once you've played it, mark it as played to unlock ratings, notes and photos."}</p>
-              {!isGuest && <button className="ert-btn ert-btn-brass" onClick={markPlayed}><Unlock size={16} /> Mark as played</button>}
-            </div>
-          )}
-
-          {played && (
-            <div className="ert-rsec">
-              <h2>Your ratings</h2>
-              {isGuest ? (
-                <EmptyNote text="Guests can read ratings and notes but can't add their own." />
-              ) : (
-                <div className="ert-panel">
-                  <RatingControl label="Rating" value={myRating} max={10} step={0.5} onChange={saveMyRating} onClear={clearMyRating} />
-                  <RatingControl label="Difficulty" value={myDifficulty} max={6} step={1} icon={Dumbbell} solid={false} color="var(--danger)" onChange={saveMyDifficulty} onClear={clearMyDifficulty} />
-                  <RatingControl label="Scariness" value={myScary} max={6} step={1} icon={Ghost} color="var(--teal)" onChange={saveMyScary} onClear={clearMyScary} />
-                </div>
-              )}
-            </div>
-          )}
-
-          {played && (
-            <div className="ert-rsec">
-              <h2>Notes</h2>
-              {members.map((m) => {
-                const isMe = m === currentMember;
-                const isEditingThis = isMe && editingNote;
-                return (
-                  <div key={m} className={`ert-note${isMe ? " me" : ""}`}>
-                    <b>{m}{isMe ? " (you)" : ""}</b>
-                    <span className="n">
-                      {typeof room.ratings[m] === "number" && room.ratings[m]}
-                      {isMe && !isEditingThis && !isGuest && (
-                        <button className="ert-btn ert-btn-ghost" style={{ padding: "4px 11px", fontSize: 12.5, fontFamily: "'Inter', sans-serif" }} onClick={() => setEditingNote(true)}>
-                          <Edit2 size={13} /> Edit
-                        </button>
-                      )}
-                    </span>
-                    {isEditingThis ? (
-                      <div className="full" style={{ marginTop: 8 }}>
-                        <textarea
-                          className="ert-textarea"
-                          rows={4}
-                          placeholder="Your impressions: puzzle quality, story, scares, whether it's worth recommending"
-                          value={myNote}
-                          autoFocus
-                          onChange={(e) => setMyNote(e.target.value)}
-                        />
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
-                          <button className="ert-btn ert-btn-brass" disabled={!noteDirty} style={{ opacity: noteDirty ? 1 : 0.5 }} onClick={() => { saveMyNote(); setEditingNote(false); }}>
-                            <Check size={14} /> Save note
-                          </button>
-                          <button className="ert-btn ert-btn-ghost" onClick={() => { setMyNote(room.notes[currentMember] || ""); setEditingNote(false); }}>Cancel</button>
-                          {noteSaved && <span style={{ fontSize: 12.5, color: "var(--success)" }}>Saved.</span>}
-                        </div>
-                      </div>
-                    ) : (
-                      <p style={{ color: room.notes[m] ? "var(--text)" : "var(--text-dim)" }}>
-                        {room.notes[m] || (isMe ? "No note yet. Use Edit to add yours." : "No note yet")}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {played && (
-            <div className="ert-rsec">
-              <h2>
-                Walkthrough
-                {!isGuest && !editingWalkthrough && (
-                  <button className="ert-link" style={{ fontSize: 13, fontFamily: "'Inter', sans-serif", fontWeight: 400 }} onClick={() => setEditingWalkthrough(true)}>
-                    {room.walkthrough ? "Edit" : "Add"}
-                  </button>
-                )}
-              </h2>
-              {editingWalkthrough ? (
-                <>
-                  <textarea
-                    className="ert-textarea"
-                    rows={6}
-                    placeholder="Step through how you solved it: puzzle order, hint usage, anything worth remembering next time"
-                    value={walkthrough}
-                    autoFocus
-                    onChange={(e) => setWalkthrough(e.target.value)}
-                  />
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
-                    <button className="ert-btn ert-btn-brass" disabled={!walkthroughDirty} style={{ opacity: walkthroughDirty ? 1 : 0.5 }} onClick={() => { saveWalkthrough(); setEditingWalkthrough(false); }}>
-                      <Check size={14} /> Save walkthrough
-                    </button>
-                    <button className="ert-btn ert-btn-ghost" onClick={() => { setWalkthrough(room.walkthrough || ""); setEditingWalkthrough(false); }}>Cancel</button>
-                    {walkthroughSaved && <span style={{ fontSize: 12.5, color: "var(--success)" }}>Saved.</span>}
-                  </div>
-                </>
-              ) : (
-                <p style={{ margin: 0, maxWidth: "68ch", whiteSpace: "pre-wrap", lineHeight: 1.6, color: room.walkthrough ? "var(--text)" : "var(--text-dim)" }}>
-                  {room.walkthrough || "No walkthrough yet. Shared by the whole crew."}
-                </p>
-              )}
-            </div>
-          )}
-
-          <div className="ert-rsec">
-            <h2>Photos{photoCount > 0 && <small>{plural(photoCount, "photo")}</small>}</h2>
-
-            {!driveAvailable ? (
-              <EmptyNote text="Photo upload uses Google Drive and only works on the hosted site, not in this preview." />
-            ) : !driveConnected ? (
-              isGuest ? (
-                <EmptyNote text="No photos yet." />
-              ) : (
-                <EmptyNote text="Google Drive isn't connected yet. Connect it from App settings (Google Drive tab) to enable photo uploads." />
-              )
-            ) : (
+          <div style={{ display: "flex", gap: 8 }}>
+            {!isGuest && (
               <>
-                {!isGuest && (
-                  <div
-                    onDragOver={(e) => { e.preventDefault(); setIsDraggingOver(true); }}
-                    onDragLeave={(e) => { e.preventDefault(); setIsDraggingOver(false); }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      setIsDraggingOver(false);
-                      if (e.dataTransfer.files && e.dataTransfer.files.length) handlePhotosSelected(e.dataTransfer.files);
-                    }}
-                    style={{
-                      marginBottom: 14, padding: 16, borderRadius: 14,
-                      border: `1.5px dashed ${isDraggingOver ? "var(--brass)" : "var(--border)"}`,
-                      background: isDraggingOver ? "var(--surface)" : "transparent",
-                      transition: "border-color 0.15s, background 0.15s",
-                    }}
-                  >
-                    <input
-                      id={`photo-input-${room.id}`}
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      style={{ display: "none" }}
-                      onChange={(e) => { handlePhotosSelected(e.target.files); e.target.value = ""; }}
-                    />
-                    <label
-                      htmlFor={`photo-input-${room.id}`}
-                      className="ert-btn ert-btn-ghost"
-                      style={{ cursor: "pointer", opacity: uploadingPhoto ? 0.6 : 1, pointerEvents: uploadingPhoto ? "none" : "auto" }}
-                    >
-                      <Upload size={15} /> {uploadingPhoto ? (uploadProgress ? `Uploading ${uploadProgress.done}/${uploadProgress.total}` : "Uploading") : "Upload photos"}
-                    </label>
-                    <span style={{ fontSize: 13, color: "var(--text-dim)", marginLeft: 12 }}>or drag photos here</span>
-                    {photoError && <div style={{ color: "var(--danger)", fontSize: 12.5, marginTop: 8 }}>{photoError}</div>}
-                  </div>
-                )}
-
-                {photoCount === 0 ? (
-                  <EmptyNote text="No photos yet." />
+                <button className="ert-btn ert-btn-ghost" onClick={onEdit}><Edit2 size={13} /> Edit</button>
+                {confirmDelete ? (
+                  <button className="ert-btn ert-btn-danger" onClick={onDelete}>Confirm delete</button>
                 ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 8 }}>
-                    {room.photos.map((p, i) => (
-                      <DrivePhoto key={p.id} aspect="4 / 3" photo={p} getDriveAccessToken={getDriveAccessToken} onRemove={isGuest ? undefined : () => removePhoto(p)} onPreview={() => setPreviewIndex(i)} />
-                    ))}
-                  </div>
+                  <button className="ert-btn ert-btn-danger" onClick={() => setConfirmDelete(true)}><Trash2 size={13} /></button>
                 )}
               </>
             )}
           </div>
         </div>
+ 
+        <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 16, fontSize: 12.5, color: "var(--text-dim)" }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <MapPin size={13} />
+            <span>
+              {room.city && (
+                <span
+                  onClick={() => onFilterCity(room.city, room.status)}
+                  title={`See other rooms in ${room.city}`}
+                  style={{ cursor: "pointer" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.textDecoration = "underline"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.textDecoration = "none"; }}
+                >
+                  {room.city}
+                </span>
+              )}
+              {room.city && room.country ? ", " : ""}
+              {room.country && (
+                <span
+                  onClick={() => onFilterCountry(room.country, room.status)}
+                  title={`See other rooms in ${room.country}`}
+                  style={{ cursor: "pointer" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.textDecoration = "underline"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.textDecoration = "none"; }}
+                >
+                  {room.country}
+                </span>
+              )}
+            </span>
+          </span>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Skull size={13} /> {room.difficulty}</span>
+          {room.status === "played" && room.datePlayed && (
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Clock size={13} /> {room.datePlayed}</span>
+          )}
+          {room.status === "played" && room.result !== "unknown" && (
+            <span style={{ color: room.result === "escaped" ? "var(--success)" : "var(--danger)" }}>
+              {room.result === "escaped" ? "Escaped" : "Not escaped"}{room.timeNote ? ` · ${room.timeNote}` : ""}
+            </span>
+          )}
+          {room.status === "played" && room.price !== "" && room.price !== undefined && room.price !== null && (
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <Wallet size={13} /> {room.price} {room.currency || "PLN"}
+            </span>
+          )}
+          <span style={{ padding: "2px 8px", borderRadius: 10, background: "var(--surface-raised)" }}>{room.category}</span>
+          {(flags || DEFAULT_FLAGS).filter((f) => (room.flags || []).includes(f.id)).map((flag) => {
+            const Icon = resolveFlagIcon(flag.icon);
+            return (
+              <span key={flag.id} style={{ display: "flex", alignItems: "center", gap: 4, color: flag.color }}>
+                <Icon size={13} /> {flag.label}
+              </span>
+            );
+          })}
+          {room.lockmeUrl && (
+            <a href={room.lockmeUrl} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--brass)" }}>
+              lock.me <ExternalLink size={12} />
+            </a>
+          )}
+        </div>
+ 
+        {room.status === "wishlist" && !isGuest && (
+          <button className="ert-btn ert-btn-brass" style={{ marginTop: 16 }} onClick={markPlayed}>
+            <Unlock size={14} /> Mark as played
+          </button>
+        )}
+ 
+        {room.status === "played" && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+              {MEMBERS.map((m) => {
+                const played = roomParticipants(room).includes(m);
+                return (
+                  <div key={m} title={m} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, width: 48 }}>
+                    <div
+                      style={{
+                        width: 28, height: 28, borderRadius: "50%",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        background: played ? "var(--brass)" : "var(--surface-raised)",
+                        border: `1px solid ${played ? "var(--brass)" : "var(--border)"}`,
+                      }}
+                    >
+                      <User size={13} color={played ? "#17140c" : "var(--text-dim)"} />
+                    </div>
+                    <span style={{ fontSize: 9.5, color: played ? "var(--text-dim)" : "var(--border)", textAlign: "center" }}>{m}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 20, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                <span className="ert-mono" style={{ fontSize: 26, fontWeight: 600, color: "var(--brass)" }}>{fmtRating(avg)}</span>
+                <span style={{ fontSize: 12, color: "var(--text-dim)" }}>group average out of 10</span>
+              </div>
+              {(() => {
+                const diffAvg = avgOfMap(room.difficultyRatings);
+                return diffAvg !== null ? (
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                    <Dumbbell size={14} color="var(--danger)" style={{ position: "relative", top: 2 }} />
+                    <span className="ert-mono" style={{ fontSize: 15, fontWeight: 600, color: "var(--danger)" }}>{diffAvg.toFixed(1)}</span>
+                    <span style={{ fontSize: 11.5, color: "var(--text-dim)" }}>difficulty</span>
+                  </div>
+                ) : null;
+              })()}
+              {(() => {
+                const scaryAvg = avgOfMap(room.scaryRatings);
+                return scaryAvg !== null ? (
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                    <Ghost size={14} color="var(--teal)" style={{ position: "relative", top: 2 }} />
+                    <span className="ert-mono" style={{ fontSize: 15, fontWeight: 600, color: "var(--teal)" }}>{scaryAvg.toFixed(1)}</span>
+                    <span style={{ fontSize: 11.5, color: "var(--text-dim)" }}>scariness</span>
+                  </div>
+                ) : null;
+              })()}
+            </div>
+          </div>
+        )}
+      </div>
+ 
+      {room.status === "played" && (
+        <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
+          <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Rating &amp; notes</div>
+          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+            <span style={{ fontSize: 12, color: "var(--text-dim)" }}>Your rating</span>
+            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+              <StarRow value={myRating} onChange={isGuest ? undefined : saveMyRating} size={15} />
+              <span className="ert-mono" style={{ fontSize: 12.5, color: "var(--text-dim)" }}>{myRating || "-"}/10</span>
+              {!isGuest && myRating > 0 && (
+                <button onClick={clearMyRating} title="Clear rating" style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: "var(--text-dim)", display: "flex" }}>
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 12, color: "var(--text-dim)", width: 72 }}>Difficulty</span>
+            <StarRow value={myDifficulty} onChange={isGuest ? undefined : saveMyDifficulty} size={15} max={6} allowHalf={false} icon={Dumbbell} color="var(--danger)" />
+            <span className="ert-mono" style={{ fontSize: 12.5, color: "var(--text-dim)" }}>{myDifficulty || "-"}/6</span>
+            {!isGuest && myDifficulty > 0 && (
+              <button onClick={clearMyDifficulty} title="Clear rating" style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: "var(--text-dim)", display: "flex" }}>
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+            <span style={{ fontSize: 12, color: "var(--text-dim)", width: 72 }}>Scariness</span>
+            <StarRow value={myScary} onChange={isGuest ? undefined : saveMyScary} size={15} max={6} allowHalf={false} icon={Ghost} color="var(--teal)" />
+            <span className="ert-mono" style={{ fontSize: 12.5, color: "var(--text-dim)" }}>{myScary || "-"}/6</span>
+            {!isGuest && myScary > 0 && (
+              <button onClick={clearMyScary} title="Clear rating" style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: "var(--text-dim)", display: "flex" }}>
+                <X size={12} />
+              </button>
+            )}
+          </div>
+ 
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {members.map((m) => {
+              const isMe = m === currentMember;
+              const isEditingThis = isMe && editingNote;
+              return (
+                <div key={m} style={{ background: "var(--surface-raised)", borderRadius: 8, padding: "10px 12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isEditingThis ? 8 : 4 }}>
+                    <span
+                      className={isMe ? "ert-star-btn" : undefined}
+                      onClick={isMe ? () => setEditingNote((v) => !v) : undefined}
+                      title={isMe ? "Click to edit your note" : undefined}
+                      style={{ fontSize: 12.5, fontWeight: 600, cursor: isMe ? "pointer" : "default", color: isMe ? "var(--brass-bright)" : "var(--text)" }}
+                    >
+                      {m}{isMe ? "  (you)" : ""}
+                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {typeof room.ratings[m] === "number" && (
+                        <span className="ert-mono" style={{ fontSize: 12, color: "var(--brass)" }}>{room.ratings[m]}/10</span>
+                      )}
+                      {isMe && !isEditingThis && (
+                        <button
+                          className="ert-btn ert-btn-ghost"
+                          style={{ padding: "2px 8px", fontSize: 11.5 }}
+                          onClick={() => setEditingNote(true)}
+                        >
+                          <Edit2 size={11} /> Edit
+                        </button>
+                      )}
+                    </div>
+                  </div>
+ 
+                  {isEditingThis ? (
+                    <>
+                      <textarea
+                        className="ert-textarea"
+                        rows={4}
+                        placeholder="Your impressions: puzzle quality, story, scares, whether it's worth recommending"
+                        value={myNote}
+                        autoFocus
+                        onChange={(e) => setMyNote(e.target.value)}
+                      />
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+                        <button
+                          className="ert-btn ert-btn-brass"
+                          disabled={!noteDirty}
+                          style={{ opacity: noteDirty ? 1 : 0.5 }}
+                          onClick={() => { saveMyNote(); setEditingNote(false); }}
+                        >
+                          <Check size={14} /> Save note
+                        </button>
+                        <button
+                          className="ert-btn ert-btn-ghost"
+                          onClick={() => { setMyNote(room.notes[currentMember] || ""); setEditingNote(false); }}
+                        >
+                          Cancel
+                        </button>
+                        {noteSaved && <span style={{ fontSize: 12, color: "var(--success)" }}>Saved.</span>}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ fontSize: 12.5, color: room.notes[m] ? "var(--text)" : "var(--text-dim)", fontStyle: room.notes[m] ? "normal" : "italic", whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
+                      {room.notes[m] || (isMe ? "No notes yet. Click your name above to add some." : "No notes yet.")}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+ 
+      {room.status === "played" && (
+        <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
+          <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Walkthrough</div>
+          <p style={{ fontSize: 11.5, color: "var(--text-dim)", marginBottom: 10 }}>
+            Shared by the whole crew. Click to add or edit the solve path, hints used, or tips for a replay.
+          </p>
+ 
+          {editingWalkthrough ? (
+            <>
+              <textarea
+                className="ert-textarea"
+                rows={6}
+                placeholder="Step through how you solved it: puzzle order, hint usage, anything worth remembering next time"
+                value={walkthrough}
+                autoFocus
+                onChange={(e) => setWalkthrough(e.target.value)}
+              />
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+                <button
+                  className="ert-btn ert-btn-brass"
+                  disabled={!walkthroughDirty}
+                  style={{ opacity: walkthroughDirty ? 1 : 0.5 }}
+                  onClick={() => { saveWalkthrough(); setEditingWalkthrough(false); }}
+                >
+                  <Check size={14} /> Save walkthrough
+                </button>
+                <button
+                  className="ert-btn ert-btn-ghost"
+                  onClick={() => { setWalkthrough(room.walkthrough || ""); setEditingWalkthrough(false); }}
+                >
+                  Cancel
+                </button>
+                {walkthroughSaved && <span style={{ fontSize: 12, color: "var(--success)" }}>Saved.</span>}
+              </div>
+            </>
+          ) : (
+            <div
+              onClick={isGuest ? undefined : () => setEditingWalkthrough(true)}
+              title={isGuest ? undefined : "Click to edit"}
+              style={{
+                fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", cursor: isGuest ? "default" : "pointer",
+                background: "var(--surface-raised)", borderRadius: 8, padding: "12px 14px", minHeight: 60,
+                color: room.walkthrough ? "var(--text)" : "var(--text-dim)",
+                fontStyle: room.walkthrough ? "normal" : "italic",
+              }}
+            >
+              {room.walkthrough || (isGuest ? "No walkthrough yet." : "No walkthrough yet. Click here to add one.")}
+            </div>
+          )}
+        </div>
+      )}
+ 
+      <div className="ert-card" style={{ padding: 22 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
+          <Camera size={15} color="var(--brass)" />
+          <div className="ert-display" style={{ fontSize: 15, fontWeight: 700 }}>Photos</div>
+        </div>
+
+        {!driveAvailable ? (
+          <EmptyNote text="Photo upload uses Google Drive and only works on the hosted site, not in this preview." />
+        ) : !driveConnected ? (
+          isGuest ? (
+            <EmptyNote text="No photos yet." />
+          ) : (
+            <EmptyNote text="Google Drive isn't connected yet. Connect it from App settings (Google Drive tab) to enable photo uploads." />
+          )
+        ) : (
+          <>
+            {!isGuest && (
+              <div
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingOver(true); }}
+                onDragLeave={(e) => { e.preventDefault(); setIsDraggingOver(false); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDraggingOver(false);
+                  if (e.dataTransfer.files && e.dataTransfer.files.length) handlePhotosSelected(e.dataTransfer.files);
+                }}
+                style={{
+                  marginBottom: 12, padding: 14, borderRadius: 8,
+                  border: `1.5px dashed ${isDraggingOver ? "var(--brass)" : "var(--border)"}`,
+                  background: isDraggingOver ? "var(--surface-raised)" : "transparent",
+                  transition: "border-color 0.15s, background 0.15s",
+                }}
+              >
+                <input
+                  id={`photo-input-${room.id}`}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  style={{ display: "none" }}
+                  onChange={(e) => { handlePhotosSelected(e.target.files); e.target.value = ""; }}
+                />
+                <label
+                  htmlFor={`photo-input-${room.id}`}
+                  className="ert-btn ert-btn-ghost"
+                  style={{ cursor: "pointer", opacity: uploadingPhoto ? 0.6 : 1, pointerEvents: uploadingPhoto ? "none" : "auto" }}
+                >
+                  <Upload size={14} /> {uploadingPhoto ? (uploadProgress ? `Uploading ${uploadProgress.done}/${uploadProgress.total}` : "Uploading") : "Upload photos"}
+                </label>
+                <span style={{ fontSize: 11.5, color: "var(--text-dim)", marginLeft: 10 }}>or drag photos here</span>
+                {photoError && <div style={{ color: "var(--danger)", fontSize: 12, marginTop: 6 }}>{photoError}</div>}
+              </div>
+            )}
+
+            {(!room.photos || room.photos.length === 0) ? (
+              <EmptyNote text="No photos yet." />
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 8 }}>
+                {room.photos.map((p, i) => (
+                  <DrivePhoto key={p.id} photo={p} getDriveAccessToken={getDriveAccessToken} onRemove={isGuest ? undefined : () => removePhoto(p)} onPreview={() => setPreviewIndex(i)} />
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {previewIndex !== null && room.photos[previewIndex] && (
@@ -3670,7 +3225,7 @@ function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onD
   );
 }
 
-function DrivePhoto({ photo, getDriveAccessToken, onRemove, onPreview, aspect }) {
+function DrivePhoto({ photo, getDriveAccessToken, onRemove, onPreview }) {
   const [src, setSrc] = useState(null);
   const [failed, setFailed] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
@@ -3736,11 +3291,11 @@ function DrivePhoto({ photo, getDriveAccessToken, onRemove, onPreview, aspect })
   }, [confirmDelete]);
 
   return (
-    <div ref={containerRef} style={{ position: "relative", borderRadius: 12, overflow: "hidden", aspectRatio: aspect || "1", background: "var(--surface-raised)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div ref={containerRef} style={{ position: "relative", borderRadius: 8, overflow: "hidden", aspectRatio: "1", background: "var(--surface-raised)", display: "flex", alignItems: "center", justifyContent: "center" }}>
       {failed ? (
-        <span style={{ fontSize: 13, color: "var(--text-dim)", padding: 8, textAlign: "center" }}>Couldn't load</span>
+        <span style={{ fontSize: 11, color: "var(--text-dim)", padding: 8, textAlign: "center" }}>Couldn't load</span>
       ) : !src ? (
-        <span style={{ fontSize: 13, color: "var(--text-dim)" }}>{isVisible ? "loading…" : ""}</span>
+        <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)" }}>{isVisible ? "loading…" : ""}</span>
       ) : (
         <img
           src={src}
@@ -3751,7 +3306,6 @@ function DrivePhoto({ photo, getDriveAccessToken, onRemove, onPreview, aspect })
       )}
       {onRemove && (
         <button
-          className={`ert-photo-x${confirmDelete ? " armed" : ""}`}
           onClick={(e) => {
             e.stopPropagation();
             if (confirmDelete) {
@@ -3761,10 +3315,14 @@ function DrivePhoto({ photo, getDriveAccessToken, onRemove, onPreview, aspect })
             }
           }}
           title={confirmDelete ? "Click again to delete" : "Remove photo"}
-          aria-label={confirmDelete ? "Confirm removing this photo" : "Remove photo"}
+          style={{
+            position: "absolute", top: 4, right: 4, border: "none", borderRadius: 5, padding: confirmDelete ? "3px 6px" : 3, cursor: "pointer",
+            background: confirmDelete ? "var(--danger)" : "rgba(0,0,0,0.6)",
+            display: "flex", alignItems: "center", gap: 4,
+          }}
         >
-          <X size={14} />
-          {confirmDelete ? "Remove" : null}
+          <X size={12} color="#fff" />
+          {confirmDelete && <span className="ert-mono" style={{ fontSize: 10, color: "#fff" }}>Confirm</span>}
         </button>
       )}
     </div>
@@ -3912,7 +3470,7 @@ function PhotoLightbox({ photos, index, onIndexChange, onClose, getDriveAccessTo
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", fontSize: 11.5, color: "var(--text-dim)" }}>
             <span>
               {photo.roomName
-                ? `${photo.roomName}${photo.city ? `, ${photo.city}` : ""}`
+                ? `${photo.roomName}${photo.city ? ` \u00b7 ${photo.city}` : ""}`
                 : photo.addedBy
                 ? `Added by ${photo.addedBy}`
                 : ""}
@@ -3970,7 +3528,7 @@ function RoomForm({ room, existingRooms, categories, flags, onCancel, onSave }) 
           <AutocompleteInput value={form.city} onChange={(v) => set({ city: v })} options={cityOptions} />
         </Field>
         <Field label="Country"><input className="ert-input" value={form.country} onChange={(e) => set({ country: e.target.value })} /></Field>
-        <Field label="Category">
+        <Field label="Genre">
           <select className="ert-select" value={form.category} onChange={(e) => set({ category: e.target.value })}>
             {(categories && categories.length ? categories : DEFAULT_CATEGORIES).map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
@@ -4147,14 +3705,42 @@ const TRIP_SORT_OPTIONS = [
   { id: "start-asc", label: "Trip date (oldest)" },
   { id: "date-desc", label: "Date added (newest)" },
   { id: "date-asc", label: "Date added (oldest)" },
-  { id: "alpha", label: "Alphabetical (A to Z)" },
+  { id: "alpha", label: "Alphabetical (A\u2013Z)" },
 ];
 
 function TripFilterPopover({ cities, selectedCities, onToggleCity, onClear }) {
   const [open, setOpen] = useState(false);
+  const [panelStyle, setPanelStyle] = useState(null);
   const ref = React.useRef(null);
   const btnRef = React.useRef(null);
-  const panelStyle = usePopoverPosition(open, setOpen, ref, btnRef, 360, 440);
+
+  const recomputePosition = useCallback(() => {
+    const btn = btnRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const panelWidth = Math.min(220, window.innerWidth - 24);
+    let left = rect.right - panelWidth;
+    left = Math.max(12, Math.min(left, window.innerWidth - panelWidth - 12));
+    const top = rect.bottom + 6;
+    setPanelStyle({ position: "fixed", top, left, width: panelWidth, maxHeight: Math.min(320, window.innerHeight - top - 12) });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    recomputePosition();
+    const handleClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    const handleReposition = () => recomputePosition();
+    document.addEventListener("mousedown", handleClick);
+    window.addEventListener("resize", handleReposition);
+    window.addEventListener("scroll", handleReposition, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("resize", handleReposition);
+      window.removeEventListener("scroll", handleReposition, true);
+    };
+  }, [open, recomputePosition]);
 
   return (
     <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
@@ -4162,22 +3748,34 @@ function TripFilterPopover({ cities, selectedCities, onToggleCity, onClear }) {
         ref={btnRef}
         type="button"
         className="ert-btn ert-btn-ghost"
-        aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        style={{ fontWeight: 500, borderColor: selectedCities.length ? "var(--brass)" : undefined, color: selectedCities.length ? "var(--brass-bright)" : undefined }}
+        style={{ borderColor: selectedCities.length ? "var(--brass)" : "var(--border)", color: selectedCities.length ? "var(--brass-bright)" : "var(--text)" }}
       >
-        <SlidersHorizontal size={16} />
+        <Filter size={14} />
         Filters
-        {selectedCities.length > 0 && <span className="ert-fbadge">{selectedCities.length}</span>}
+        {selectedCities.length > 0 && (
+          <span className="ert-mono" style={{ background: "var(--brass)", color: "#17140c", borderRadius: 9, fontSize: 10.5, padding: "1px 6px", marginLeft: 2 }}>
+            {selectedCities.length}
+          </span>
+        )}
       </button>
 
       {open && panelStyle && (
-        <div className="ert-card-raised ert-scrollbar" role="dialog" aria-label="Filters" style={{ ...panelStyle, overflowY: "auto", zIndex: 20, padding: "16px 18px 6px", boxShadow: "0 12px 32px rgba(0,0,0,0.45)" }}>
-          <div className="ert-pop-h">
-            <span>Filters</span>
-            {selectedCities.length > 0 && <button type="button" className="ert-clear" onClick={onClear}>Clear all</button>}
+        <div className="ert-card-raised ert-scrollbar" style={{ ...panelStyle, overflowY: "auto", zIndex: 20, padding: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--text-dim)", textTransform: "uppercase" }}>City</span>
+            {selectedCities.length > 0 && <span onClick={onClear} style={{ fontSize: 11.5, color: "var(--brass)", cursor: "pointer" }}>Clear</span>}
           </div>
-          {cities.length === 0 ? <EmptyNote text="Nothing to filter yet." /> : <FilterSection label="City" items={cities} selected={selectedCities} onToggle={onToggleCity} />}
+          {cities.length === 0 ? (
+            <EmptyNote text="Nothing to filter yet." />
+          ) : (
+            cities.map((c) => (
+              <label key={c} style={{ display: "flex", alignItems: "center", gap: 7, padding: "3px 0", fontSize: 13, cursor: "pointer" }}>
+                <input type="checkbox" checked={selectedCities.includes(c)} onChange={() => onToggleCity(c)} />
+                {c}
+              </label>
+            ))
+          )}
         </div>
       )}
     </div>
@@ -4203,28 +3801,38 @@ function sortTrips(trips, sortBy) {
 
 function TripRow({ trip, rooms, onOpen }) {
   const stats = tripStats(trip, rooms);
-  const range = trip.startDate
-    ? `${fmtDate(trip.startDate)}${trip.endDate && trip.endDate !== trip.startDate ? ` to ${fmtDate(trip.endDate)}` : ""}`
-    : "";
   return (
-    <button type="button" className="ert-lrow no-rank" onClick={() => onOpen(trip.id)} style={{ gridTemplateColumns: "minmax(0, 1fr) auto auto 22px" }}>
-      <span>
-        <span className="ert-r-title" style={{ fontSize: 18 }}>{trip.name || "Untitled trip"}</span>
-        <span className="ert-r-sub" style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 4 }}>
-          {trip.city && <span style={{ display: "flex", alignItems: "center", gap: 6 }}><MapPin size={13} />{trip.city}</span>}
-          {range && <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Calendar size={13} />{range}</span>}
-        </span>
-      </span>
-      <span style={{ textAlign: "center", minWidth: 56 }}>
-        <span className="ert-display" style={{ display: "block", fontSize: 19, fontWeight: 700 }}>{stats.count}</span>
-        <span className="ert-r-sub" style={{ fontSize: 12.5 }}>{stats.count === 1 ? "room" : "rooms"}</span>
-      </span>
-      <span style={{ textAlign: "center", minWidth: 64 }}>
-        <span className="ert-score" style={{ display: "block", textAlign: "center", color: stats.avg !== null ? undefined : "var(--text-dim)" }}>{fmtRating(stats.avg)}</span>
-        <span className="ert-r-sub" style={{ fontSize: 12.5, marginTop: 4 }}>average</span>
-      </span>
-      <ChevronRight size={18} color="var(--text-dim)" />
-    </button>
+    <div
+      className="ert-card"
+      onClick={() => onOpen(trip.id)}
+      style={{ padding: 16, cursor: "pointer", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}
+    >
+      <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <Plane size={12} color="var(--brass)" />
+          <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Trip</span>
+        </div>
+        <div className="ert-display" style={{ fontSize: 16.5, fontWeight: 700, marginTop: 3 }}>{trip.name || "Untitled trip"}</div>
+        <div style={{ display: "flex", gap: 14, marginTop: 4, fontSize: 12, color: "var(--text-dim)", flexWrap: "wrap" }}>
+          {trip.city && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={12} /> {trip.city}</span>}
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <Calendar size={12} /> {trip.startDate || "?"}{trip.endDate && trip.endDate !== trip.startDate ? ` \u2013 ${trip.endDate}` : ""}
+          </span>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 20, flexShrink: 0 }}>
+        <div style={{ textAlign: "center" }}>
+          <div className="ert-display" style={{ fontSize: 18, fontWeight: 700 }}>{stats.count}</div>
+          <div className="ert-mono" style={{ fontSize: 9.5, color: "var(--text-dim)", textTransform: "uppercase" }}>room{stats.count === 1 ? "" : "s"}</div>
+        </div>
+        <div style={{ textAlign: "center", minWidth: 44 }}>
+          <div className="ert-display" style={{ fontSize: 18, fontWeight: 700, color: stats.avg !== null ? "var(--brass)" : "var(--text-dim)" }}>{fmtRating(stats.avg)}</div>
+          <div className="ert-mono" style={{ fontSize: 9.5, color: "var(--text-dim)", textTransform: "uppercase" }}>avg</div>
+        </div>
+        <ChevronRight size={18} color="var(--text-dim)" />
+      </div>
+    </div>
   );
 }
 
@@ -4275,7 +3883,7 @@ function TripsView({ trips, rooms, onOpen, onNew, isGuest, filters, onFiltersCha
             <Plus size={15} /> New trip
           </button>
         )}
-        <span className="ert-count">
+        <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em", marginLeft: "auto", flexShrink: 0 }}>
           {sorted.length} trip{sorted.length === 1 ? "" : "s"} total
         </span>
       </div>
@@ -4283,15 +3891,15 @@ function TripsView({ trips, rooms, onOpen, onNew, isGuest, filters, onFiltersCha
       {trips.length === 0 ? (
         <EmptyNote text="No trips yet. Group the rooms from your next city trip together here." />
       ) : (
-        <div className="ert-split">
-          <div>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
+          <div style={{ flex: "1 1 500px", maxWidth: 900, display: "flex", flexDirection: "column", gap: 10 }}>
             {sorted.length === 0 ? (
               <EmptyNote text="No trips match those filters." />
             ) : isDateGrouped ? (
               yearGroups.map((group) => (
-                <div key={group.year}>
+                <div key={group.year} style={{ marginBottom: 12 }}>
                   <YearDivider year={group.year} count={group.items.length} itemLabel="trip" />
-                  <div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {group.items.map((t) => <TripRow key={t.id} trip={t} rooms={rooms} onOpen={onOpen} />)}
                   </div>
                 </div>
@@ -4302,16 +3910,16 @@ function TripsView({ trips, rooms, onOpen, onNew, isGuest, filters, onFiltersCha
           </div>
 
           {byCity.length > 0 && (
-            <aside>
-              <div className="ert-sidehead" style={isDateGrouped ? undefined : { paddingTop: 0 }}>
-                <b>Most visited cities</b>
+            <div style={{ flex: "1 1 260px" }}>
+              <div className="ert-card" style={{ padding: 18 }}>
+                <div className="ert-display" style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Most visited cities</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                  {byCity.map(([city, count]) => (
+                    <BarRow key={city} label={city} count={count} max={byCity[0][1]} />
+                  ))}
+                </div>
               </div>
-              <div style={{ paddingTop: 6 }}>
-                {byCity.map(([city, count]) => (
-                  <BarRow key={city} label={city} count={count} max={byCity[0][1]} />
-                ))}
-              </div>
-            </aside>
+            </div>
           )}
         </div>
       )}
@@ -4371,7 +3979,7 @@ function TripForm({ trip, rooms, onCancel, onSave }) {
             {suggestions.map((r) => (
               <label key={r.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
                 <input type="checkbox" checked={form.roomIds.includes(r.id)} onChange={() => toggleRoom(r.id)} />
-                {r.name} <span style={{ color: "var(--text-dim)", fontSize: 11.5 }}>{r.datePlayed}{r.city ? `, ${r.city}` : ""}</span>
+                {r.name} <span style={{ color: "var(--text-dim)", fontSize: 11.5 }}>{r.datePlayed}{r.city ? ` \u00b7 ${r.city}` : ""}</span>
               </label>
             ))}
           </div>
@@ -4410,7 +4018,6 @@ function TripDetail({ trip, rooms, currentMember, isGuest, onBack, onEdit, onDel
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesSaved, setNotesSaved] = useState(false);
   const [addingRooms, setAddingRooms] = useState(false);
-  const [ranking, setRanking] = useState(false);
   const [addSearch, setAddSearch] = useState("");
 
   useEffect(() => {
@@ -4418,13 +4025,6 @@ function TripDetail({ trip, rooms, currentMember, isGuest, onBack, onEdit, onDel
     setEditingNotes(false);
     setNotesSaved(false);
   }, [trip.id]);
-
-  useEffect(() => {
-    if (!addingRooms && !ranking) return undefined;
-    const onKey = (e) => { if (e.key === "Escape") { setAddingRooms(false); setRanking(false); } };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [addingRooms, ranking]);
 
   const stats = tripStats(trip, rooms);
   const notesDirty = notes !== (trip.notes || "");
@@ -4454,182 +4054,204 @@ function TripDetail({ trip, rooms, currentMember, isGuest, onBack, onEdit, onDel
     onUpdate({ roomIds: [...trip.roomIds, roomId] });
   };
   const addableRooms = rooms.filter(
-    (r) => r.status === "played" && !trip.roomIds.includes(r.id) && (!addSearch || normSearch(r.name).includes(normSearch(addSearch)))
+    (r) => r.status === "played" && !trip.roomIds.includes(r.id) && (!addSearch || r.name.toLowerCase().includes(addSearch.toLowerCase()))
   );
-  const range = trip.startDate
-    ? `${fmtDate(trip.startDate)}${trip.endDate && trip.endDate !== trip.startDate ? ` to ${fmtDate(trip.endDate)}` : ""}`
-    : "";
 
   return (
     <div>
-      <div className="ert-room-top">
-        <button className="ert-back" onClick={onBack}><ChevronLeft size={22} /> Back</button>
-        {!isGuest && (
-          <div style={{ display: "flex", gap: 10 }}>
-            <button className="ert-btn ert-btn-ghost" onClick={() => setAddingRooms(true)}><Plus size={17} /> Add rooms</button>
-            <button className="ert-btn ert-btn-ghost" onClick={onEdit}><Edit2 size={17} /> Edit</button>
-            {confirmDelete ? (
-              <button className="ert-btn ert-btn-danger" onClick={onDelete}>Confirm delete</button>
-            ) : (
-              <button className="ert-btn ert-btn-danger" onClick={() => setConfirmDelete(true)}><Trash2 size={17} /> Delete</button>
+      <button className="ert-btn ert-btn-ghost" onClick={onBack} style={{ marginBottom: 14 }}>
+        <ChevronLeft size={14} /> Back
+      </button>
+
+      <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Plane size={16} color="var(--brass)" />
+              <span className="ert-mono" style={{ fontSize: 11, color: "var(--text-dim)", textTransform: "uppercase" }}>Trip</span>
+            </div>
+            <div className="ert-display" style={{ fontSize: 24, fontWeight: 700, marginTop: 6 }}>{trip.name}</div>
+            <div style={{ display: "flex", gap: 14, marginTop: 6, fontSize: 12.5, color: "var(--text-dim)" }}>
+              {trip.city && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={12} /> {trip.city}</span>}
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <Calendar size={12} /> {trip.startDate || "?"}{trip.endDate && trip.endDate !== trip.startDate ? ` \u2013 ${trip.endDate}` : ""}
+              </span>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {!isGuest && (
+              <>
+                <button className="ert-btn ert-btn-ghost" onClick={() => setAddingRooms(true)}><Plus size={13} /> Add rooms</button>
+                <button className="ert-btn ert-btn-ghost" onClick={onEdit}><Edit2 size={13} /> Edit</button>
+                {confirmDelete ? (
+                  <button className="ert-btn ert-btn-danger" onClick={onDelete}>Confirm delete</button>
+                ) : (
+                  <button className="ert-btn ert-btn-danger" onClick={() => setConfirmDelete(true)}><Trash2 size={13} /></button>
+                )}
+              </>
             )}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
+          <StatBlock label="Rooms" value={stats.count} />
+          <StatBlock label="Group avg" value={fmtRating(stats.avg)} sub="out of 10" />
+          <StatBlock label="Escape rate" value={stats.escapeRate === null ? "-" : `${stats.escapeRate}%`} />
+          <StatBlock label="Total spent" value={stats.totalSpent === null ? "-" : `${stats.totalSpent} ${stats.spentCurrency}`} />
+        </div>
+      </div>
+
+      <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
+        <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Trip summary</div>
+        <p style={{ fontSize: 11.5, color: "var(--text-dim)", marginBottom: 10 }}>
+          Shared by the whole crew. Click to write up highlights, favorites, or a running joke from the trip.
+        </p>
+        {editingNotes ? (
+          <>
+            <textarea className="ert-textarea" rows={5} value={notes} autoFocus onChange={(e) => setNotes(e.target.value)} />
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+              <button className="ert-btn ert-btn-brass" disabled={!notesDirty} style={{ opacity: notesDirty ? 1 : 0.5 }} onClick={() => { saveNotes(); setEditingNotes(false); }}>
+                <Check size={14} /> Save
+              </button>
+              <button className="ert-btn ert-btn-ghost" onClick={() => { setNotes(trip.notes || ""); setEditingNotes(false); }}>Cancel</button>
+              {notesSaved && <span style={{ fontSize: 12, color: "var(--success)" }}>Saved.</span>}
+            </div>
+          </>
+        ) : (
+          <div
+            onClick={isGuest ? undefined : () => setEditingNotes(true)}
+            title={isGuest ? undefined : "Click to edit"}
+            style={{
+              fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", cursor: isGuest ? "default" : "pointer",
+              background: "var(--surface-raised)", borderRadius: 8, padding: "12px 14px", minHeight: 50,
+              color: trip.notes ? "var(--text)" : "var(--text-dim)", fontStyle: trip.notes ? "normal" : "italic",
+            }}
+          >
+            {trip.notes || (isGuest ? "No summary yet." : "No summary yet. Click here to add one.")}
           </div>
         )}
       </div>
 
-      <div className="ert-room">
-        <aside className="ert-room-aside">
-          <div className="ert-status"><Plane size={17} color="var(--brass)" /> Trip</div>
-          <h1>{trip.name || "Untitled trip"}</h1>
-          <div className="ert-facts">
-            {trip.city && <div className="ert-fact"><MapPin size={18} />{trip.city}</div>}
-            {range && <div className="ert-fact"><Calendar size={18} />{range}</div>}
-          </div>
-          <div className="ert-aside-stats">
-            <div><b>{stats.count}</b><span>{stats.count === 1 ? "room" : "rooms"}</span></div>
-            <div><b>{fmtRating(stats.avg)}</b><span>group average</span></div>
-            <div><b>{stats.escapeRate === null ? "-" : `${stats.escapeRate}%`}</b><span>escape rate</span></div>
-            <div><b>{stats.totalSpent === null ? "-" : stats.totalSpent}</b><span>{stats.totalSpent === null ? "total spent" : `${stats.spentCurrency} spent`}</span></div>
-          </div>
-        </aside>
-
-        <div>
-          <div className="ert-rsec">
-            <h2>
-              Summary
-              {!isGuest && !editingNotes && (
-                <button className="ert-link" style={{ fontSize: 14, fontFamily: "'Inter', sans-serif", fontWeight: 400 }} onClick={() => setEditingNotes(true)}>
-                  {trip.notes ? "Edit" : "Add"}
-                </button>
-              )}
-            </h2>
-            {editingNotes ? (
-              <>
-                <textarea className="ert-textarea" rows={5} value={notes} autoFocus placeholder="Highlights, favorites, or a running joke from the trip" onChange={(e) => setNotes(e.target.value)} />
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
-                  <button className="ert-btn ert-btn-brass" disabled={!notesDirty} style={{ opacity: notesDirty ? 1 : 0.5 }} onClick={() => { saveNotes(); setEditingNotes(false); }}>
-                    <Check size={16} /> Save summary
+      <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
+        <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Rooms on this trip</div>
+        {stats.rooms.length === 0 ? (
+          <EmptyNote text="No rooms on this trip yet." />
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
+            {stats.rooms.map((r, i) => (
+              <div key={r.id} style={{ position: "relative" }}>
+                <RoomCard room={r} index={i} onOpen={() => onOpenRoom(r.id)} flags={flags} />
+                {!isGuest && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); removeRoom(r.id); }}
+                    style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.5)", border: "none", borderRadius: 5, padding: 3, cursor: "pointer" }}
+                    title="Remove from trip"
+                  >
+                    <X size={12} color="#fff" />
                   </button>
-                  <button className="ert-btn ert-btn-ghost" onClick={() => { setNotes(trip.notes || ""); setEditingNotes(false); }}>Cancel</button>
-                  {notesSaved && <span style={{ fontSize: 13, color: "var(--success)" }}>Saved.</span>}
-                </div>
-              </>
-            ) : (
-              <p style={{ margin: 0, maxWidth: "68ch", whiteSpace: "pre-wrap", lineHeight: 1.6, color: trip.notes ? "var(--text)" : "var(--text-dim)" }}>
-                {trip.notes || (isGuest ? "No summary yet." : "No summary yet. Shared by the whole crew.")}
-              </p>
-            )}
-          </div>
-
-          <div className="ert-rsec">
-            <h2>Rooms on this trip{stats.rooms.length > 0 && <small>{plural(stats.rooms.length, "room")}</small>}</h2>
-            {stats.rooms.length === 0 ? (
-              <EmptyNote text="No rooms on this trip yet." />
-            ) : (
-              <div className="ert-tgrid" style={{ marginTop: 4 }}>
-                {stats.rooms.map((r) => (
-                  <div key={r.id} className="ert-tilewrap">
-                    <RoomCard room={r} onOpen={() => onOpenRoom(r.id)} flags={flags} />
-                    {!isGuest && <TripRoomRemove roomName={r.name} onRemove={() => removeRoom(r.id)} />}
-                  </div>
-                ))}
+                )}
               </div>
-            )}
+            ))}
           </div>
-
-          <div className="ert-rsec">
-            <h2>
-              Group favorites
-              {!isGuest && (
-                <button
-                  className="ert-btn ert-btn-ghost"
-                  style={{ padding: "6px 14px", fontSize: 13, fontFamily: "'Inter', sans-serif", alignSelf: "center", opacity: myRanking.length === 0 ? 0.5 : 1 }}
-                  disabled={myRanking.length === 0}
-                  title={myRanking.length === 0 ? "Add rooms to this trip first" : "Order this trip's rooms from your favorite to least favorite"}
-                  onClick={() => setRanking(true)}
-                >
-                  <ListOrdered size={16} /> Rank your favorites
-                </button>
-              )}
-            </h2>
-            {groupFavorites.length === 0 ? (
-              <EmptyNote text="No one has ranked this trip's rooms yet." />
-            ) : (
-              <div>
-                {groupFavorites.map((entry, idx) => (
-                  <div key={entry.room.id} className="ert-frow" style={{ gridTemplateColumns: "34px minmax(0, 1fr) auto" }}>
-                    <span className={`ert-rank${idx === 0 ? " top" : ""}`}>{idx + 1}</span>
-                    <span style={{ minWidth: 0 }}>
-                      <span className="ert-r-title" style={{ fontSize: 16 }}>{entry.room.name}</span>
-                      <span className="ert-r-sub">{entry.room.venue || entry.room.city}</span>
-                    </span>
-                    <span style={{ color: "var(--text-dim)", fontSize: 13.5 }}>{plural(entry.voters, "vote")}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        )}
       </div>
 
-      {ranking && !isGuest && (
-        <div className="ert-modal-bg" onClick={() => setRanking(false)}>
-          <div className="ert-card-raised ert-modal" role="dialog" aria-label="Rank your favorites" onClick={(e) => e.stopPropagation()}>
-            <div className="ert-pop-h" style={{ marginBottom: 6 }}>
-              <span>Rank your favorites</span>
-              <button className="ert-ibtn sm" aria-label="Close" onClick={() => setRanking(false)}><X size={18} /></button>
-            </div>
-            <p className="ert-hint" style={{ margin: "0 0 8px" }}>Order this trip's rooms from your favorite to least favorite. Everyone's own ranking combines into the group favorites.</p>
-            {myRanking.length === 0 ? (
-              <div style={{ padding: "10px 0 14px" }}><EmptyNote text="Add rooms to this trip first." /></div>
-            ) : (
-              <div className="ert-scrollbar" style={{ overflowY: "auto" }}>
-                {myRanking.map((roomId, idx) => {
-                  const room = rooms.find((r) => r.id === roomId);
-                  if (!room) return null;
-                  return (
-                    <div key={roomId} className="ert-frow">
-                      <span className={`ert-rank${idx === 0 ? " top" : ""}`}>{idx + 1}</span>
-                      <span style={{ minWidth: 0 }}>
-                        <span className="ert-r-title" style={{ fontSize: 16 }}>{room.name}</span>
-                        <span className="ert-r-sub">{room.venue || room.city}</span>
-                      </span>
-                      <button className="ert-step" aria-label={`Move ${room.name} up`} disabled={idx === 0} onClick={() => moveMyRanking(idx, idx - 1)}><ChevronUp size={18} /></button>
-                      <button className="ert-step" aria-label={`Move ${room.name} down`} disabled={idx === myRanking.length - 1} onClick={() => moveMyRanking(idx, idx + 1)}><ChevronDown size={18} /></button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            <div style={{ display: "flex", justifyContent: "flex-end", padding: "14px 0 6px" }}>
-              <button className="ert-btn ert-btn-brass" onClick={() => setRanking(false)}>Done</button>
-            </div>
+
+      {!isGuest && (
+      <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
+        <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Rank your favorites</div>
+        <p style={{ fontSize: 11.5, color: "var(--text-dim)", marginBottom: 10 }}>
+          Order this trip's rooms from your favorite to least favorite. Everyone's own ranking combines into the group favorites below.
+        </p>
+        {myRanking.length === 0 ? (
+          <EmptyNote text="Add rooms to this trip first." />
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {myRanking.map((roomId, idx) => {
+              const room = rooms.find((r) => r.id === roomId);
+              if (!room) return null;
+              return (
+                <div key={roomId} style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--surface-raised)", borderRadius: 7, padding: "8px 10px" }}>
+                  <span className="ert-mono" style={{ fontSize: 12, color: "var(--brass)", width: 18 }}>{idx + 1}</span>
+                  <span style={{ flex: 1, fontSize: 13.5 }}>{room.name}</span>
+                  <button
+                    className="ert-btn ert-btn-ghost"
+                    style={{ padding: "3px 6px", opacity: idx === 0 ? 0.35 : 1 }}
+                    disabled={idx === 0}
+                    onClick={() => moveMyRanking(idx, idx - 1)}
+                  >
+                    <ChevronUp size={13} />
+                  </button>
+                  <button
+                    className="ert-btn ert-btn-ghost"
+                    style={{ padding: "3px 6px", opacity: idx === myRanking.length - 1 ? 0.35 : 1 }}
+                    disabled={idx === myRanking.length - 1}
+                    onClick={() => moveMyRanking(idx, idx + 1)}
+                  >
+                    <ChevronDown size={13} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
-        </div>
+        )}
+      </div>
       )}
 
+      <div className="ert-card" style={{ padding: 22, marginBottom: 16 }}>
+        <div className="ert-display" style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Group favorites</div>
+        {groupFavorites.length === 0 ? (
+          <EmptyNote text="No one has ranked this trip's rooms yet." />
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {groupFavorites.map((entry, idx) => (
+              <div key={entry.room.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--surface-raised)", borderRadius: 7, padding: "8px 10px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span className="ert-display" style={{ fontSize: 15, fontWeight: 700, color: idx === 0 ? "var(--brass-bright)" : "var(--text-dim)", width: 18 }}>{idx + 1}</span>
+                  <span style={{ fontSize: 13.5 }}>{entry.room.name}</span>
+                </div>
+                <span className="ert-mono" style={{ fontSize: 11, color: "var(--text-dim)" }}>{entry.voters} vote{entry.voters === 1 ? "" : "s"}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {addingRooms && !isGuest && (
-        <div className="ert-modal-bg" onClick={() => setAddingRooms(false)}>
-          <div className="ert-card-raised ert-modal" role="dialog" aria-label="Add rooms" onClick={(e) => e.stopPropagation()}>
-            <div className="ert-pop-h" style={{ marginBottom: 12 }}>
-              <span>Add rooms</span>
-              <button className="ert-ibtn sm" aria-label="Close" onClick={() => setAddingRooms(false)}><X size={18} /></button>
+        <div
+          onClick={() => setAddingRooms(false)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(10,11,15,0.75)", zIndex: 100,
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="ert-card-raised"
+            style={{ padding: 22, width: "100%", maxWidth: 420, maxHeight: "80vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.55)", display: "flex", flexDirection: "column" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div className="ert-display" style={{ fontSize: 15, fontWeight: 700 }}>Add rooms</div>
+              <button onClick={() => setAddingRooms(false)} className="ert-btn ert-btn-ghost" style={{ padding: "5px 8px" }}>
+                <X size={15} />
+              </button>
             </div>
-            <div style={{ position: "relative", marginBottom: 8 }}>
-              <Search size={16} style={{ position: "absolute", left: 14, top: 11, color: "var(--text-dim)" }} />
-              <input className="ert-input" style={{ paddingLeft: 40, height: 38 }} placeholder="Search completed rooms" aria-label="Search completed rooms" value={addSearch} autoFocus onChange={(e) => setAddSearch(e.target.value)} />
-            </div>
+            <input
+              className="ert-input"
+              placeholder="Search completed rooms"
+              value={addSearch}
+              autoFocus
+              onChange={(e) => setAddSearch(e.target.value)}
+              style={{ marginBottom: 10 }}
+            />
             {addableRooms.length === 0 ? (
-              <div style={{ padding: "10px 0 14px" }}><EmptyNote text="No matching completed rooms to add." /></div>
+              <EmptyNote text="No matching completed rooms to add." />
             ) : (
-              <div className="ert-scrollbar" style={{ overflowY: "auto" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, overflowY: "auto" }} className="ert-scrollbar">
                 {addableRooms.map((r) => (
-                  <div key={r.id} className="ert-srow">
-                    <span style={{ minWidth: 0 }}>
-                      <span style={{ display: "block", fontWeight: 500 }}>{r.name}</span>
-                      <span style={{ display: "block", fontSize: 13, color: "var(--text-dim)" }}>{[r.venue, r.city].filter(Boolean).join(", ")}</span>
-                    </span>
-                    <button className="ert-btn ert-btn-ghost" style={{ padding: "5px 14px", fontSize: 13 }} onClick={() => addRoom(r.id)}>Add</button>
+                  <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", fontSize: 13, background: "var(--surface-raised)", borderRadius: 6 }}>
+                    <span>{r.name}{r.city ? ` \u00b7 ${r.city}` : ""}</span>
+                    <button className="ert-btn ert-btn-ghost" style={{ padding: "3px 9px", fontSize: 11.5 }} onClick={() => addRoom(r.id)}>Add</button>
                   </div>
                 ))}
               </div>
@@ -4652,7 +4274,7 @@ function TripDetail({ trip, rooms, currentMember, isGuest, onBack, onEdit, onDel
 const GALLERY_SORT_OPTIONS = [
   { id: "visited-desc", label: "Date visited (newest)" },
   { id: "visited-asc", label: "Date visited (oldest)" },
-  { id: "alpha", label: "Room (A to Z)" },
+  { id: "alpha", label: "Room (A\u2013Z)" },
 ];
 
 function sortGalleryPhotos(items, sortBy) {
@@ -4722,38 +4344,25 @@ function GalleryView({ rooms, driveConnected, driveAvailable, getDriveAccessToke
   const yearGroups = isDateGrouped ? groupByYear(sorted, "datePlayed") : [];
 
   if (!driveAvailable) {
-    return (
-      <div className="ert-unplayed" style={{ maxWidth: 520 }}>
-        <h3>Photos need the hosted site</h3>
-        <p style={{ marginBottom: 0 }}>The gallery reads from Google Drive, which isn't available in this preview.</p>
-      </div>
-    );
+    return <EmptyNote text="The gallery uses Google Drive and only works on the hosted site, not in this preview." />;
   }
   if (!driveConnected) {
     return (
-      <div className="ert-unplayed" style={{ maxWidth: 520 }}>
-        <h3>Google Drive isn't connected yet</h3>
-        <p style={{ marginBottom: 0 }}>Connect it from App settings (Google Drive tab) to start building a shared gallery.</p>
+      <div className="ert-card" style={{ padding: 22, maxWidth: 480 }}>
+        <div className="ert-display" style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>Gallery</div>
+        <p style={{ fontSize: 12.5, color: "var(--text-dim)" }}>
+          Google Drive isn't connected yet. Connect it from App settings (Google Drive tab) to start building a shared gallery.
+        </p>
       </div>
     );
   }
 
-  const renderTile = (p, openIndex) => (
-    <div key={p.id}>
-      <DrivePhoto photo={p} aspect="4 / 3" getDriveAccessToken={getDriveAccessToken} onPreview={() => setPreviewIndex(openIndex)} />
-      <div style={{ marginTop: 8, minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.roomName}</div>
-        {p.city ? <div style={{ fontSize: 13, color: "var(--text-dim)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.city}</div> : null}
-      </div>
-    </div>
-  );
-
   return (
     <div>
-      <div style={{ display: "flex", gap: 10, marginBottom: 6, flexWrap: "wrap", alignItems: "center" }}>
-        <div style={{ position: "relative", flex: "1 1 220px", minWidth: 180, maxWidth: 380 }}>
-          <Search size={16} style={{ position: "absolute", left: 14, top: 11, color: "var(--text-dim)" }} />
-          <input className="ert-input" style={{ paddingLeft: 42, height: 38 }} placeholder="Search rooms" aria-label="Search rooms" value={search} onChange={(e) => patch({ search: e.target.value })} />
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ position: "relative", flex: "1 1 220px", minWidth: 160, maxWidth: 600 }}>
+          <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
+          <input className="ert-input" style={{ paddingLeft: 30 }} placeholder="Search by room name" value={search} onChange={(e) => patch({ search: e.target.value })} />
         </div>
         <SortPopover options={GALLERY_SORT_OPTIONS} sortBy={sortBy} onChange={(v) => patch({ sortBy: v })} />
         <FilterPopover
@@ -4772,31 +4381,49 @@ function GalleryView({ rooms, driveConnected, driveAvailable, getDriveAccessToke
           onClear={clearPopoverFilters}
         />
         {hasActiveFilters && (
-          <button className="ert-btn ert-btn-ghost" onClick={clearAll} title="Clear filters" aria-label="Clear filters" style={{ flexShrink: 0, height: 38, padding: "0 12px" }}>
-            <FilterX size={16} />
+          <button className="ert-btn ert-btn-ghost" onClick={clearAll} title="Clear filters" style={{ flexShrink: 0, padding: "8px 9px" }}>
+            <FilterX size={14} />
           </button>
         )}
-        <span className="ert-count">
-          {sorted.length === allPhotos.length ? `${plural(allPhotos.length, "photo")} total` : `${sorted.length} of ${plural(allPhotos.length, "photo")}`}
+        <span className="ert-mono" style={{ fontSize: 10.5, color: "var(--brass)", textTransform: "uppercase", letterSpacing: "0.04em", marginLeft: "auto", flexShrink: 0 }}>
+          {sorted.length} photo{sorted.length === 1 ? "" : "s"} total
         </span>
       </div>
 
       {sorted.length === 0 ? (
-        <div style={{ paddingTop: 22 }}><EmptyNote text={allPhotos.length === 0 ? "No photos yet. Upload some from a room's Photos section." : "No photos match those filters."} /></div>
+        <EmptyNote text={allPhotos.length === 0 ? "No photos yet. Upload some from a room's Photos section." : "No photos match those filters."} />
       ) : isDateGrouped ? (
         <div>
           {yearGroups.map((group, gi) => {
             const offset = yearGroups.slice(0, gi).reduce((n, g) => n + g.items.length, 0);
             return (
-              <section key={group.year}>
+              <div key={group.year} style={{ marginBottom: 22 }}>
                 <YearDivider year={group.year} count={group.items.length} itemLabel="photo" />
-                <div className="ert-pgrid">{group.items.map((p, i) => renderTile(p, offset + i))}</div>
-              </section>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
+                  {group.items.map((p, i) => (
+                    <div key={p.id}>
+                      <DrivePhoto photo={p} getDriveAccessToken={getDriveAccessToken} onPreview={() => setPreviewIndex(offset + i)} />
+                      <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {p.roomName}{p.city ? ` \u00b7 ${p.city}` : ""}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             );
           })}
         </div>
       ) : (
-        <div className="ert-pgrid" style={{ marginTop: 22 }}>{sorted.map((p, i) => renderTile(p, i))}</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
+          {sorted.map((p, i) => (
+            <div key={p.id}>
+              <DrivePhoto photo={p} getDriveAccessToken={getDriveAccessToken} onPreview={() => setPreviewIndex(i)} />
+              <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {p.roomName}{p.city ? ` \u00b7 ${p.city}` : ""}
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
       {previewIndex !== null && sorted[previewIndex] && (
@@ -4820,7 +4447,7 @@ function SettingsView({ members, currentMember, onChangePassword, rooms }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [busy, setBusy] = useState(false);
-
+ 
   const openChange = () => {
     setChanging(true);
     setCurrent(""); setNext(""); setConfirm(""); setError(""); setSuccess(false);
@@ -4829,7 +4456,7 @@ function SettingsView({ members, currentMember, onChangePassword, rooms }) {
     setChanging(false);
     setCurrent(""); setNext(""); setConfirm(""); setError(""); setSuccess(false);
   };
-
+ 
   const stats = useMemo(() => {
     const byMember = {};
     members.forEach((m) => { byMember[m] = { added: 0, played: 0, rated: 0, noted: 0 }; });
@@ -4844,7 +4471,7 @@ function SettingsView({ members, currentMember, onChangePassword, rooms }) {
     });
     return byMember;
   }, [members, rooms]);
-
+ 
   const submit = async () => {
     setError("");
     setSuccess(false);
@@ -4865,60 +4492,57 @@ function SettingsView({ members, currentMember, onChangePassword, rooms }) {
       setBusy(false);
     }
   };
-
-  const cols = "minmax(200px, 1fr) repeat(4, 96px) 170px";
-  const columns = [
-    { key: "added", label: "Added", hint: "Rooms this person added to the log" },
-    { key: "played", label: "Played", hint: "Completed rooms they took part in" },
-    { key: "rated", label: "Rated", hint: "Rooms they gave a rating" },
-    { key: "noted", label: "Noted", hint: "Rooms they wrote a note on" },
-  ];
-
+ 
   return (
-    <div>
-      <p style={{ margin: "0 0 18px", color: "var(--text-dim)", maxWidth: "62ch" }}>Everyone here shares this log and can add rooms, ratings and notes.</p>
-
-      <div className="ert-scrollbar" style={{ overflowX: "auto" }}>
-      <div style={{ minWidth: 780 }}>
-      <div style={{ display: "grid", gridTemplateColumns: cols, gap: 20, padding: "4px 0 9px", borderBottom: "1px solid var(--border)", fontSize: 12.5, color: "var(--text-dim)", alignItems: "end" }}>
-        <span>Person</span>
-        {columns.map((c) => <span key={c.key} title={c.hint} style={{ textAlign: "center" }}>{c.label}</span>)}
-        <span />
-      </div>
-      {members.map((m) => {
-        const me = m === currentMember;
-        return (
-          <div key={m} style={{ display: "grid", gridTemplateColumns: cols, gap: 20, alignItems: "center", padding: "13px 0", borderBottom: "1px solid var(--border-soft)" }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
-              <span className="ert-avatar" style={{ width: 36, height: 36, cursor: "default", fontSize: 14, flex: "none" }} aria-hidden="true">{initialOf(m)}</span>
-              <span className="ert-display" style={{ fontSize: 17, fontWeight: 600 }}>{m}</span>
-              {me && <span className="ert-pill" style={{ color: "var(--brass-bright)" }}>you</span>}
-            </span>
-            {columns.map((c) => (
-              <span key={c.key} className="ert-mono" style={{ textAlign: "center", fontSize: 20, fontWeight: 700, color: stats[m][c.key] ? "var(--brass-bright)" : "var(--text-dim)" }}>{stats[m][c.key]}</span>
-            ))}
-            <span style={{ textAlign: "right" }}>
-              {me && !changing && <button className="ert-btn ert-btn-ghost" style={{ padding: "5px 14px", fontSize: 13 }} onClick={openChange}><KeyRound size={15} /> Change password</button>}
-            </span>
+    <div className="ert-card" style={{ padding: 22, maxWidth: 420 }}>
+      <div className="ert-display" style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Crew</div>
+      <p style={{ fontSize: 12.5, color: "var(--text-dim)", marginBottom: 14 }}>Everyone here shares this log and can add rooms, ratings and notes.</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {members.map((m) => (
+          <div key={m} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-raised)", padding: "9px 12px", borderRadius: 7 }}>
+            <span style={{ fontSize: 13.5 }}>{m}{m === currentMember ? "  (you)" : ""}</span>
+            {m === currentMember && !changing && (
+              <button className="ert-btn ert-btn-ghost" style={{ padding: "4px 8px", fontSize: 12 }} onClick={openChange}>
+                Change password
+              </button>
+            )}
           </div>
-        );
-      })}
+        ))}
       </div>
+ 
+      <div style={{ marginTop: 18 }}>
+        <div className="ert-display" style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 10 }}>Crew stats</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr repeat(4, 56px)", gap: "6px 4px", alignItems: "center" }}>
+          <span></span>
+          <span className="ert-mono" style={{ fontSize: 10, color: "var(--text-dim)", textAlign: "center" }}>ADDED</span>
+          <span className="ert-mono" style={{ fontSize: 10, color: "var(--text-dim)", textAlign: "center" }}>PLAYED</span>
+          <span className="ert-mono" style={{ fontSize: 10, color: "var(--text-dim)", textAlign: "center" }}>RATED</span>
+          <span className="ert-mono" style={{ fontSize: 10, color: "var(--text-dim)", textAlign: "center" }}>NOTED</span>
+          {members.map((m) => (
+            <React.Fragment key={m}>
+              <span style={{ fontSize: 13 }}>{m}</span>
+              <span className="ert-mono" style={{ fontSize: 13, textAlign: "center", color: "var(--brass)" }}>{stats[m].added}</span>
+              <span className="ert-mono" style={{ fontSize: 13, textAlign: "center", color: "var(--brass)" }}>{stats[m].played}</span>
+              <span className="ert-mono" style={{ fontSize: 13, textAlign: "center", color: "var(--brass)" }}>{stats[m].rated}</span>
+              <span className="ert-mono" style={{ fontSize: 13, textAlign: "center", color: "var(--brass)" }}>{stats[m].noted}</span>
+            </React.Fragment>
+          ))}
+        </div>
       </div>
-
+ 
       {changing && (
-        <div className="ert-rsec" style={{ marginTop: 34, maxWidth: 380 }}>
-          <h2>Change your password</h2>
-          <div style={{ display: "grid", gap: 10 }}>
-            <input type="password" className="ert-input" placeholder="Current password" aria-label="Current password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
-            <input type="password" className="ert-input" placeholder="New password" aria-label="New password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} />
-            <input type="password" className="ert-input" placeholder="Repeat new password" aria-label="Repeat new password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border-soft)" }}>
+          <div className="ert-display" style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 10 }}>Change your password</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <input type="password" className="ert-input" placeholder="Current password" value={current} onChange={(e) => setCurrent(e.target.value)} />
+            <input type="password" className="ert-input" placeholder="New password" value={next} onChange={(e) => setNext(e.target.value)} />
+            <input type="password" className="ert-input" placeholder="Repeat new password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
           </div>
-          {error && <div style={{ color: "var(--danger)", fontSize: 13.5, marginTop: 10 }} role="alert">{error}</div>}
-          {success && <div style={{ color: "var(--success)", fontSize: 13.5, marginTop: 10 }}>Password updated.</div>}
-          <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+          {error && <div style={{ color: "var(--danger)", fontSize: 12.5, marginTop: 8 }}>{error}</div>}
+          {success && <div style={{ color: "var(--success)", fontSize: 12.5, marginTop: 8 }}>Password updated.</div>}
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <button className="ert-btn ert-btn-brass" disabled={busy} style={{ opacity: busy ? 0.6 : 1 }} onClick={submit}>
-              <Check size={16} /> Save password
+              <Check size={14} /> Save
             </button>
             <button className="ert-btn ert-btn-ghost" onClick={closeChange}>Cancel</button>
           </div>
