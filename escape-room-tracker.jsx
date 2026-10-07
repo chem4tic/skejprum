@@ -651,17 +651,22 @@ const TOKENS = `
   .ert-rsec > h2 { font: 600 21px 'Space Grotesk', sans-serif; margin: 0 0 12px; display: flex; align-items: baseline; justify-content: space-between; }
   .ert-rsec > h2 small { font: 400 13px 'Inter', sans-serif; color: var(--text-dim); }
   .ert-panel { background: var(--surface); border: 1px solid var(--border-soft); border-radius: 15px; padding: 4px 24px; }
-  .ert-rate { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "label right" "stars stars"; align-items: center; row-gap: 8px; column-gap: 15px; padding: 19px 0 15px; border-bottom: 1px solid var(--border-soft); }
+  .ert-panel-rate { padding: 2px 24px; }
+  .ert-rate { display: grid; grid-template-columns: 96px 76px minmax(0, 1fr) 48px; align-items: center; column-gap: 16px; padding: 11px 0; border-bottom: 1px solid var(--border-soft); }
   .ert-rate:last-child { border-bottom: 0; }
-  .ert-rate-l { grid-area: label; font-weight: 600; }
-  .ert-rate-right { grid-area: right; display: flex; align-items: center; justify-content: flex-end; gap: 9px; }
-  .ert-stars { grid-area: stars; display: flex; align-items: center; min-height: 41px; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: pan-y; }
+  .ert-rate-l { font-weight: 600; font-size: 14px; }
+  .ert-stars { width: 100%; display: flex; align-items: center; height: 36px; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: pan-y; border-radius: 8px; }
   .ert-stars.ro { cursor: default; }
-  .ert-star { flex: 1; min-width: 0; position: relative; display: flex; align-items: center; justify-content: flex-start; }
+  .ert-star { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; }
+  .ert-star .ico { position: relative; flex: none; }
   .ert-star .base { color: var(--border); }
-  .ert-star .fillclip { position: absolute; inset: 0; pointer-events: none; }
-  .ert-rate-val { font: 700 28px 'Space Grotesk', sans-serif; color: var(--brass-bright); min-width: 67px; text-align: center; font-variant-numeric: tabular-nums; line-height: 1; }
-  .ert-rate-val small { font-size: 14px; color: var(--text-dim); font-weight: 500; }
+  .ert-star .fillclip { position: absolute; inset: 0; pointer-events: none; transition: opacity .1s; }
+  .ert-stars.pv .fillclip { opacity: .72; }
+  .ert-rate-val { justify-self: start; font: 700 21px 'Space Grotesk', sans-serif; color: var(--brass-bright); font-variant-numeric: tabular-nums; line-height: 1; white-space: nowrap; }
+  .ert-rate-val small { font-size: 12.5px; color: var(--text-dim); font-weight: 500; }
+  .ert-rate-val.empty { color: var(--text-dim); }
+  .ert-clear { justify-self: end; }
+  @media (max-width: 640px) { .ert-rate { grid-template-columns: 70px 62px minmax(0, 1fr) 40px; column-gap: 10px; } }
   .ert-step { width: 31px; height: 31px; border-radius: 50%; background: var(--surface-raised); display: flex; align-items: center; justify-content: center; border: 0; color: inherit; cursor: pointer; }
   .ert-step:hover { background: var(--step-hover); }
   .ert-clear { color: var(--text-dim); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; padding: 4px; background: none; border: 0; cursor: pointer; }
@@ -2094,24 +2099,27 @@ function Dial({ value, digits = 3, label = "rooms played" }) {
   );
 }
 
-/* A rating you can drag across (or step with - / +). Half-points on the 10 point scale, whole
-   points elsewhere. Read-only when no onChange is given. */
+/* A rating you can point at (the stars light up under the cursor), click, or drag across. Half-points on
+   the 10 point scale, whole points elsewhere. Read-only when no onChange is given. */
 function RatingControl({ label, value, max, step, icon, color, solid = true, onChange, onClear }) {
   const ref = React.useRef(null);
   const [drag, setDrag] = useState(null);
+  const [hover, setHover] = useState(null);
   const Icon = icon || Star;
   const readOnly = !onChange;
-  const shown = drag != null ? drag : value || 0;
-  const size = max > 8 ? 29 : 32;
-  const cellMax = max > 8 ? 54 : 68; // widest a star's cell can get; the row is capped to max cells so clicks line up with the icons
+  const previewing = drag != null || (hover != null && hover !== (value || 0));
+  const shown = drag != null ? drag : hover != null ? hover : value || 0;
+  const size = 26;
+  const cell = 40; // width of one star's cell; the bar is as long as its scale needs, so spacing is the same for 6 and 10
   const calc = (x) => {
     const r = ref.current.getBoundingClientRect();
-    // Each star sits at the left of an equal-width cell. Work out which cell the pointer is in and how far across
-    // the icon it is, so the value always matches the star under the pointer.
+    // Each icon sits centered in an equal-width cell. Work out which cell the pointer is in and how far across the
+    // icon it is, so the value always matches the star under the pointer (the gap between two icons splits between them).
     const cellW = (r.width || 1) / max;
+    const pad = Math.max(0, (cellW - size) / 2);
     const pos = Math.min(max - 1e-6, Math.max(0, (x - r.left) / cellW));
     const i = Math.floor(pos);
-    const frac = Math.min(1, ((pos - i) * cellW) / size);
+    const frac = Math.min(1, Math.max(0, ((pos - i) * cellW - pad) / size));
     const v = Math.ceil((i + frac) / step - 1e-9) * step;
     return Math.min(max, Math.max(step, v));
   };
@@ -2120,7 +2128,11 @@ function RatingControl({ label, value, max, step, icon, color, solid = true, onC
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
     setDrag(calc(e.clientX));
   };
-  const move = (e) => { if (drag != null) setDrag(calc(e.clientX)); };
+  const move = (e) => {
+    if (readOnly) return;
+    if (drag != null) setDrag(calc(e.clientX));
+    else if (e.pointerType === "mouse") setHover(calc(e.clientX));
+  };
   const up = (e) => {
     if (drag == null) return;
     const v = calc(e.clientX);
@@ -2132,21 +2144,14 @@ function RatingControl({ label, value, max, step, icon, color, solid = true, onC
     if (e.key === "ArrowRight" || e.key === "ArrowUp") { e.preventDefault(); onChange(Math.min(max, (value || 0) + step)); }
     if (e.key === "ArrowLeft" || e.key === "ArrowDown") { e.preventDefault(); const nv = (value || 0) - step; nv < step - 1e-9 ? onClear() : onChange(nv); }
   };
-  const minus = () => { const nv = (value || 0) - step; nv < step - 1e-9 ? onClear() : onChange(nv); };
-  const plus = () => onChange(Math.min(max, (value || 0) + step));
   return (
     <div className="ert-rate">
       <span className="ert-rate-l">{label}</span>
-      <div className="ert-rate-right">
-        {!readOnly && step < 1 ? <button className="ert-step" aria-label={`Lower ${label.toLowerCase()} by half a point`} onClick={minus}><Minus size={16} /></button> : null}
-        <span className="ert-rate-val">{shown ? shown : "-"}<small>{`/${max}`}</small></span>
-        {!readOnly && step < 1 ? <button className="ert-step" aria-label={`Raise ${label.toLowerCase()} by half a point`} onClick={plus}><Plus size={16} /></button> : null}
-        {!readOnly && value ? <button className="ert-clear" onClick={onClear}>Clear</button> : null}
-      </div>
+      <span className={`ert-rate-val${shown ? "" : " empty"}`}>{shown ? shown : "-"}<small>{`/${max}`}</small></span>
       <div
-        className={`ert-stars${readOnly ? " ro" : ""}`}
+        className={`ert-stars${readOnly ? " ro" : ""}${previewing ? " pv" : ""}`}
         ref={ref}
-        style={{ maxWidth: max * cellMax }}
+        style={{ maxWidth: max * cell }}
         role="slider"
         tabIndex={readOnly ? -1 : 0}
         aria-label={label}
@@ -2156,14 +2161,15 @@ function RatingControl({ label, value, max, step, icon, color, solid = true, onC
         onPointerDown={down}
         onPointerMove={move}
         onPointerUp={up}
-        onPointerCancel={() => setDrag(null)}
+        onPointerLeave={() => setHover(null)}
+        onPointerCancel={() => { setDrag(null); setHover(null); }}
         onKeyDown={key}
       >
         {Array.from({ length: max }).map((_, i) => {
           const f = Math.max(0, Math.min(1, shown - i));
           return (
             <div className="ert-star" key={i}>
-              <div style={{ position: "relative", width: size, height: size, flex: "none" }}>
+              <div className="ico" style={{ width: size, height: size }}>
                 <Icon className="base" size={size} strokeWidth={1.6} />
                 {f > 0 ? (
                   <div className="fillclip" style={{ clipPath: `inset(0 ${(1 - f) * 100}% 0 0)` }}>
@@ -2175,6 +2181,7 @@ function RatingControl({ label, value, max, step, icon, color, solid = true, onC
           );
         })}
       </div>
+      {!readOnly && value && !previewing ? <button className="ert-clear" onClick={onClear}>Clear</button> : <span />}
     </div>
   );
 }
@@ -3506,7 +3513,7 @@ function RoomDetail({ room, members, currentMember, isGuest, onBack, onEdit, onD
               {isGuest ? (
                 <EmptyNote text="Guests can read ratings and notes but can't add their own." />
               ) : (
-                <div className="ert-panel">
+                <div className="ert-panel ert-panel-rate">
                   <RatingControl label="Rating" value={myRating} max={10} step={0.5} onChange={saveMyRating} onClear={clearMyRating} />
                   <RatingControl label="Difficulty" value={myDifficulty} max={6} step={1} icon={Dumbbell} solid={false} color="var(--danger)" onChange={saveMyDifficulty} onClear={clearMyDifficulty} />
                   <RatingControl label="Scariness" value={myScary} max={6} step={1} icon={Ghost} color="var(--teal)" onChange={saveMyScary} onClear={clearMyScary} />
