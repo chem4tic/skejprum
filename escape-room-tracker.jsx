@@ -2103,10 +2103,16 @@ function RatingControl({ label, value, max, step, icon, color, solid = true, onC
   const readOnly = !onChange;
   const shown = drag != null ? drag : value || 0;
   const size = max > 8 ? 29 : 32;
+  const cellMax = max > 8 ? 54 : 68; // widest a star's cell can get; the row is capped to max cells so clicks line up with the icons
   const calc = (x) => {
     const r = ref.current.getBoundingClientRect();
-    const frac = Math.min(1, Math.max(0, (x - r.left) / (r.width || 1)));
-    const v = Math.ceil((frac * max) / step - 1e-9) * step;
+    // Each star sits at the left of an equal-width cell. Work out which cell the pointer is in and how far across
+    // the icon it is, so the value always matches the star under the pointer.
+    const cellW = (r.width || 1) / max;
+    const pos = Math.min(max - 1e-6, Math.max(0, (x - r.left) / cellW));
+    const i = Math.floor(pos);
+    const frac = Math.min(1, ((pos - i) * cellW) / size);
+    const v = Math.ceil((i + frac) / step - 1e-9) * step;
     return Math.min(max, Math.max(step, v));
   };
   const down = (e) => {
@@ -2140,6 +2146,7 @@ function RatingControl({ label, value, max, step, icon, color, solid = true, onC
       <div
         className={`ert-stars${readOnly ? " ro" : ""}`}
         ref={ref}
+        style={{ maxWidth: max * cellMax }}
         role="slider"
         tabIndex={readOnly ? -1 : 0}
         aria-label={label}
@@ -2155,7 +2162,7 @@ function RatingControl({ label, value, max, step, icon, color, solid = true, onC
         {Array.from({ length: max }).map((_, i) => {
           const f = Math.max(0, Math.min(1, shown - i));
           return (
-            <div className="ert-star" key={i} style={{ maxWidth: max > 8 ? 54 : 68 }}>
+            <div className="ert-star" key={i}>
               <div style={{ position: "relative", width: size, height: size, flex: "none" }}>
                 <Icon className="base" size={size} strokeWidth={1.6} />
                 {f > 0 ? (
