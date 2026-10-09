@@ -628,6 +628,15 @@ const TOKENS = `
   .ert-bar i b { display: block; height: 100%; background: var(--brass); border-radius: 4px; }
   .ert-bar span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ert-bar span:last-child { text-align: right; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .ert-stack { display: flex; flex-direction: column; gap: 40px; min-width: 0; }
+  .ert-yearchart { display: flex; align-items: flex-end; gap: 12px; height: 200px; padding-top: 6px; }
+  .ert-yearchart.dense { gap: 4px; }
+  .ert-ycol { flex: 1 1 0; min-width: 0; max-width: 88px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; }
+  .ert-ycol .n { font-size: 12.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; line-height: 1; }
+  .ert-ycol .col { width: 100%; border-radius: 4px 4px 0 0; background: var(--brass); min-height: 3px; }
+  .ert-ycol .col.zero { background: var(--surface-raised); }
+  .ert-ycol .y { font-size: 12.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; line-height: 1; padding-top: 2px; border-top: 1px solid var(--surface-raised); width: 100%; text-align: center; margin-top: -2px; }
+  .ert-ycol .plot { flex: 1 1 auto; width: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; min-height: 0; padding-top: 20px; box-sizing: border-box; }
 
   /* ---- Rooms: one tab, a toggle, tiles ---- */
   .ert-seg { display: inline-flex; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 10px; padding: 3px; gap: 3px; flex: none; }
@@ -2344,6 +2353,8 @@ function Dashboard({ rooms, members, onOpenRoom, onOpenWishlist, flags }) {
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
   }, [played]);
 
+  const byYear = useMemo(() => roomsPerYear(played), [played]);
+
   const recent = [...played].sort((a, b) => (b.datePlayed || "").localeCompare(a.datePlayed || "")).slice(0, 5);
   const topRated = [...played]
     .map((r) => ({ ...r, _avg: avgRating(r) }))
@@ -2401,11 +2412,18 @@ function Dashboard({ rooms, members, onOpenRoom, onOpenWishlist, flags }) {
         </div>
       </div>
 
-      <div className="ert-cols" style={{ marginTop: 52 }}>
-        <div>
-          <h2 className="ert-sh">Where you've played</h2>
-          {byCity.length === 0 && <EmptyNote text="No played rooms yet." />}
-          <div>{byCity.map(([city, count]) => <BarRow key={city} label={city} count={count} max={byCity[0][1]} />)}</div>
+      <div className="ert-cols" style={{ marginTop: 52, alignItems: "start" }}>
+        <div className="ert-stack">
+          <div>
+            <h2 className="ert-sh">Where you've played</h2>
+            {byCity.length === 0 && <EmptyNote text="No played rooms yet." />}
+            <div>{byCity.map(([city, count]) => <BarRow key={city} label={city} count={count} max={byCity[0][1]} />)}</div>
+          </div>
+          <div>
+            <h2 className="ert-sh">Rooms per year</h2>
+            {byYear.length === 0 && <EmptyNote text="No dated rooms yet." />}
+            <YearChart data={byYear} />
+          </div>
         </div>
         <div>
           <h2 className="ert-sh">Categories</h2>
@@ -2413,6 +2431,40 @@ function Dashboard({ rooms, members, onOpenRoom, onOpenWishlist, flags }) {
           <div>{byCategory.map(([cat, count]) => <BarRow key={cat} label={cat} count={count} max={byCategory[0][1]} />)}</div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Played rooms per calendar year, oldest to newest, with empty years in
+// between kept as zero so the timeline has no gaps. Rooms without a date
+// can't be placed on it and are skipped.
+function roomsPerYear(played) {
+  const counts = {};
+  played.forEach((r) => {
+    const y = parseInt((r.datePlayed || "").slice(0, 4), 10);
+    if (y >= 1900 && y <= 2200) counts[y] = (counts[y] || 0) + 1;
+  });
+  const years = Object.keys(counts).map(Number);
+  if (!years.length) return [];
+  const out = [];
+  for (let y = Math.min(...years); y <= Math.max(...years); y++) out.push([String(y), counts[y] || 0]);
+  return out;
+}
+
+function YearChart({ data }) {
+  if (!data.length) return null;
+  const max = Math.max(1, ...data.map((d) => d[1]));
+  return (
+    <div className={`ert-yearchart${data.length > 8 ? " dense" : ""}`} role="img" aria-label={`Rooms played per year: ${data.map((d) => `${d[0]} ${d[1]}`).join(", ")}`}>
+      {data.map(([year, n]) => (
+        <div className="ert-ycol" key={year}>
+          <div className="plot">
+            <span className="n">{n}</span>
+            <div className={`col${n === 0 ? " zero" : ""}`} style={{ height: `${n === 0 ? 0 : Math.max(4, (n / max) * 100)}%`, flex: "0 0 auto" }} />
+          </div>
+          <span className="y">{year}</span>
+        </div>
+      ))}
     </div>
   );
 }
